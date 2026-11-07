@@ -68,6 +68,13 @@ In cities where captivity is law, guards raid nearby villager settlements and br
 - Right-click a colonist with an empty hand to see its job, spouse, traits, needs and inventory, and your standing.
 - Gifts raise your standing; hitting or killing colonists lowers it. Join a faction at standing 40+ with `/colony join`, or found your own with `/colony found <name>` and recruit colonists by sneak-right-clicking them with an emerald. Founders can use `/colony war|peace|ally`.
 
+## Map mods (optional)
+
+- **JourneyMap:** each city's territory is drawn on the minimap and fullscreen map, shaded in the faction's colour and labelled with its name and rank. Hover over it to see the ruler and your standing. Borders turn red at war and green for allies, and the outline follows the city wall once one is planned.
+- **Xaero's Minimap:** a waypoint set called *Colonist cities* has one waypoint per city plaza, named with its rank and your relation, and kept up to date as cities change. (This uses Xaero's internals, so if a future Xaero version is incompatible, the integration switches itself off rather than crashing.)
+
+Both are optional. The mod works the same without them. In multiplayer, players need Colonists installed on their client to see cities on their map.
+
 ## Commands
 
 | Command | What it does |
