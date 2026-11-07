@@ -42,8 +42,16 @@ public class ColonistsMod implements ModInitializer {
 			GameRuleRegistry.register("colonistsChatter", GameRules.Category.CHAT, GameRuleFactory.createBooleanRule(true));
 	public static final GameRules.Key<GameRules.BooleanRule> GROW =
 			GameRuleRegistry.register("colonistsGrow", GameRules.Category.SPAWNING, GameRuleFactory.createBooleanRule(true));
+	/** 0 = no limit: cities grow as big as births, housing and food allow. */
 	public static final GameRules.Key<GameRules.IntRule> MAX_PER_FACTION =
-			GameRuleRegistry.register("colonistsMaxPerFaction", GameRules.Category.SPAWNING, GameRuleFactory.createIntRule(30, 1, 200));
+			GameRuleRegistry.register("colonistsMaxPerFaction", GameRules.Category.SPAWNING, GameRuleFactory.createIntRule(0, 0, 100000));
+	public static final GameRules.Key<GameRules.IntRule> LIFESPAN_MIN =
+			GameRuleRegistry.register("colonistsLifespanMinDays", GameRules.Category.SPAWNING, GameRuleFactory.createIntRule(25, 2, 10000));
+	public static final GameRules.Key<GameRules.IntRule> LIFESPAN_MAX =
+			GameRuleRegistry.register("colonistsLifespanMaxDays", GameRules.Category.SPAWNING, GameRuleFactory.createIntRule(30, 2, 10000));
+	/** Keep the heart of every city loaded so it lives on while no player is near. */
+	public static final GameRules.Key<GameRules.BooleanRule> KEEP_LOADED =
+			GameRuleRegistry.register("colonistsKeepCitiesLoaded", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
 
 	public static EntityType<ColonistEntity> COLONIST;
 	public static EntityType<CaptiveEntity> CAPTIVE;

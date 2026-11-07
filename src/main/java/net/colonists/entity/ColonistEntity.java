@@ -121,6 +121,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	@Nullable public UUID parentA, parentB;
 	public int growUpTicks;
 	public long lastBirthTime;
+	/** In-game day this colonist was born, and how many days they will live. */
+	public long birthDay = Long.MIN_VALUE;
+	public int lifespanDays;
+	private boolean diedOfOldAge;
 	private final Map<UUID, Integer> affinity = new HashMap<>();
 	/** Children (and grown children without a house yet) sleep at their parents' house. */
 	@Nullable public BlockPos parentHome;
@@ -210,6 +214,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.dataTracker.set(SKIN, this.random.nextInt(SKIN_COUNT));
 			this.setPersistent();
 			if (this.surname.isEmpty()) this.surname = SURNAMES[this.random.nextInt(SURNAMES.length)];
+			if (this.birthDay == Long.MIN_VALUE) this.birthDay = today(sw) - 1 - this.random.nextInt(6); // settlers arrive as young adults
 			if (this.ambition == 0 && this.aggression == 0 && this.kindness == 0) {
 				this.ambition = 10 + this.random.nextInt(81);
 				this.aggression = 10 + this.random.nextInt(81);
@@ -225,7 +230,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				ColonistEntity nearest = sw.getEntitiesByClass(ColonistEntity.class, this.getBoundingBox().expand(48),
 								c -> c != this && fm.get(c.factionId) != null)
 						.stream().min(Comparator.comparingDouble(this::squaredDistanceTo)).orElse(null);
-				if (nearest != null && fm.memberCount(nearest.factionId) < max) join = nearest.factionId;
+				if (nearest != null && (max <= 0 || fm.memberCount(nearest.factionId) < max)) join = nearest.factionId;
 			}
 			Faction f = fm.get(join);
 			if (f == null) {
@@ -292,9 +297,43 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		if (CHILD.equals(data)) this.calculateDimensions();
 	}
 
+	public static long today(World world) {
+		return world.getTimeOfDay() / 24000L;
+	}
+
+	public long ageDays() {
+		return this.birthDay == Long.MIN_VALUE ? 0 : today(this.getWorld()) - this.birthDay;
+	}
+
+	private void ensureLifespan(ServerWorld sw) {
+		if (this.birthDay == Long.MIN_VALUE) this.birthDay = today(sw) - this.random.nextInt(6);
+		if (this.lifespanDays <= 0) {
+			int min = sw.getGameRules().getInt(ColonistsMod.LIFESPAN_MIN);
+			int max = Math.max(min, sw.getGameRules().getInt(ColonistsMod.LIFESPAN_MAX));
+			this.lifespanDays = min + this.random.nextInt(max - min + 1);
+		}
+	}
+
+	/** Old age: the house passes to a spouse or child who has none, belongings go into the house chest. */
+	private void dieOfOldAge(ServerWorld sw) {
+		this.diedOfOldAge = true;
+		FactionManager fm = FactionManager.get(sw.getServer());
+		if (this.chest != null && sw.getBlockEntity(this.chest) instanceof net.minecraft.inventory.Inventory box) {
+			for (int i = 0; i < this.inventory.size(); i++) {
+				ItemStack rest = ColonistBrain.insert(box, this.inventory.getStack(i));
+				this.inventory.setStack(i, rest);
+			}
+		}
+		FactionManager.broadcastNear(sw, this.getBlockPos(), 160, Text.literal("🕯 " + this.fullName() + " of the ")
+				.formatted(Formatting.GRAY).append(fm.get(this.factionId) == null ? Text.literal("wilds") : fm.get(this.factionId).displayName())
+				.append(Text.literal(" has passed away of old age, " + this.ageDays() + " days old.").formatted(Formatting.GRAY)));
+		this.kill();
+	}
+
 	/** Makes this colonist the newborn child of two parents. */
 	public void bornTo(ColonistEntity a, @Nullable ColonistEntity b) {
 		this.setChild(true);
+		this.birthDay = today(a.getWorld());
 		this.parentA = a.getUuid();
 		this.parentB = b == null ? null : b.getUuid();
 		this.surname = a.surname;
@@ -452,6 +491,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.refreshName();
 		}
 		if (this.isBaby() && --this.growUpTicks <= 0) this.growUp(sw);
+		if (phase % 1200 == 0) {
+			this.ensureLifespan(sw);
+			if (!this.isBaby() && this.ageDays() >= this.lifespanDays && !this.diedOfOldAge) this.dieOfOldAge(sw);
+		}
 	}
 
 	private void growUp(ServerWorld sw) {
@@ -689,8 +732,9 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				(int) Math.ceil(this.getHealth()), (int) this.getMaxHealth(), this.hunger,
 				this.home == null ? (this.buildSite != null ? "building" : "none") : this.home.toShortString(),
 				this.hasValidBed() ? "yes" : "no")).formatted(Formatting.WHITE), false);
-		player.sendMessage(Text.literal(String.format("%s   Spouse: %s   Ambition %d · Aggression %d · Kindness %d",
+		player.sendMessage(Text.literal(String.format("%s   Age %d of %d days   Spouse: %s   Ambition %d · Aggression %d · Kindness %d",
 				this.isBaby() ? "Child (grows up in " + (this.growUpTicks / 1200) + " min)" : this.job.label,
+				this.ageDays(), this.lifespanDays,
 				this.partner == null ? "none" : this.partnerName, this.ambition, this.aggression, this.kindness)).formatted(Formatting.WHITE), false);
 		player.sendMessage(Text.literal("Your standing: ").formatted(Formatting.GRAY)
 				.append(Text.literal(FactionManager.describe(standing) + " (" + standing + ")").formatted(FactionManager.describeColor(standing))), false);
@@ -751,9 +795,11 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				if (fm.relation(this.factionId, other.id) <= FactionManager.WAR) fm.changeRep(sw.getServer(), p, other.id, 8);
 			}
 		}
-		Text deathMessage = source.getDeathMessage(this);
-		for (ServerPlayerEntity p : sw.getPlayers(p -> p.squaredDistanceTo(this) < 64 * 64)) {
-			p.sendMessage(Text.literal("☠ ").formatted(Formatting.DARK_GRAY).append(deathMessage), false);
+		if (!this.diedOfOldAge) {
+			Text deathMessage = source.getDeathMessage(this);
+			for (ServerPlayerEntity p : sw.getPlayers(p -> p.squaredDistanceTo(this) < 64 * 64)) {
+				p.sendMessage(Text.literal("☠ ").formatted(Formatting.DARK_GRAY).append(deathMessage), false);
+			}
 		}
 		Faction mine = fm.get(this.factionId);
 		if (mine != null && (killer instanceof ColonistEntity || killer instanceof PlayerEntity)) {
@@ -764,7 +810,23 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			ItemStack stack = this.inventory.removeStack(i);
 			if (!stack.isEmpty()) ItemScatterer.spawn(sw, this.getX(), this.getY(), this.getZ(), stack);
 		}
+		BlockPos house = this.home;
 		fm.removeMember(sw.getServer(), this.factionId, this.getUuid());
+		// Inheritance: a spouse or child without a house of their own moves in.
+		if (house != null) {
+			ColonistEntity heir = sw.getEntitiesByClass(ColonistEntity.class, this.getBoundingBox().expand(96),
+							o -> o != this && o.home == null && o.getFactionId().equals(this.factionId)
+									&& (this.getUuid().equals(o.partner) || this.isFamily(o)))
+					.stream().min(Comparator.comparingInt(o -> o.isBaby() ? 1 : 0)).orElse(null);
+			if (heir != null) {
+				heir.home = house;
+				heir.bed = this.bed;
+				heir.chest = this.chest;
+				heir.buildSite = null;
+				fm.claimHome(this.factionId, house, heir.getUuid());
+				heir.say("I'll look after the house now.");
+			}
+		}
 	}
 
 	// ---------------------------------------------------------------- save & load
@@ -792,6 +854,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		nbt.putBoolean("Child", this.isBaby());
 		nbt.putInt("GrowUp", this.growUpTicks);
 		nbt.putLong("LastBirth", this.lastBirthTime);
+		if (this.birthDay != Long.MIN_VALUE) nbt.putLong("BirthDay", this.birthDay);
+		nbt.putInt("Lifespan", this.lifespanDays);
 		if (this.partner != null) nbt.putUuid("Partner", this.partner);
 		nbt.putString("PartnerName", this.partnerName);
 		if (this.parentA != null) nbt.putUuid("ParentA", this.parentA);
@@ -828,6 +892,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		this.dataTracker.set(CHILD, nbt.getBoolean("Child"));
 		this.growUpTicks = nbt.getInt("GrowUp");
 		this.lastBirthTime = nbt.getLong("LastBirth");
+		this.birthDay = nbt.contains("BirthDay") ? nbt.getLong("BirthDay") : Long.MIN_VALUE;
+		this.lifespanDays = nbt.getInt("Lifespan");
 		this.partner = nbt.containsUuid("Partner") ? nbt.getUuid("Partner") : null;
 		this.partnerName = nbt.getString("PartnerName");
 		this.parentA = nbt.containsUuid("ParentA") ? nbt.getUuid("ParentA") : null;

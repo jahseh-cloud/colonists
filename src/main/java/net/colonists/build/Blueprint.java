@@ -31,8 +31,8 @@ public final class Blueprint {
 	 */
 	public record Entry(int x, int y, int z, Mat mat, @Nullable BlockState fixed, @Nullable Direction facing,
 						boolean upsideDown, @Nullable Predicate<ItemStack> cost, int costCount, boolean optional) {
-		public BlockPos at(BlockPos origin) {
-			return origin.add(this.x, this.y, this.z);
+		public BlockPos at(Site site) {
+			return site.at(this.x, this.y, this.z);
 		}
 	}
 
@@ -78,12 +78,17 @@ public final class Blueprint {
 		return n;
 	}
 
-	public BlockPos doorstep(BlockPos origin) {
-		return origin.add(this.doorX < 0 ? this.width / 2 : this.doorX, 0, -1);
+	public BlockPos doorstep(Site site) {
+		return site.at(this.doorX < 0 ? this.width / 2 : this.doorX, 0, -1);
 	}
 
-	public BlockPos inside(BlockPos origin) {
-		return origin.add(this.width / 2, 0, this.depth / 2);
+	public BlockPos inside(Site site) {
+		return site.at(this.width / 2, 0, this.depth / 2);
+	}
+
+	/** East edge of the lot (the garden sits beside narrow houses). */
+	public int lotWidth() {
+		return this.garden ? 9 : this.width;
 	}
 
 	public static Builder builder(String id, String name, int width, int depth) {

@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.build.Site;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
@@ -39,12 +40,12 @@ public class FarmTask extends Task {
 
 	record Job(BlockPos crop, Action action) {}
 
-	private final BlockPos origin;
+	private final Site origin;
 	private final boolean field;
 	private Job job;
 	private int cooldown;
 
-	public FarmTask(ColonistEntity colonist, BlockPos origin, boolean field) {
+	public FarmTask(ColonistEntity colonist, Site origin, boolean field) {
 		super(colonist);
 		this.origin = origin;
 		this.field = field;
@@ -61,22 +62,24 @@ public class FarmTask extends Task {
 	}
 
 	/** Crop positions (farmland is one block below each). */
-	static List<BlockPos> cells(BlockPos origin, boolean field) {
+	static List<BlockPos> cells(Site origin, boolean field) {
 		List<BlockPos> cells = new ArrayList<>();
 		if (field) {
 			for (int x = 0; x <= 8; x++) {
-				for (int z = 0; z <= 8; z++) cells.add(origin.add(x, 0, z));
+				for (int z = 0; z <= 8; z++) cells.add(origin.at(x, 0, z));
 			}
 		} else {
 			for (int x = 6; x <= 8; x++) {
-				for (int z = 1; z <= 4; z++) cells.add(origin.add(x, 0, z));
+				for (int z = 1; z <= 4; z++) cells.add(origin.at(x, 0, z));
 			}
 		}
 		return cells;
 	}
 
-	private static boolean isChannel(BlockPos origin, BlockPos cell, boolean field) {
-		return field && cell.getZ() == origin.getZ() + 4;
+	private static boolean isChannel(Site origin, BlockPos cell, boolean field) {
+		if (!field) return false;
+		for (int x = 0; x <= 8; x++) if (origin.at(x, 0, 4).equals(cell)) return true;
+		return false;
 	}
 
 	private static boolean hasSeeds(ColonistEntity c) {
@@ -84,7 +87,7 @@ public class FarmTask extends Task {
 	}
 
 	@Nullable
-	private static Action actionFor(World world, BlockPos origin, BlockPos crop, boolean field, boolean seeds) {
+	private static Action actionFor(World world, Site origin, BlockPos crop, boolean field, boolean seeds) {
 		BlockState above = world.getBlockState(crop);
 		BlockState ground = world.getBlockState(crop.down());
 		if (isChannel(origin, crop, field)) {
@@ -103,7 +106,7 @@ public class FarmTask extends Task {
 		return null;
 	}
 
-	public static boolean hasWork(ColonistEntity c, BlockPos origin, boolean field) {
+	public static boolean hasWork(ColonistEntity c, Site origin, boolean field) {
 		boolean seeds = hasSeeds(c);
 		for (BlockPos cell : cells(origin, field)) {
 			if (actionFor(c.getWorld(), origin, cell, field, seeds) != null) return true;
@@ -111,7 +114,7 @@ public class FarmTask extends Task {
 		return false;
 	}
 
-	public static int matureCrops(ColonistEntity c, BlockPos origin, boolean field) {
+	public static int matureCrops(ColonistEntity c, Site origin, boolean field) {
 		int n = 0;
 		for (BlockPos cell : cells(origin, field)) {
 			if (actionFor(c.getWorld(), origin, cell, field, false) == Action.HARVEST) n++;
@@ -121,34 +124,23 @@ public class FarmTask extends Task {
 
 	/** The farm lot a farmer should work on: an existing field with work, or a newly claimed one. */
 	@Nullable
-	public static BlockPos pickField(ColonistEntity c) {
+	public static Site pickField(ColonistEntity c) {
 		FactionManager fm = c.factions();
 		Faction f = fm == null ? null : fm.get(c.getFactionId());
 		if (f == null || f.cityCenter == null) return null;
 		for (BlockPos farm : f.farms) {
-			if (c.getWorld().isChunkLoaded(farm.getX() >> 4, farm.getZ() >> 4) && hasWork(c, farm, true)) return farm;
+			Site site = f.site(farm);
+			if (c.getWorld().isChunkLoaded(farm.getX() >> 4, farm.getZ() >> 4) && hasWork(c, site, true)) return site;
 		}
 		// One field for every four citizens.
 		if (f.farms.size() * 4 >= Math.max(4, f.members.size()) || c.onSearchCooldown("FIELD")) return null;
 		c.searchCooldown("FIELD", 1200);
-		int checked = 0;
-		for (City.Lot lot : City.lots(f.cityCenter)) {
-			if (!lot.farm() || f.blockedLots.contains(lot.origin()) || BuildStructureTask.isTaken(f, lot.origin())) continue;
-			if (++checked > 6) break;
-			BlockPos o = lot.origin();
-			Integer floor = City.floorFor((ServerWorld) c.getWorld(), o.getX(), o.getZ(), o.getX() + 8, o.getZ() + 8, 1);
-			if (floor == null) {
-				if (c.getWorld().isChunkLoaded(o.getX() >> 4, o.getZ() >> 4)) f.blockedLots.add(o);
-				continue;
-			}
-			BlockPos field = o.withY(floor);
-			f.farms.add(field);
-			fm.markDirty();
-			c.say("We need more food. I'm starting a new field.");
-			return field;
-		}
-		return null;
+		Site site = net.colonists.faction.CityGrowth.claim((ServerWorld) c.getWorld(), fm, f, null,
+				net.colonists.faction.CityGrowth.Purpose.FIELD, c.getRandom());
+		if (site != null) c.say("We need more food. I'm starting a new field.");
+		return site;
 	}
+
 
 	@Override
 	public void tick() {

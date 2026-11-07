@@ -119,26 +119,9 @@ public final class City {
 	 * the street in front of each lot, the avenue from street 0 to that street, and street 0 out to that avenue.
 	 */
 	public static Set<BlockPos> roadColumns(Faction f) {
-		Set<BlockPos> roads = new LinkedHashSet<>();
+		Set<BlockPos> roads = new LinkedHashSet<>(f.roads);
 		BlockPos c = f.cityCenter;
-		if (c == null) return roads;
-		List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
-		claimed.addAll(f.farms);
-		claimed.addAll(f.buildingTypes.keySet());
-		for (BlockPos origin : claimed) {
-			Lot lot = lotAt(c, origin);
-			if (lot == null) continue;
-			int sz = lot.streetZ(c);
-			int ax = lot.avenueX(c);
-			// street 0 from the plaza to this avenue
-			addStrip(roads, Math.min(c.getX(), ax), Math.max(c.getX(), ax), c.getZ() - 1, c.getZ() + 1);
-			// the avenue from street 0 to this lot's street
-			addStrip(roads, ax - 1, ax + 1, Math.min(c.getZ(), sz), Math.max(c.getZ(), sz));
-			// this lot's street from the avenue to the far side of the lot
-			addStrip(roads, Math.min(ax, origin.getX()), Math.max(ax, origin.getX() + LOT_WIDTH - 1), sz - 1, sz + 1);
-		}
-		// Keep the plaza itself out of the road list; it is paved separately.
-		roads.removeIf(p -> Math.abs(p.getX() - c.getX()) <= PLAZA_HALF && Math.abs(p.getZ() - c.getZ()) <= PLAZA_HALF);
+		if (c != null) roads.removeIf(p -> Math.abs(p.getX() - c.getX()) <= PLAZA_HALF && Math.abs(p.getZ() - c.getZ()) <= PLAZA_HALF);
 		return roads;
 	}
 
@@ -173,14 +156,11 @@ public final class City {
 		BlockPos c = f.cityCenter;
 		if (c == null) return;
 		int minX = c.getX() - PLAZA_HALF, maxX = c.getX() + PLAZA_HALF, minZ = c.getZ() - PLAZA_HALF, maxZ = c.getZ() + PLAZA_HALF;
-		List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
-		claimed.addAll(f.farms);
-		claimed.addAll(f.buildingTypes.keySet());
-		for (BlockPos o : claimed) {
-			minX = Math.min(minX, o.getX());
-			maxX = Math.max(maxX, o.getX() + LOT_WIDTH - 1);
-			minZ = Math.min(minZ, o.getZ() - 3); // include the street in front
-			maxZ = Math.max(maxZ, o.getZ() + LOT_DEPTH - 1);
+		for (int[] r : CityGrowth.footprints(f)) {
+			minX = Math.min(minX, r[0] - 2);
+			maxX = Math.max(maxX, r[2] + 2);
+			minZ = Math.min(minZ, r[1] - 2);
+			maxZ = Math.max(maxZ, r[3] + 2);
 		}
 		f.wallMinX = minX - 4;
 		f.wallMaxX = maxX + 4;

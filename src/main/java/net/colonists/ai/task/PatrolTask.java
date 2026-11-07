@@ -45,8 +45,8 @@ public class PatrolTask extends Task {
 		if (this.point == null) {
 			List<BlockPos> options = new ArrayList<>();
 			options.add(f.cityCenter);
-			for (BlockPos home : f.homes.keySet()) options.add(BuildStructureTask.blueprintAt(f, home).doorstep(home));
-			for (BlockPos farm : f.farms) options.add(farm.add(4, 0, -1));
+			for (BlockPos home : f.homes.keySet()) options.add(BuildStructureTask.blueprintAt(f, home).doorstep(f.site(home)));
+			for (BlockPos farm : f.farms) options.add(f.site(farm).at(4, 0, -1));
 			BlockPos pick = options.get(this.colonist.getRandom().nextInt(options.size()));
 			this.point = pick.withY(City.surfaceYOr(this.colonist.getWorld(), pick.getX(), pick.getZ(), pick.getY()));
 			this.resetMovement();

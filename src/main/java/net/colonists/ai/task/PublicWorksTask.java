@@ -159,7 +159,7 @@ public class PublicWorksTask extends Task {
 		if (ColonistBrain.count(c.getInventory(), Items.TORCH) > 0 && ColonistBrain.count(c.getInventory(), ColonistBrain.PLANKS) > 0) {
 			List<Job> lamps = new ArrayList<>();
 			for (BlockPos home : f.homes.keySet()) {
-				BlockPos col = City.lampColumn(home);
+				BlockPos col = f.site(home).at(-1, 0, -1).withY(0);
 				if (!world.isChunkLoaded(col.getX() >> 4, col.getZ() >> 4)) continue;
 				BlockPos base = new BlockPos(col.getX(), City.surfaceY(world, col.getX(), col.getZ()), col.getZ());
 				BlockState below = world.getBlockState(base.down());

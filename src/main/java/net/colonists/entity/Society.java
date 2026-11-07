@@ -24,6 +24,7 @@ final class Society {
 		if (faction == null || c.isBaby()) return;
 		boolean grow = world.getGameRules().getBoolean(ColonistsMod.GROW);
 		int cap = world.getGameRules().getInt(ColonistsMod.MAX_PER_FACTION);
+		boolean room = cap <= 0 || fm.memberCount(faction.id) < cap;
 
 		// A newly opened workplace pulls someone out of a crowded trade.
 		ColonistEntity.Job switchTo = net.colonists.faction.Politics.reconsiderJob(faction, c.getUuid(), c.job);
@@ -40,7 +41,7 @@ final class Society {
 		}
 
 		// Births: a married couple with a house and food to spare.
-		if (grow && c.partner != null && c.home != null && fm.memberCount(faction.id) < cap
+		if (grow && c.partner != null && c.home != null && room
 				&& world.getTime() - c.lastBirthTime > BIRTH_INTERVAL
 				&& ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 && c.getRandom().nextInt(3) == 0) {
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),

@@ -53,7 +53,7 @@ public class StoreTask extends Task {
 			return;
 		}
 		net.colonists.build.Blueprint bp = BuildStructureTask.blueprintFor(this.colonist, this.colonist.home);
-		BlockPos spot = this.colonist.chest != null ? this.colonist.chest : (bp.chest != null ? this.colonist.home.add(bp.chest) : null);
+		BlockPos spot = this.colonist.chest != null ? this.colonist.chest : (bp.chest != null ? BuildStructureTask.siteFor(this.colonist, this.colonist.home).at(bp.chest) : null);
 		if (spot == null) {
 			this.done = true;
 			return;

@@ -75,14 +75,11 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 				maxX = c.getX() + City.PLAZA_HALF + 6;
 				minZ = c.getZ() - City.PLAZA_HALF - 6;
 				maxZ = c.getZ() + City.PLAZA_HALF + 6;
-				List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
-				claimed.addAll(f.farms);
-				claimed.addAll(f.buildingTypes.keySet());
-				for (BlockPos o : claimed) {
-					minX = Math.min(minX, o.getX() - 4);
-					maxX = Math.max(maxX, o.getX() + City.LOT_WIDTH + 3);
-					minZ = Math.min(minZ, o.getZ() - 6);
-					maxZ = Math.max(maxZ, o.getZ() + City.LOT_DEPTH + 2);
+				for (int[] r : net.colonists.faction.CityGrowth.footprints(f)) {
+					minX = Math.min(minX, r[0] - 4);
+					maxX = Math.max(maxX, r[2] + 4);
+					minZ = Math.min(minZ, r[1] - 4);
+					maxZ = Math.max(maxZ, r[3] + 4);
 				}
 			}
 			Integer rgb = f.color.getColorValue();

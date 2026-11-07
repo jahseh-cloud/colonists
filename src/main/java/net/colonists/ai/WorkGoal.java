@@ -9,6 +9,7 @@ import net.colonists.ai.task.WorkshopTask;
 import net.colonists.build.Blueprint;
 import net.colonists.build.Blueprints;
 import net.colonists.build.Materials;
+import net.colonists.build.Site;
 import net.colonists.ai.task.ChildTask;
 import net.colonists.ai.task.MigrateTask;
 import net.colonists.ai.task.PatrolTask;
@@ -132,9 +133,8 @@ public class WorkGoal extends Goal {
 		if (f != null && f.cityCenter == null && !c.isBaby() && canBuild) {
 			BlockPos other = fm.nearestOtherCity(f, c.getBlockPos());
 			if (other == null || other.getSquaredDistance(c.getBlockPos().withY(other.getY())) > 140 * 140) {
-				int x = c.getBlockX(), z = c.getBlockZ();
-				BlockPos center = new BlockPos(x, City.surfaceY(world, x, z), z);
-				if (world.getBlockState(center.down()).getFluidState().isEmpty()) {
+				BlockPos center = net.colonists.faction.CityGrowth.bestCenter(world, c.getBlockPos(), c.getRandom());
+				if (center != null) {
 					fm.foundCity(world.getServer(), f, center);
 					c.say("We'll build our city right here!");
 					city = true;
@@ -166,7 +166,7 @@ public class WorkGoal extends Goal {
 				c.searchCooldown("STOCK_FOOD", 600);
 				return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, ColonistBrain.FOOD, 8, "Getting food from the city stores");
 			}
-			if (c.home != null && FarmTask.matureCrops(c, c.home, false) > 0) return new FarmTask(c, c.home, false);
+			if (c.home != null && city && FarmTask.matureCrops(c, f.site(c.home), false) > 0) return new FarmTask(c, f.site(c.home), false);
 			AnimalEntity prey = findPrey(c);
 			if (prey != null) {
 				c.setTarget(prey);
@@ -200,12 +200,12 @@ public class WorkGoal extends Goal {
 			if (c.home == null && c.buildSite == null && canBuild && !c.onSearchCooldown("BUILD_SITE")) {
 				Blueprint want = Blueprints.homeFor(f.rank, c.isRuler());
 				if (ColonistBrain.woodValue(inv) >= Math.min(want.woodCost(), 48) && stone(inv) >= Math.min(want.stoneCost(), 12)) {
-					BlockPos site = BuildStructureTask.claimLot(c, f, want);
+					Site site = BuildStructureTask.claimLot(c, f, want);
 					if (site == null) {
 						c.searchCooldown("BUILD_SITE", 2400);
 					} else {
-						c.buildSite = site;
-						fm.claimHome(f.id, site, c.getUuid());
+						c.buildSite = site.origin();
+						fm.claimHome(f.id, site.origin(), c.getUuid());
 						c.say("I've picked out a lot for my new " + want.name.toLowerCase() + ".");
 					}
 				}
@@ -213,7 +213,7 @@ public class WorkGoal extends Goal {
 			Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : Blueprints.homeFor(f.rank, c.isRuler());
 			if (c.home == null && c.buildSite != null && canBuild && c.needs.isEmpty()
 					&& ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
-				return new BuildStructureTask(c, c.buildSite, plan, true);
+				return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
 			}
 			if (c.home == null) {
 				Task supply = supply(c, f, canBreak, plan);
@@ -222,7 +222,7 @@ public class WorkGoal extends Goal {
 		} else if (c.home != null && canBuild && city && !c.onSearchCooldown("REPAIR")) {
 			c.searchCooldown("REPAIR", 400);
 			Blueprint bp = BuildStructureTask.blueprintAt(f, c.home);
-			if (BuildStructureTask.hasWork(c, c.home, bp)) return new BuildStructureTask(c, c.home, bp, true);
+			if (BuildStructureTask.hasWork(c, f.site(c.home), bp)) return new BuildStructureTask(c, f.site(c.home), bp, true);
 		}
 
 		// Better tools and armour from the city stores (made by the blacksmith).
@@ -239,7 +239,7 @@ public class WorkGoal extends Goal {
 
 		// 8. The garden beside the house.
 		if (c.home != null && canBreak && city && BuildStructureTask.blueprintAt(f, c.home).garden
-				&& FarmTask.hasWork(c, c.home, false)) return new FarmTask(c, c.home, false);
+				&& FarmTask.hasWork(c, f.site(c.home), false)) return new FarmTask(c, f.site(c.home), false);
 
 		// 9. Socialise every now and then (this is how friendships and marriages happen).
 		if (world.getTime() - c.lastSocialTime > 2000 && c.getRandom().nextInt(3) == 0) {
@@ -317,9 +317,9 @@ public class WorkGoal extends Goal {
 			if (f.homes.containsKey(o) || !world.isChunkLoaded(o.getX() >> 4, o.getZ() >> 4)) continue;
 			Blueprint bp = Blueprints.get(e.getValue());
 			boolean unfinished = !f.built.contains(o);
-			if (!unfinished && !BuildStructureTask.hasWork(c, o, bp)) continue; // built and in good repair
+			if (!unfinished && !BuildStructureTask.hasWork(c, f.site(o), bp)) continue; // built and in good repair
 			if (ColonistBrain.woodValue(inv(c)) >= 8 && (bp.stoneCost() == 0 || stone(inv(c)) > 0) && c.needs.isEmpty()) {
-				return new BuildStructureTask(c, o, bp, false);
+				return new BuildStructureTask(c, f.site(o), bp, false);
 			}
 			Task supply = supply(c, f, canBreak, bp);
 			if (supply != null) return supply;
@@ -332,7 +332,7 @@ public class WorkGoal extends Goal {
 				if (!f.buildingsOf(id).isEmpty()) continue;
 				if ((id.equals("town_hall") && pop < 2) || (id.equals("lumber_camp") && pop < 3) || (id.equals("barn") && pop < 4)) continue;
 				Blueprint bp = Blueprints.get(id);
-				BlockPos site = BuildStructureTask.claimLot(c, f, bp);
+				Site site = BuildStructureTask.claimLot(c, f, bp);
 				if (site == null) {
 					c.searchCooldown("PROJECT", 2400);
 					return null;
@@ -371,7 +371,7 @@ public class WorkGoal extends Goal {
 		switch (c.job) {
 			case FARMER -> {
 				if (!canBreak) return null;
-				BlockPos field = FarmTask.pickField(c);
+				Site field = FarmTask.pickField(c);
 				if (field != null && (ColonistBrain.count(inv, ColonistBrain.SEEDS) > 0 || FarmTask.matureCrops(c, field, true) > 0
 						|| FarmTask.hasWork(c, field, true))) {
 					return new FarmTask(c, field, true);
@@ -382,7 +382,7 @@ public class WorkGoal extends Goal {
 			}
 			case RANCHER -> {
 				BlockPos pen = nearestBuilt(c, f, "animal_pen");
-				if (pen != null && !c.onSearchCooldown("RANCH")) return new RanchTask(c, pen);
+				if (pen != null && !c.onSearchCooldown("RANCH")) return new RanchTask(c, f.site(pen));
 				if (pen != null && ColonistBrain.count(inv, s -> s.isOf(Items.WHEAT) || s.isOf(Items.CARROT)) < 4 && !c.onSearchCooldown("STOCK_FEED")) {
 					c.searchCooldown("STOCK_FEED", 2400);
 					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> s.isOf(Items.WHEAT) || s.isOf(Items.CARROT) || s.isOf(Items.WHEAT_SEEDS),
@@ -410,13 +410,13 @@ public class WorkGoal extends Goal {
 			case BLACKSMITH -> {
 				BlockPos smithy = nearestBuilt(c, f, "smithy");
 				if (smithy != null && WorkshopTask.worthDoing(c, f, WorkshopTask.Trade.SMITH)) {
-					return new WorkshopTask(c, WorkshopTask.Trade.SMITH, smithy, Blueprints.SMITHY);
+					return new WorkshopTask(c, WorkshopTask.Trade.SMITH, f.site(smithy), Blueprints.SMITHY);
 				}
 			}
 			case COOK -> {
 				BlockPos bakery = nearestBuilt(c, f, "bakery");
 				if (bakery != null && WorkshopTask.worthDoing(c, f, WorkshopTask.Trade.COOK)) {
-					return new WorkshopTask(c, WorkshopTask.Trade.COOK, bakery, Blueprints.BAKERY);
+					return new WorkshopTask(c, WorkshopTask.Trade.COOK, f.site(bakery), Blueprints.BAKERY);
 				}
 			}
 			case BUILDER -> {

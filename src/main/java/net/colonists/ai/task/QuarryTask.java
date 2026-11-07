@@ -143,14 +143,17 @@ public class QuarryTask extends Task {
 		FactionManager fm = c.factions();
 		int size = sizeFor(f.rank);
 		int minX = f.cityCenter.getX() - 12, maxX = f.cityCenter.getX() + 12, minZ = f.cityCenter.getZ() - 12, maxZ = f.cityCenter.getZ() + 12;
-		List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
-		claimed.addAll(f.farms);
-		claimed.addAll(f.buildingTypes.keySet());
-		for (BlockPos o : claimed) {
-			minX = Math.min(minX, o.getX());
-			maxX = Math.max(maxX, o.getX() + City.LOT_WIDTH);
-			minZ = Math.min(minZ, o.getZ() - 3);
-			maxZ = Math.max(maxZ, o.getZ() + City.LOT_DEPTH);
+		for (int[] r : net.colonists.faction.CityGrowth.footprints(f)) {
+			minX = Math.min(minX, r[0]);
+			maxX = Math.max(maxX, r[2]);
+			minZ = Math.min(minZ, r[1]);
+			maxZ = Math.max(maxZ, r[3]);
+		}
+		for (BlockPos r : f.roads) {
+			minX = Math.min(minX, r.getX());
+			maxX = Math.max(maxX, r.getX());
+			minZ = Math.min(minZ, r.getZ());
+			maxZ = Math.max(maxZ, r.getZ());
 		}
 		if (f.wallPlanned) {
 			minX = Math.min(minX, f.wallMinX);

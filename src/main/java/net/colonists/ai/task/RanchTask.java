@@ -32,12 +32,12 @@ import java.util.Map;
 public class RanchTask extends Task {
 	enum Goal { FETCH, BREED, SHEAR, CULL }
 
-	private final BlockPos pen; // lot origin of the 9x9 pen; gate at (4, 0, 0)
+	private final net.colonists.build.Site pen; // the 9x9 pen; gate at local (4, 0, 0)
 	private Goal goal;
 	private AnimalEntity animal;
 	private boolean leading;
 
-	public RanchTask(ColonistEntity colonist, BlockPos pen) {
+	public RanchTask(ColonistEntity colonist, net.colonists.build.Site pen) {
 		super(colonist);
 		this.pen = pen;
 	}
@@ -59,11 +59,13 @@ public class RanchTask extends Task {
 	}
 
 	private Box inside() {
-		return new Box(this.pen.getX() + 1, this.pen.getY() - 1, this.pen.getZ() + 1, this.pen.getX() + 8, this.pen.getY() + 3, this.pen.getZ() + 8);
+		int[] r = this.pen.rect(1, 1, 7, 7);
+		int y = this.pen.origin().getY();
+		return new Box(r[0], y - 1, r[1], r[2] + 1, y + 3, r[3] + 1);
 	}
 
 	private BlockPos gate() {
-		return this.pen.add(4, 0, 0);
+		return this.pen.at(4, 0, 0);
 	}
 
 	private List<AnimalEntity> penned() {
@@ -149,9 +151,9 @@ public class RanchTask extends Task {
 					return;
 				}
 				// Walk the animal to the gate, open it, lead it in.
-				BlockPos target = this.colonist.squaredDistanceTo(this.gate().toCenterPos()) > 9 ? this.gate().north() : this.pen.add(4, 0, 4);
+				BlockPos target = this.colonist.squaredDistanceTo(this.gate().toCenterPos()) > 9 ? this.gate().offset(this.pen.front()) : this.pen.at(4, 0, 4);
 				if (this.colonist.squaredDistanceTo(this.gate().toCenterPos()) < 16) this.setGate(true);
-				if (this.approach(target, 1.5, 0.9) && target.equals(this.pen.add(4, 0, 4))) {
+				if (this.approach(target, 1.5, 0.9) && target.equals(this.pen.at(4, 0, 4))) {
 					((Leashable) this.animal).detachLeash(true, false);
 					this.leading = false;
 					this.goal = Goal.BREED; // walk back out and close up
@@ -201,7 +203,7 @@ public class RanchTask extends Task {
 	}
 
 	private void leavePen() {
-		BlockPos outside = this.gate().north(2);
+		BlockPos outside = this.gate().offset(this.pen.front(), 2);
 		if (this.colonist.squaredDistanceTo(outside.toCenterPos()) < 4 || this.stuck()) {
 			this.setGate(false);
 			this.done = true;

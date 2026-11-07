@@ -3,6 +3,7 @@ package net.colonists.ai.task;
 import net.colonists.build.Blueprint;
 import net.colonists.build.Blueprints;
 import net.colonists.build.Materials;
+import net.colonists.build.Site;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
@@ -50,6 +51,7 @@ public class BuildStructureTask extends Task {
 		}
 	}
 
+	private final Site site;
 	private final BlockPos origin;
 	private final Blueprint bp;
 	private final boolean home;
@@ -59,9 +61,10 @@ public class BuildStructureTask extends Task {
 	private int cooldown;
 	private boolean evacuating;
 
-	public BuildStructureTask(ColonistEntity colonist, BlockPos origin, Blueprint bp, boolean home) {
+	public BuildStructureTask(ColonistEntity colonist, Site site, Blueprint bp, boolean home) {
 		super(colonist);
-		this.origin = origin;
+		this.site = site;
+		this.origin = site.origin();
 		this.bp = bp;
 		this.home = home;
 	}
@@ -91,7 +94,7 @@ public class BuildStructureTask extends Task {
 		};
 	}
 
-	static List<Job> plan(BlockPos o, Blueprint bp, int tolerance) {
+	static List<Job> plan(Site o, Blueprint bp, int tolerance) {
 		List<Job> jobs = new ArrayList<>();
 		Set<BlockPos> structure = new HashSet<>();
 		for (Blueprint.Entry e : bp.entries) structure.add(new BlockPos(e.x(), e.y(), e.z()));
@@ -103,7 +106,7 @@ public class BuildStructureTask extends Task {
 		for (int y = bp.height + 1; y >= 0; y--) {
 			for (int x = -1; x <= bp.width; x++) {
 				for (int z = -1; z <= bp.depth; z++) {
-					if (!structure.contains(new BlockPos(x, y, z))) jobs.add(new Job(o.add(x, y, z), Step.CLEAR, null, false));
+					if (!structure.contains(new BlockPos(x, y, z))) jobs.add(new Job(o.at(x, y, z), Step.CLEAR, null, false));
 				}
 			}
 		}
@@ -113,7 +116,7 @@ public class BuildStructureTask extends Task {
 				for (int z = -1; z < bp.depth; z++) {
 					if (structure.contains(new BlockPos(x, y, z))) continue;
 					boolean edge = x == 0 || x == bp.width - 1 || z == -1 || z == bp.depth - 1;
-					jobs.add(new Job(o.add(x, y, z), Step.FILL, null, edge));
+					jobs.add(new Job(o.at(x, y, z), Step.FILL, null, edge));
 				}
 			}
 		}
@@ -121,7 +124,7 @@ public class BuildStructureTask extends Task {
 		List<Blueprint.Entry> entries = new ArrayList<>(bp.entries);
 		entries.sort((a, b) -> Integer.compare(a.y(), b.y()));
 		for (Blueprint.Entry e : entries) jobs.add(new Job(e.at(o), Step.ENTRY, e, false));
-		for (BlockPos b : bp.beds) jobs.add(new Job(o.add(b), Step.BED, null, false));
+		for (BlockPos b : bp.beds) jobs.add(new Job(o.at(b), Step.BED, null, false));
 		return jobs;
 	}
 
@@ -144,7 +147,7 @@ public class BuildStructureTask extends Task {
 				yield true;
 			}
 			case ENTRY -> Materials.needed(j.entry, world, j.pos, this.hasGlass());
-			case BED -> !(s.getBlock() instanceof BedBlock) && s.isReplaceable() && world.getBlockState(j.pos.south()).isReplaceable();
+			case BED -> !(s.getBlock() instanceof BedBlock) && s.isReplaceable() && world.getBlockState(j.pos.offset(this.site.dir(Direction.SOUTH))).isReplaceable();
 		};
 	}
 
@@ -162,7 +165,7 @@ public class BuildStructureTask extends Task {
 	}
 
 	/** True when this building has anything left to do that the colonist could do with what they carry. */
-	public static boolean hasWork(ColonistEntity c, BlockPos origin, Blueprint bp) {
+	public static boolean hasWork(ColonistEntity c, Site origin, Blueprint bp) {
 		World world = c.getWorld();
 		boolean glass = ColonistBrain.count(c.getInventory(), Materials.GLASS_ITEMS) > 0;
 		for (Blueprint.Entry e : bp.entries) {
@@ -171,14 +174,14 @@ public class BuildStructureTask extends Task {
 			if (cost == null || ColonistBrain.count(c.getInventory(), cost) >= Materials.countOf(e)) return true;
 		}
 		for (BlockPos b : bp.beds) {
-			BlockPos p = origin.add(b);
+			BlockPos p = origin.at(b);
 			if (!(world.getBlockState(p).getBlock() instanceof BedBlock) && ColonistBrain.count(c.getInventory(), s -> s.isIn(ItemTags.BEDS)) > 0) return true;
 		}
 		return false;
 	}
 
 	/** True once every required block of the building is in place. */
-	public static boolean complete(World world, BlockPos origin, Blueprint bp) {
+	public static boolean complete(World world, Site origin, Blueprint bp) {
 		for (Blueprint.Entry e : bp.entries) {
 			if (e.optional()) continue;
 			if (Materials.needed(e, world, e.at(origin), true) && !(e.mat() == Blueprint.Mat.GLASS)) return false;
@@ -190,7 +193,7 @@ public class BuildStructureTask extends Task {
 	public void start() {
 		FactionManager fm = this.colonist.factions();
 		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
-		this.plan = plan(this.origin, this.bp, tolerance(f == null ? Faction.Rank.VILLAGE : f.rank));
+		this.plan = plan(this.site, this.bp, tolerance(f == null ? Faction.Rank.VILLAGE : f.rank));
 	}
 
 	@Override
@@ -199,7 +202,7 @@ public class BuildStructureTask extends Task {
 		ServerWorld world = (ServerWorld) this.colonist.getWorld();
 
 		if (this.evacuating) {
-			if (this.approach(this.bp.doorstep(this.origin).north(2), 1.5, 1.0) || this.stuck()) {
+			if (this.approach(this.bp.doorstep(this.site).offset(this.site.front(), 2), 1.5, 1.0) || this.stuck()) {
 				this.evacuating = false;
 				this.resetMovement();
 			}
@@ -241,7 +244,7 @@ public class BuildStructureTask extends Task {
 		}
 		if (j.step == Step.ENTRY || j.step == Step.BED) {
 			Box space = new Box(j.pos);
-			if (j.step == Step.BED) space = space.union(new Box(j.pos.south()));
+			if (j.step == Step.BED) space = space.union(new Box(j.pos.offset(this.site.dir(Direction.SOUTH))));
 			List<LivingEntity> inTheWay = world.getEntitiesByClass(LivingEntity.class, space, e -> true);
 			boolean solid = j.entry == null || j.entry.fixed() == null || !j.entry.fixed().isAir();
 			if (solid && !inTheWay.isEmpty()) {
@@ -296,11 +299,12 @@ public class BuildStructureTask extends Task {
 			case BED -> {
 				ItemStack bedItem = ColonistBrain.takeOne(inv, s -> s.isIn(ItemTags.BEDS));
 				Block bedBlock = Materials.blockOf(bedItem, Blocks.WHITE_BED);
-				state = bedBlock.getDefaultState().with(BedBlock.FACING, Direction.SOUTH).with(BedBlock.PART, BedPart.FOOT);
+				Direction head = this.site.dir(Direction.SOUTH);
+				state = bedBlock.getDefaultState().with(BedBlock.FACING, head).with(BedBlock.PART, BedPart.FOOT);
 				this.breakForBuilding(world, j.pos);
-				this.breakForBuilding(world, j.pos.south());
+				this.breakForBuilding(world, j.pos.offset(head));
 				world.setBlockState(j.pos, state, Block.NOTIFY_ALL);
-				world.setBlockState(j.pos.south(), state.with(BedBlock.PART, BedPart.HEAD), Block.NOTIFY_ALL);
+				world.setBlockState(j.pos.offset(head), state.with(BedBlock.PART, BedPart.HEAD), Block.NOTIFY_ALL);
 				if (this.home && this.colonist.bed == null) this.colonist.bed = j.pos;
 				world.playSound(null, j.pos, state.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 1.0f, 0.9f);
 				return;
@@ -308,26 +312,26 @@ public class BuildStructureTask extends Task {
 			default -> {
 				BlockState paid = Materials.pay(j.entry, inv);
 				if (paid == null) return;
-				state = paid;
+				state = this.site.state(paid);
 			}
 		}
 		if (j.step == Step.ENTRY && !world.getBlockState(j.pos).isAir()) this.breakForBuilding(world, j.pos);
 		if (state.getBlock() instanceof DoorBlock) {
-			BlockState lower = state.with(DoorBlock.FACING, Direction.SOUTH).with(DoorBlock.HALF, DoubleBlockHalf.LOWER);
+			BlockState lower = state.with(DoorBlock.FACING, this.site.dir(Direction.SOUTH)).with(DoorBlock.HALF, DoubleBlockHalf.LOWER);
 			world.setBlockState(j.pos, lower, Block.NOTIFY_ALL);
 			world.setBlockState(j.pos.up(), lower.with(DoorBlock.HALF, DoubleBlockHalf.UPPER), Block.NOTIFY_ALL);
 		} else if (!state.isAir()) {
 			world.setBlockState(j.pos, Materials.settle(state, world, j.pos), Block.NOTIFY_ALL);
 		}
 		if (!state.isAir()) world.playSound(null, j.pos, state.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 1.0f, 0.9f);
-		if (this.home && this.bp.chest != null && j.pos.equals(this.origin.add(this.bp.chest)) && state.isOf(Blocks.CHEST)) {
+		if (this.home && this.bp.chest != null && j.pos.equals(this.site.at(this.bp.chest)) && state.isOf(Blocks.CHEST)) {
 			this.colonist.chest = j.pos;
 		}
 	}
 
 	private void finish(ServerWorld world) {
 		this.done = true;
-		if (!complete(world, this.origin, this.bp)) return; // something was in the way; try again later
+		if (!complete(world, this.site, this.bp)) return; // something was in the way; try again later
 		FactionManager fm = this.colonist.factions();
 		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
 		if (f == null) return;
@@ -343,9 +347,9 @@ public class BuildStructureTask extends Task {
 				this.colonist.say(f.homes.size() == 1 ? "The first house of the " + f.name + " is finished!" : "My new " + this.bp.name.toLowerCase() + " is finished!");
 			}
 			for (BlockPos b : this.bp.beds) {
-				if (this.colonist.bed == null && world.getBlockState(this.origin.add(b)).getBlock() instanceof BedBlock) this.colonist.bed = this.origin.add(b);
+				if (this.colonist.bed == null && world.getBlockState(this.site.at(b)).getBlock() instanceof BedBlock) this.colonist.bed = this.site.at(b);
 			}
-			if (this.bp.chest != null && world.getBlockState(this.origin.add(this.bp.chest)).isOf(Blocks.CHEST)) this.colonist.chest = this.origin.add(this.bp.chest);
+			if (this.bp.chest != null && world.getBlockState(this.site.at(this.bp.chest)).isOf(Blocks.CHEST)) this.colonist.chest = this.site.at(this.bp.chest);
 		} else if (!wasBuilt) {
 			FactionManager.broadcastNear(world, this.origin, 128, Text.literal("🔨 The ").formatted(Formatting.YELLOW).append(f.displayName())
 					.append(Text.literal(" have finished building a " + this.bp.name.toLowerCase() + ".").formatted(Formatting.YELLOW)));
@@ -354,34 +358,12 @@ public class BuildStructureTask extends Task {
 
 	// ---------------------------------------------------------------- lots
 
-	/** Claims the nearest buildable lot for a blueprint (y set to the floor height), or null. */
+	/** Claims the best roadside lot for a blueprint (turned to face its street), or null. */
 	@Nullable
-	public static BlockPos claimLot(ColonistEntity c, Faction f, Blueprint bp) {
-		if (f.cityCenter == null) return null;
-		ServerWorld world = (ServerWorld) c.getWorld();
+	public static Site claimLot(ColonistEntity c, Faction f, Blueprint bp) {
 		FactionManager fm = c.factions();
-		int tol = tolerance(f.rank);
-		int checked = 0;
-		for (City.Lot lot : City.lots(f.cityCenter)) {
-			if (lot.farm() || f.blockedLots.contains(lot.origin()) || isTaken(f, lot.origin())) continue;
-			if (fm != null && fm.tooCloseToForeignHome(f, lot.origin())) continue;
-			if (++checked > 8) break; // spread the cost of terrain checks over several attempts
-			BlockPos o = lot.origin();
-			int east = bp.garden ? 8 : bp.width - 1;
-			Integer floor = City.floorFor(world, o.getX(), o.getZ() - 1, o.getX() + east, o.getZ() + bp.depth - 1, tol);
-			if (floor == null) {
-				if (world.isChunkLoaded(o.getX() >> 4, o.getZ() >> 4)) {
-					f.blockedLots.add(o);
-					if (fm != null) fm.markDirty();
-				}
-				continue;
-			}
-			BlockPos site = o.withY(floor);
-			f.buildingTypes.put(site, bp.id);
-			if (fm != null) fm.markDirty();
-			return site;
-		}
-		return null;
+		if (fm == null || f.cityCenter == null) return null;
+		return net.colonists.faction.CityGrowth.claim((ServerWorld) c.getWorld(), fm, f, bp, net.colonists.faction.CityGrowth.Purpose.BUILDING, c.getRandom());
 	}
 
 	public static boolean isTaken(Faction f, BlockPos lotOrigin) {
@@ -397,12 +379,18 @@ public class BuildStructureTask extends Task {
 		return f == null ? Blueprints.CABIN : blueprintAt(f, origin);
 	}
 
+	public static Site siteFor(ColonistEntity c, BlockPos origin) {
+		FactionManager fm = c.factions();
+		Faction f = fm == null ? null : fm.get(c.getFactionId());
+		return f == null ? Site.of(origin) : f.site(origin);
+	}
+
 	public static BlockPos doorstep(ColonistEntity c, BlockPos origin) {
-		return blueprintFor(c, origin).doorstep(origin);
+		return blueprintFor(c, origin).doorstep(siteFor(c, origin));
 	}
 
 	public static BlockPos inside(ColonistEntity c, BlockPos origin) {
-		return blueprintFor(c, origin).inside(origin);
+		return blueprintFor(c, origin).inside(siteFor(c, origin));
 	}
 
 	/** The blueprint used on a lot (cabins for anything unknown). */

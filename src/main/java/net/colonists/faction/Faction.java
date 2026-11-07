@@ -96,6 +96,10 @@ public class Faction {
 	public final Map<BlockPos, UUID> homes = new LinkedHashMap<>();
 	/** Blueprint id for every claimed building lot (homes and public buildings). */
 	public final Map<BlockPos, String> buildingTypes = new LinkedHashMap<>();
+	/** Which way each building lot is turned (missing = facing north). */
+	public final Map<BlockPos, net.minecraft.util.BlockRotation> rotations = new HashMap<>();
+	/** Road columns (x, z with y = 0), grown organically outward from the plaza. */
+	public final Set<BlockPos> roads = new LinkedHashSet<>();
 	/** Lots whose building has been completed at least once. */
 	public final Set<BlockPos> built = new HashSet<>();
 	/** Communal field lots. */
@@ -156,6 +160,10 @@ public class Faction {
 	public BlockPos center() {
 		if (this.cityCenter != null) return this.cityCenter;
 		return this.homes.isEmpty() ? null : this.homes.keySet().iterator().next();
+	}
+
+	public net.colonists.build.Site site(BlockPos origin) {
+		return new net.colonists.build.Site(origin, this.rotations.getOrDefault(origin, net.minecraft.util.BlockRotation.NONE));
 	}
 
 	public int adults() {
@@ -224,6 +232,10 @@ public class Faction {
 		this.buildingTypes.forEach((pos, type) -> types.putString(Long.toString(pos.asLong()), type));
 		nbt.put("Buildings", types);
 		nbt.putLongArray("Built", this.built.stream().mapToLong(BlockPos::asLong).toArray());
+		NbtCompound rot = new NbtCompound();
+		this.rotations.forEach((pos, r) -> rot.putString(Long.toString(pos.asLong()), r.name()));
+		nbt.put("Rotations", rot);
+		nbt.putLongArray("Roads", this.roads.stream().mapToLong(BlockPos::asLong).toArray());
 		nbt.putLongArray("Blocked", this.blockedLots.stream().mapToLong(BlockPos::asLong).toArray());
 		if (this.founderPlayer != null) nbt.putUuid("Founder", this.founderPlayer);
 		if (this.cityCenter != null) nbt.putLong("Center", this.cityCenter.asLong());
@@ -280,6 +292,14 @@ public class Faction {
 			}
 		}
 		for (long l : nbt.getLongArray("Built")) f.built.add(BlockPos.fromLong(l));
+		NbtCompound rot = nbt.getCompound("Rotations");
+		for (String k : rot.getKeys()) {
+			try {
+				f.rotations.put(BlockPos.fromLong(Long.parseLong(k)), net.minecraft.util.BlockRotation.valueOf(rot.getString(k)));
+			} catch (IllegalArgumentException ignored) {
+			}
+		}
+		for (long l : nbt.getLongArray("Roads")) f.roads.add(BlockPos.fromLong(l));
 		if (nbt.containsUuid("Founder")) f.founderPlayer = nbt.getUuid("Founder");
 		if (nbt.contains("Center")) f.cityCenter = BlockPos.fromLong(nbt.getLong("Center"));
 		f.foodInStock = nbt.getInt("Food");

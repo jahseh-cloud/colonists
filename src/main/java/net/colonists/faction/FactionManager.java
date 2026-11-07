@@ -44,6 +44,8 @@ public class FactionManager extends PersistentState {
 	private final Map<String, Faction> factions = new LinkedHashMap<>();
 	private final Map<String, Integer> relations = new HashMap<>();
 	private final Map<UUID, String> playerFactions = new HashMap<>();
+	/** Chunks this mod has force-loaded to keep cities alive (packed chunk positions). */
+	private final java.util.Set<Long> forced = new java.util.HashSet<>();
 
 	public static FactionManager get(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "colonists_factions");
@@ -149,9 +151,14 @@ public class FactionManager extends PersistentState {
 			if (f.cityCenter != null && Math.abs(pos.getX() - f.cityCenter.getX()) <= City.PLAZA_HALF + 1
 					&& Math.abs(pos.getZ() - f.cityCenter.getZ()) <= City.PLAZA_HALF + 1
 					&& Math.abs(pos.getY() - f.cityCenter.getY()) <= 6) return true;
-			for (BlockPos o : f.homes.keySet()) if (inLot(pos, o)) return true;
-			for (BlockPos o : f.farms) if (inLot(pos, o)) return true;
-			for (BlockPos o : f.buildingTypes.keySet()) if (inLot(pos, o)) return true;
+			java.util.Set<BlockPos> lots = new java.util.HashSet<>(f.homes.keySet());
+			lots.addAll(f.farms);
+			lots.addAll(f.buildingTypes.keySet());
+			for (BlockPos o : lots) {
+				int[] r = CityGrowth.footprint(f, o);
+				if (pos.getX() >= r[0] - 1 && pos.getX() <= r[2] + 1 && pos.getZ() >= r[1] - 1 && pos.getZ() <= r[3] + 1
+						&& pos.getY() >= o.getY() - 7 && pos.getY() <= o.getY() + 10) return true;
+			}
 		}
 		return false;
 	}
@@ -328,6 +335,42 @@ public class FactionManager extends PersistentState {
 			}
 		}
 		Politics.tick(server, this);
+		this.updateForcedChunks(server);
+	}
+
+	/** Keeps the core of every city loaded (bigger cities keep more), and lets go of the rest. */
+	public void updateForcedChunks(MinecraftServer server) {
+		ServerWorld world = server.getOverworld();
+		java.util.Set<Long> want = new java.util.HashSet<>();
+		if (world.getGameRules().getBoolean(net.colonists.ColonistsMod.KEEP_LOADED)) {
+			for (Faction f : factions.values()) {
+				if (f.cityCenter == null) continue;
+				int r = switch (f.rank) {
+					case VILLAGE -> 1;
+					case TOWN -> 2;
+					case CITY -> 3;
+					case CITY_STATE -> 4;
+				};
+				int cx = f.cityCenter.getX() >> 4, cz = f.cityCenter.getZ() >> 4;
+				for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) want.add(net.minecraft.util.math.ChunkPos.toLong(cx + dx, cz + dz));
+				if (f.quarry != null) {
+					int qx = f.quarry.getX() >> 4, qz = f.quarry.getZ() >> 4;
+					for (int dx = 0; dx <= 1; dx++) for (int dz = 0; dz <= 1; dz++) want.add(net.minecraft.util.math.ChunkPos.toLong(qx + dx, qz + dz));
+				}
+			}
+		}
+		for (Long key : new java.util.ArrayList<>(this.forced)) {
+			if (!want.contains(key)) {
+				world.setChunkForced(net.minecraft.util.math.ChunkPos.getPackedX(key), net.minecraft.util.math.ChunkPos.getPackedZ(key), false);
+				this.forced.remove(key);
+			}
+		}
+		for (Long key : want) {
+			if (this.forced.add(key)) {
+				world.setChunkForced(net.minecraft.util.math.ChunkPos.getPackedX(key), net.minecraft.util.math.ChunkPos.getPackedZ(key), true);
+			}
+		}
+		markDirty();
 	}
 
 	/** Lays out a new city around the given plaza centre (y = first air block above the ground). */
@@ -382,6 +425,7 @@ public class FactionManager extends PersistentState {
 			players.add(p);
 		});
 		nbt.put("Players", players);
+		nbt.putLongArray("Forced", this.forced.stream().mapToLong(Long::longValue).toArray());
 		return nbt;
 	}
 
@@ -399,6 +443,7 @@ public class FactionManager extends PersistentState {
 			NbtCompound p = players.getCompound(i);
 			m.playerFactions.put(p.getUuid("U"), p.getString("F"));
 		}
+		for (long l : nbt.getLongArray("Forced")) m.forced.add(l);
 		return m;
 	}
 }

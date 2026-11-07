@@ -37,13 +37,13 @@ public class WorkshopTask extends Task {
 			Items.COD, Items.SALMON, Items.POTATO);
 
 	private final Trade trade;
-	private final BlockPos workplace;
+	private final net.colonists.build.Site workplace;
 	private final Blueprint bp;
 	private Phase phase = Phase.FETCH;
 	private int workTicks;
 	private final List<ItemStack> products = new ArrayList<>();
 
-	public WorkshopTask(ColonistEntity colonist, Trade trade, BlockPos workplace, Blueprint bp) {
+	public WorkshopTask(ColonistEntity colonist, Trade trade, net.colonists.build.Site workplace, Blueprint bp) {
 		super(colonist);
 		this.trade = trade;
 		this.workplace = workplace;
@@ -122,7 +122,7 @@ public class WorkshopTask extends Task {
 				this.resetMovement();
 			}
 			case WORK -> {
-				BlockPos station = this.bp.workstation != null ? this.workplace.add(this.bp.workstation) : this.bp.inside(this.workplace);
+				BlockPos station = this.bp.workstation != null ? this.workplace.at(this.bp.workstation) : this.bp.inside(this.workplace);
 				if (!this.approach(station, 2.5, 1.0)) {
 					if (this.stuck()) this.done = true;
 					return;
