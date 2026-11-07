@@ -13,7 +13,7 @@ Colonists are player-shaped NPCs who live their own lives. Nobody controls them.
 
 ## Cities
 
-Every faction builds a settlement on a planned grid and grows through four ranks:
+Every faction builds a settlement on a planned grid of 10×10 lots and grows through four ranks:
 
 | Rank | Requirement |
 |---|---|
@@ -27,11 +27,67 @@ Promotions (and setbacks, if houses or the wall are lost) are announced in chat.
 - **City wall.** It is three blocks high and made of cobblestone (or deepslate or blackstone), following the terrain. Miners stockpile extra stone while it goes up, and builders fetch it from the stores (or quarry it themselves when the stores run dry). Hillsides count as wall, and gates open automatically when a new street needs to pass through.
 
 - **Plaza.** The first colonist picks a spot for the city centre. Builders level a 9×9 square and add a well, a bell, a banner in the faction's colour, corner lamps, and the **city stockpile** chests.
-- **Streets and lots.** Streets run east-west every 10 blocks and avenues north-south every 33. Each colonist claims the nearest free lot facing a street. They level the ground (filling holes, clearing trees and rocks) and build a cabin with a garden beside it. Steep or flooded lots and other people's buildings are skipped.
+- **Streets and lots.** Streets run east-west every 14 blocks and avenues north-south every 33. Each colonist claims the nearest free lot facing a street. They level the ground (filling holes, clearing trees and rocks) and build a cabin with a garden beside it. Steep or flooded lots and other people's buildings are skipped.
 - **Roads and lamps.** Builders pave dirt-path streets connecting every claimed lot to the plaza. They clear trees in the way, bridge small gaps, and put a lamp post in front of each house.
 - **Fields.** Some outer lots are communal fields: four rows of crops around a water channel. Farmers claim one field for every four citizens and keep them tilled, planted and harvested.
 - **Shared economy.** Workers haul their surplus (logs, stone, ore, wheat, food) to the stockpile. Hungry colonists eat from it, and builders draw stone and coal from it.
 - **Moving away.** A faction founded near another city (for example, rebels) walks about 160 blocks away before it builds.
+
+## Buildings
+
+Buildings are made from whatever wood and stone the builder has. They have pitched stair roofs, glass windows (boarded up until someone smelts glass), and furniture inside.
+
+| Homes | Rank | |
+|---|---|---|
+| Cabin | Village | 5×5 log-and-plank cabin with a vegetable garden |
+| Cottage | Town | stone footing, taller walls, kitchen corner |
+| Stone house | City | stone ground floor, timber upper storey, two beds |
+| Manor | City-State (and every ruler from City up) | 9×7, stone stair roof, two beds |
+
+| Public building | Built from | Used by |
+|---|---|---|
+| Town hall | Village (2+ people) | the ruler; lectern and benches |
+| Lumber camp | Village (3+) | lumberjacks |
+| Barn | Village (4+) | farmers |
+| Animal pen | Town | ranchers |
+| Smithy | Town | blacksmiths; forge and anvil |
+| Bakery | Town | cooks; smoker and barrels |
+| Tavern | Town | everyone |
+| Barracks | City | guards |
+| Market | City | (merchants, coming later) |
+
+Builders (or everyone, in a village without one) put up public buildings in order and keep them repaired.
+
+## Jobs
+
+| Job | Work |
+|---|---|
+| Farmer | Communal fields (9×9, with a water channel) |
+| Rancher | Leads animals into the pen on a lead, breeds them, shears sheep, culls the herd for meat |
+| Lumberjack | Fells whole trees at once and replants saplings |
+| Miner | Digs the stepped quarry outside town, and from Town rank on the mine |
+| Blacksmith | Turns iron from the stores into iron tools and armour for the city |
+| Cook | Turns wheat and raw meat into bread and cooked food |
+| Builder | Public buildings, roads, lamps, the plaza and the wall |
+| Guard | Patrols, keeps night watch, and fights |
+
+Specialist jobs open up once their workplace is built, and someone from a crowded trade switches over. Colonists pick up better tools and armour from the stores when the blacksmith has made them.
+
+## Terraforming
+
+How much the land gets reshaped grows with the settlement's rank, and stays modest:
+
+| Rank | Lot levelling | Quarry | Mine |
+|---|---|---|---|
+| Village | slopes up to 2 blocks | 7×7, 4 deep | none |
+| Town | up to 3, with stone footings as retaining walls | 9×9, 7 deep | staircase to y=24, 24-block gallery |
+| City | up to 4 | 11×11, 10 deep | to y=12, 40-block gallery |
+| City-State | up to 5 | 13×13, 13 deep | to y=-16, 64-block gallery |
+
+- Builders cut down rises and fill hollows only under the building's footprint.
+- The quarry sits off to the side of town, away from every lot and road. It's dug in layers with a staircase down one edge and fenced, with torches on the corners.
+- Mines run from the bottom of the quarry. Miners light them, plug water and lava, bridge holes, and follow ore veins they uncover.
+- Builders only ever reshape natural terrain, never anything a player built.
 
 ## Families
 
