@@ -58,7 +58,8 @@ public final class Empire {
 				}
 				loyalty(server, fm, f, s, random);
 			}
-			if (f.founderPlayer == null) colonize(server, fm, f, day, random);
+			if (f.orderedColony != null) orderedColony(server, fm, f, random);
+			else if (f.rulerPlayer == null) colonize(server, fm, f, day, random);
 		}
 	}
 
@@ -125,6 +126,51 @@ public final class Empire {
 				.append(Text.literal(" at " + site.getX() + ", " + site.getZ() + ".").formatted(Formatting.YELLOW)));
 	}
 
+	/** A colony the ruler ordered from the atlas: settlers set out as soon as the town can spare five. */
+	private static void orderedColony(MinecraftServer server, FactionManager fm, Faction f, Random random) {
+		Settlement mother = fm.settlement(f.orderedColonyFrom);
+		BlockPos want = f.orderedColony;
+		if (mother == null || mother.faction != f || mother.cityCenter == null) {
+			f.orderedColony = null;
+			return;
+		}
+		ServerWorld world = server.getOverworld();
+		BlockPos site = CityGrowth.bestCenter(world, new BlockPos(want.getX(), mother.cityCenter.getY(), want.getZ()), random);
+		if (site == null) {
+			f.orderedColony = null;
+			tellRuler(server, f, "No settlers could find buildable ground near " + want.getX() + ", " + want.getZ() + ".");
+			return;
+		}
+		List<ColonistEntity> pool = new ArrayList<>();
+		for (Map.Entry<UUID, Faction.Citizen> e : f.citizens.entrySet()) {
+			if (e.getValue().settlement != mother.id || e.getValue().child || e.getValue().bonded) continue;
+			if (world.getEntity(e.getKey()) instanceof ColonistEntity c && c.isAlive()) pool.add(c);
+		}
+		if (pool.size() < 4) return; // wait until the town can spare people
+		pool.sort(Comparator.comparingInt(Empire::settlerPriority));
+		List<ColonistEntity> chosen = pool.subList(0, Math.min(5, pool.size() - 2));
+		Settlement colony = fm.foundSettlement(server, f, site, false);
+		f.orderedColony = null;
+		for (ColonistEntity c : new ArrayList<>(chosen)) {
+			for (Map.Entry<BlockPos, UUID> h : mother.homes.entrySet()) if (c.getUuid().equals(h.getValue())) h.setValue(null);
+			c.home = null;
+			c.bed = null;
+			c.chest = null;
+			c.buildSite = null;
+			c.joinSettlement(colony);
+			c.getInventory().addStack(new ItemStack(Items.BREAD, 4));
+		}
+		FactionManager.broadcast(server, Text.literal("⛺ By order of " + f.rulerName + ", settlers from ").formatted(Formatting.YELLOW)
+				.append(mother.displayName()).append(Text.literal(" set out to found ").formatted(Formatting.YELLOW)).append(colony.displayName())
+				.append(Text.literal(" at " + site.getX() + ", " + site.getZ() + ".").formatted(Formatting.YELLOW)));
+	}
+
+	static void tellRuler(MinecraftServer server, Faction f, String msg) {
+		if (f.rulerPlayer == null) return;
+		net.minecraft.server.network.ServerPlayerEntity p = server.getPlayerManager().getPlayer(f.rulerPlayer);
+		if (p != null) p.sendMessage(Text.literal(msg).formatted(Formatting.GOLD), false);
+	}
+
 	private static int settlerPriority(ColonistEntity c) {
 		int p = c.home == null ? 0 : 10;
 		switch (c.job) {
@@ -148,7 +194,7 @@ public final class Empire {
 		Settlement goal = fm.settlement(f.warGoal);
 		if (goal != null && atWarWith(fm, f, goal.faction)) return;
 		f.warGoal = -1;
-		if (!f.atWar || f.founderPlayer != null) return;
+		if (!f.atWar) return;
 		BlockPos home = f.center();
 		if (home == null) return;
 		Settlement best = null;
@@ -199,6 +245,8 @@ public final class Empire {
 		s.occupation = 0;
 		s.occupier = "";
 		loser.warWeariness += 4;
+		winner.armyOpinion = Math.min(100, winner.armyOpinion + 8);
+		loser.armyOpinion = Math.max(0, loser.armyOpinion - 10);
 		if (winner.warGoal == s.id) winner.warGoal = -1;
 		if (loser.warGoal == s.id) loser.warGoal = -1;
 		FactionManager.broadcast(server, Text.literal(treaty ? "📜 By treaty, " : "🏴 ").formatted(Formatting.GOLD)
@@ -235,6 +283,8 @@ public final class Empire {
 		Settlement cap = f.capital();
 		double dist = cap == null || cap.cityCenter == null || s.cityCenter == null ? 0 : horizontalDist(cap.cityCenter, s.cityCenter);
 		int drift = s.formerOwner.isEmpty() ? 2 : 1;
+		if (s.autonomy) drift += 2;
+		if (s.taxRate > 15) drift -= 1;
 		if (s.countJob("GUARD") >= 2) drift++;
 		if (f.approval < 35) drift -= 2;
 		if (dist > 600) drift -= 1;

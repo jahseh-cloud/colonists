@@ -63,6 +63,12 @@ public class Settlement {
 	public long lastPayday = -1;
 	/** Unpaid wage days in a row (an unpaid town grows restless). */
 	public int arrears;
+	/** Ruler's orders: tax rate in percent (-1 = the government's usual), guards wanted (-1 = the usual share),
+	 *  self-rule (lower taxes, quicker loyalty), and a building to put first. */
+	public int taxRate = -1;
+	public int garrison = -1;
+	public boolean autonomy;
+	public String priority = "";
 	private transient int[] boundsCache;
 	private transient long boundsTime = Long.MIN_VALUE;
 
@@ -212,6 +218,10 @@ public class Settlement {
 		nbt.putInt("Treasury", this.treasury);
 		nbt.putLong("Payday", this.lastPayday);
 		nbt.putInt("Arrears", this.arrears);
+		nbt.putInt("TaxRate", this.taxRate);
+		nbt.putInt("Garrison", this.garrison);
+		nbt.putBoolean("Autonomy", this.autonomy);
+		nbt.putString("Priority", this.priority);
 		nbt.putString("Rank", this.rank.name());
 		nbt.putBoolean("WallPlanned", this.wallPlanned);
 		nbt.putIntArray("Wall", new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ});
@@ -230,6 +240,10 @@ public class Settlement {
 		s.treasury = nbt.contains("Treasury") ? nbt.getInt("Treasury") : 20;
 		s.lastPayday = nbt.contains("Payday") ? nbt.getLong("Payday") : -1;
 		s.arrears = nbt.getInt("Arrears");
+		s.taxRate = nbt.contains("TaxRate") ? nbt.getInt("TaxRate") : -1;
+		s.garrison = nbt.contains("Garrison") ? nbt.getInt("Garrison") : -1;
+		s.autonomy = nbt.getBoolean("Autonomy");
+		s.priority = nbt.getString("Priority");
 		if (nbt.contains("Center")) s.cityCenter = BlockPos.fromLong(nbt.getLong("Center"));
 		NbtList homeList = nbt.getList("Homes", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < homeList.size(); i++) {

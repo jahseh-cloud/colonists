@@ -59,11 +59,14 @@ public final class Politics {
 		}
 		// Food first: the founder farms, the second settler builds, the third cuts timber.
 		if (adults == 0) return ColonistEntity.Job.FARMER;
+		// The ruler's garrison order comes first.
+		if (f.garrison >= 0 && counts.getOrDefault("GUARD", 0) < f.garrison && counts.getOrDefault("FARMER", 0) > 0) return ColonistEntity.Job.GUARD;
 		if (counts.getOrDefault("BUILDER", 0) == 0) return ColonistEntity.Job.BUILDER;
 		if (counts.getOrDefault("WOODCUTTER", 0) == 0) return ColonistEntity.Job.WOODCUTTER;
 		ColonistEntity.Job best = ColonistEntity.Job.FARMER;
 		double bestGap = -Double.MAX_VALUE;
 		for (Map.Entry<ColonistEntity.Job, Double> e : JOB_SHARE.entrySet()) {
+			if (e.getKey() == ColonistEntity.Job.GUARD && f.garrison >= 0) continue;
 			String workplace = WORKPLACE.get(e.getKey());
 			if (workplace != null && !f.hasBuilt(workplace)) continue;
 			// Specialists: one per workplace is plenty.
@@ -81,6 +84,12 @@ public final class Politics {
 	@Nullable
 	public static ColonistEntity.Job reconsiderJob(@Nullable Settlement f, UUID self, ColonistEntity.Job current) {
 		if (f == null || current == ColonistEntity.Job.NONE || WORKPLACE.containsKey(current)) return null;
+		if (f.garrison >= 0) {
+			int guards = f.countJob("GUARD");
+			if (current == ColonistEntity.Job.GUARD && guards > f.garrison) return chooseJob(f, self) == ColonistEntity.Job.GUARD ? ColonistEntity.Job.FARMER : chooseJob(f, self);
+			if (current != ColonistEntity.Job.GUARD && current != ColonistEntity.Job.FARMER && current != ColonistEntity.Job.BUILDER
+					&& guards < f.garrison && f.countJob(current.name()) > 1) return ColonistEntity.Job.GUARD;
+		}
 		if (f.countJob(current.name()) <= 1) return null;
 		for (Map.Entry<ColonistEntity.Job, String> e : WORKPLACE.entrySet()) {
 			if (f.hasBuilt(e.getValue()) && f.countJob(e.getKey().name()) == 0) return e.getKey();
@@ -93,12 +102,21 @@ public final class Politics {
 		long now = server.getOverworld().getTime();
 		List<Faction> all = fm.all();
 		for (Faction f : all) {
-			if (f.founderPlayer != null) {
-				f.government = Faction.Government.PLAYER;
-				f.ruler = null;
+			Statecraft.tickOpinions(server, fm, f);
+			if (f.rulerPlayer != null) {
+				Statecraft.playerRule(server, fm, f, now, random);
+			}
+			if (f.rulerPlayer != null) {
+				// A player rules: the realm lives on, but the ruler writes the laws and steers the state.
+				for (Settlement st : new java.util.ArrayList<>(f.settlements.values())) growth(server, st);
+				updateApproval(f, random);
+				if (f.government == Faction.Government.REPUBLIC && now - f.lastElection > ELECTION_INTERVAL) election(server, fm, f, now);
+				unrest(server, fm, f, now, random);
+				if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
 				continue;
 			}
 			ensureRuler(server, fm, f, now, random);
+			Statecraft.considerHeir(server, fm, f);
 			for (Settlement st : new java.util.ArrayList<>(f.settlements.values())) growth(server, st);
 			updateApproval(f, random);
 			if (f.government == Faction.Government.REPUBLIC && now - f.lastElection > ELECTION_INTERVAL) election(server, fm, f, now);
@@ -124,6 +142,7 @@ public final class Politics {
 		}
 		boolean hadRuler = f.ruler != null;
 		String oldName = f.rulerName;
+		if (hadRuler && f.government == Faction.Government.MONARCHY && Statecraft.heirSucceeds(server, fm, f)) return;
 		if (f.government == Faction.Government.REPUBLIC) {
 			election(server, fm, f, now);
 			return;
@@ -165,7 +184,7 @@ public final class Politics {
 		List<Map.Entry<UUID, Faction.Citizen>> candidates = f.citizens.entrySet().stream().filter(e -> !e.getValue().child && !e.getValue().bonded)
 				.sorted(Comparator.comparingInt((Map.Entry<UUID, Faction.Citizen> e) -> -(e.getValue().ambition + e.getValue().popularity)))
 				.limit(3).toList();
-		if (candidates.isEmpty()) return;
+		if (candidates.isEmpty() && f.playerCandidates.isEmpty() && f.rulerPlayer == null) return;
 		Map<UUID, Integer> votes = new HashMap<>();
 		for (Faction.Citizen voter : f.citizens.values()) {
 			if (voter.child) continue;
@@ -185,6 +204,8 @@ public final class Politics {
 			if (f.citizens.containsKey(choice)) votes.merge(choice, 3, Integer::sum);
 		}
 		f.playerVotes.clear();
+		f.lastElection = now;
+		if (Statecraft.playerElection(server, fm, f, votes) || candidates.isEmpty()) return;
 		UUID winner = votes.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(candidates.get(0).getKey());
 		boolean reelected = winner.equals(f.ruler);
 		setRuler(f, winner);
@@ -314,8 +335,8 @@ public final class Politics {
 		}
 		if (f.captives <= 0) f.revolt = false;
 
-		// Coups and revolutions when the ruler is hated.
-		if (f.approval >= 25 || f.ruler == null || random.nextInt(5) != 0) return;
+		// Coups and revolutions when the ruler is hated (player rulers answer to their army instead: see Statecraft).
+		if (f.approval >= 25 || f.ruler == null || f.rulerPlayer != null || random.nextInt(5) != 0) return;
 		UUID plotter = best(f, c -> !c.child && !c.bonded && c.ambition > 60, c -> c.ambition + c.popularity);
 		if (plotter == null || plotter.equals(f.ruler)) return;
 		Faction.Citizen p = f.citizens.get(plotter);

@@ -127,6 +127,22 @@ public class Faction {
 	public long lastColonyDay = Long.MIN_VALUE;
 	/** The enemy settlement this faction's armies are marching on (-1 = none). */
 	public int warGoal = -1;
+	/** A player ruling this faction (founder, elected, usurper or heir), or null. */
+	@Nullable public UUID rulerPlayer;
+	/** A player named heir to the throne by a monarch. */
+	@Nullable public UUID heirPlayer;
+	/** Players standing in the next election. */
+	public final Set<UUID> playerCandidates = new HashSet<>();
+	/** 0-100: what the soldiers and the court (nobles, council or senate) think of the ruler. */
+	public int armyOpinion = 55, courtOpinion = 55;
+	/** A colony the ruler has ordered: where, and which settlement sends the settlers. */
+	@Nullable public BlockPos orderedColony;
+	public int orderedColonyFrom = -1;
+
+	public boolean playerRuled() {
+		return this.rulerPlayer != null;
+	}
+
 	/** The law book. */
 	public final java.util.EnumSet<net.colonists.law.Law> laws = java.util.EnumSet.of(net.colonists.law.Law.THEFT,
 			net.colonists.law.Law.VANDALISM, net.colonists.law.Law.ASSAULT, net.colonists.law.Law.MURDER, net.colonists.law.Law.POACHING);
@@ -293,6 +309,14 @@ public class Faction {
 		nbt.putBoolean("Revolt", this.revolt);
 		nbt.putLong("LastColony", this.lastColonyDay);
 		nbt.putInt("WarGoal", this.warGoal);
+		if (this.rulerPlayer != null) nbt.putUuid("RulerPlayer", this.rulerPlayer);
+		if (this.heirPlayer != null) nbt.putUuid("HeirPlayer", this.heirPlayer);
+		nbt.putInt("ArmyOp", this.armyOpinion);
+		nbt.putInt("CourtOp", this.courtOpinion);
+		if (this.orderedColony != null) {
+			nbt.putLong("OrderedColony", this.orderedColony.asLong());
+			nbt.putInt("OrderedColonyFrom", this.orderedColonyFrom);
+		}
 		NbtList lawList = new NbtList();
 		for (net.colonists.law.Law l : this.laws) lawList.add(net.minecraft.nbt.NbtString.of(l.name()));
 		nbt.put("Laws", lawList);
@@ -346,6 +370,17 @@ public class Faction {
 		f.revolt = nbt.getBoolean("Revolt");
 		f.lastColonyDay = nbt.contains("LastColony") ? nbt.getLong("LastColony") : Long.MIN_VALUE;
 		f.warGoal = nbt.contains("WarGoal") ? nbt.getInt("WarGoal") : -1;
+		if (nbt.containsUuid("RulerPlayer")) f.rulerPlayer = nbt.getUuid("RulerPlayer");
+		if (nbt.containsUuid("HeirPlayer")) f.heirPlayer = nbt.getUuid("HeirPlayer");
+		f.armyOpinion = nbt.contains("ArmyOp") ? nbt.getInt("ArmyOp") : 55;
+		f.courtOpinion = nbt.contains("CourtOp") ? nbt.getInt("CourtOp") : 55;
+		if (nbt.contains("OrderedColony")) {
+			f.orderedColony = BlockPos.fromLong(nbt.getLong("OrderedColony"));
+			f.orderedColonyFrom = nbt.getInt("OrderedColonyFrom");
+		}
+		// Older saves: player-founded factions were "Player-led"; their founder now simply rules.
+		if (f.founderPlayer != null && f.rulerPlayer == null && f.government == Government.PLAYER) f.rulerPlayer = f.founderPlayer;
+		if (f.government == Government.PLAYER) f.government = Government.CHIEFDOM;
 		if (nbt.contains("Laws")) {
 			f.laws.clear();
 			NbtList lawList = nbt.getList("Laws", NbtElement.STRING_TYPE);

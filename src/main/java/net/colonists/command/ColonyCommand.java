@@ -243,6 +243,8 @@ public final class ColonyCommand {
 		}
 		Faction f = fm.createFaction(player.getRandom(), name);
 		f.founderPlayer = player.getUuid();
+		f.rulerPlayer = player.getUuid();
+		f.rulerName = player.getName().getString();
 		fm.setPlayerFaction(player.getUuid(), f.id);
 		fm.markDirty();
 		FactionManager.broadcast(ctx.getSource().getServer(), Text.literal(player.getName().getString() + " has founded the ")
@@ -281,6 +283,10 @@ public final class ColonyCommand {
 		}
 		fm.setPlayerFaction(player.getUuid(), null);
 		Faction f = fm.get(id);
+		if (f != null && player.getUuid().equals(f.rulerPlayer)) {
+			f.rulerPlayer = null;
+			f.ruler = null;
+		}
 		if (f != null) {
 			fm.changeRep(ctx.getSource().getServer(), player, id, -10);
 			if (fm.memberCount(id) == 0 && f.members.isEmpty()) fm.removeMember(ctx.getSource().getServer(), id, UUID.randomUUID());
@@ -294,8 +300,8 @@ public final class ColonyCommand {
 		FactionManager fm = FactionManager.get(ctx.getSource().getServer());
 		String mine = fm.playerFaction(player.getUuid());
 		Faction own = fm.get(mine);
-		if (own == null || !player.getUuid().equals(own.founderPlayer)) {
-			ctx.getSource().sendError(Text.literal("Only the founder of a player faction can do that. (/colony found <name>)"));
+		if (own == null || !player.getUuid().equals(own.rulerPlayer)) {
+			ctx.getSource().sendError(Text.literal("Only the ruler of your faction can do that. (/colony found <name>, or take power from the atlas)"));
 			return 0;
 		}
 		Faction other = fm.get(StringArgumentType.getString(ctx, "faction"));

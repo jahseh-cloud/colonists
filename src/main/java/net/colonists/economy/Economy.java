@@ -83,7 +83,7 @@ public final class Economy {
 		};
 	}
 
-	static double taxRate(Faction f) {
+	public static double defaultTax(Faction f) {
 		return switch (f.government) {
 			case MONARCHY -> 0.15;
 			case REPUBLIC -> 0.08;
@@ -102,7 +102,8 @@ public final class Economy {
 		// Production: the town's farms, workshops and market turn out goods worth this much.
 		s.treasury += people.size() * 2 + (s.hasBuilt("market") ? people.size() / 2 : 0);
 		// Taxes on wealth (nobles of a monarchy are exempt).
-		double rate = taxRate(f);
+		double rate = s.taxRate >= 0 ? s.taxRate / 100.0 : defaultTax(f);
+		if (s.autonomy) rate /= 2;
 		for (Faction.Citizen c : people) {
 			if (f.government == Faction.Government.MONARCHY && !f.dynasty.isEmpty() && f.dynasty.equals(c.surname)) continue;
 			int tax = (int) (c.wealth * rate);

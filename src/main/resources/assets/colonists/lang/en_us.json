@@ -6,5 +6,9 @@
 	"gamerule.colonistsBuild": "Colonists can build houses",
 	"gamerule.colonistsChatter": "Colonists talk in chat",
 	"gamerule.colonistsGrow": "Colonist factions grow over time",
-	"gamerule.colonistsMaxPerFaction": "Max colonists per faction"
+	"gamerule.colonistsMaxPerFaction": "Max colonists per faction",
+	"item.colonists.political_atlas": "Political Atlas",
+	"key.colonists.atlas": "Open political atlas",
+	"category.colonists": "Colonists",
+	"gamerule.colonistsEnslavePlayers": "Convicted players can be sold into slavery"
 }

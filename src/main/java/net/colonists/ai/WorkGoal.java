@@ -407,6 +407,20 @@ public class WorkGoal extends Goal {
 			return null;
 		}
 		int pop = f.population();
+		// A building the ruler paid to put first.
+		if (!f.priority.isEmpty()) {
+			if (!f.buildingsOf(f.priority).isEmpty()) {
+				f.priority = "";
+			} else {
+				Blueprint bp = Blueprints.get(f.priority);
+				Site site = BuildStructureTask.claimLot(c, f, bp);
+				if (site != null) {
+					c.say("By order of the ruler: a " + bp.name.toLowerCase() + " for " + f.name + ".");
+					f.priority = "";
+					return new BuildStructureTask(c, site, bp, false);
+				}
+			}
+		}
 		for (int r = 0; r <= f.rank.ordinal(); r++) {
 			for (String id : Blueprints.PROJECTS[r]) {
 				if (!f.buildingsOf(id).isEmpty()) continue;

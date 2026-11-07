@@ -402,7 +402,7 @@ public class FactionManager extends PersistentState {
 							.append(a.displayName()).append(Text.literal(" and the ").formatted(Formatting.GOLD))
 							.append(b.displayName()).append(Text.literal(".").formatted(Formatting.GOLD)));
 				}
-				if (a.founderPlayer != null || b.founderPlayer != null) delta = Math.min(delta, 0) / 2; // players steer their own diplomacy
+				if (a.rulerPlayer != null || b.rulerPlayer != null) delta = Math.min(delta, 0) / 2; // players steer their own diplomacy
 				// Rulers' temperaments colour relations.
 				Faction.Citizen ra = a.rulerCitizen(), rb = b.rulerCitizen();
 				if (ra != null && rb != null) {

@@ -19,6 +19,7 @@ public class ColonistsClient implements ClientModInitializer {
 		// City data for map mods.
 		ClientPlayNetworking.registerGlobalReceiver(CityMapPayload.ID, (payload, context) -> ClientCities.update(payload.cities()));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(ClientCities::clear));
+		net.colonists.client.atlas.AtlasClient.init();
 		FabricLoader loader = FabricLoader.getInstance();
 		if (loader.isModLoaded("xaerominimap") || loader.isModLoaded("xaerominimapfair")) XaeroCompat.init();
 	}

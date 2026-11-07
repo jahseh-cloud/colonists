@@ -115,7 +115,7 @@ public final class Courts {
 		Justice j = Justice.get(world.getServer());
 		if (criminal instanceof PlayerEntity p) {
 			if (p.isCreative() || p.isSpectator()) return;
-			if (p.getUuid().equals(f.founderPlayer)) return;
+			if (p.getUuid().equals(f.founderPlayer) || p.getUuid().equals(f.rulerPlayer)) return;
 			if (fm.standing(p, f.id) <= FactionManager.WAR) return; // that's war, not crime
 		} else if (criminal instanceof ColonistEntity c) {
 			if (c.isBaby() || fm.relation(f.id, c.getFactionId()) <= FactionManager.WAR) return;

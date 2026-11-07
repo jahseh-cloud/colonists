@@ -60,6 +60,7 @@ public class ColonistsMod implements ModInitializer {
 	public static EntityType<ColonistEntity> COLONIST;
 	public static EntityType<CaptiveEntity> CAPTIVE;
 	public static Item COLONIST_SPAWN_EGG;
+	public static Item POLITICAL_ATLAS;
 
 	private static void sendCityMap(MinecraftServer server, ServerPlayerEntity player) {
 		if (ServerPlayNetworking.canSend(player, CityMapPayload.ID)) {
@@ -89,6 +90,10 @@ public class ColonistsMod implements ModInitializer {
 		COLONIST_SPAWN_EGG = Registry.register(Registries.ITEM, id("colonist_spawn_egg"),
 				new SpawnEggItem(COLONIST, 0x2F7FB5, 0x6B4A2B, new Item.Settings()));
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.SPAWN_EGGS).register(entries -> entries.add(COLONIST_SPAWN_EGG));
+		POLITICAL_ATLAS = Registry.register(Registries.ITEM, id("political_atlas"),
+				new net.colonists.atlas.PoliticalAtlasItem(new Item.Settings().maxCount(1)));
+		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(POLITICAL_ATLAS));
+		net.colonists.atlas.AtlasServer.register();
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			ColonyCommand.register(dispatcher);

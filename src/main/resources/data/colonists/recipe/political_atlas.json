@@ -1,0 +1,13 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"ingredients": [
+		{"item": "minecraft:book"},
+		{"item": "minecraft:map"},
+		{"item": "minecraft:emerald"}
+	],
+	"result": {
+		"id": "colonists:political_atlas",
+		"count": 1
+	}
+}
