@@ -130,10 +130,10 @@ public final class Politics {
 		}
 		UUID heir = null;
 		if (f.government == Faction.Government.MONARCHY && !f.dynasty.isEmpty()) {
-			heir = best(f, c -> !c.child && c.surname.equals(f.dynasty), c -> c.ambition + c.popularity);
+			heir = best(f, c -> !c.child && !c.bonded && c.surname.equals(f.dynasty), c -> c.ambition + c.popularity);
 		}
 		if (heir == null) {
-			heir = best(f, c -> !c.child, c -> c.ambition + c.aggression / 2 + c.popularity);
+			heir = best(f, c -> !c.child && !c.bonded, c -> c.ambition + c.aggression / 2 + c.popularity);
 			if (heir != null && f.government == Faction.Government.MONARCHY) f.dynasty = f.citizens.get(heir).surname;
 		}
 		if (heir == null) return;
@@ -162,7 +162,7 @@ public final class Politics {
 
 	/** Every adult votes for the candidate closest to their own temperament; members who are players vote too. */
 	public static void election(MinecraftServer server, FactionManager fm, Faction f, long now) {
-		List<Map.Entry<UUID, Faction.Citizen>> candidates = f.citizens.entrySet().stream().filter(e -> !e.getValue().child)
+		List<Map.Entry<UUID, Faction.Citizen>> candidates = f.citizens.entrySet().stream().filter(e -> !e.getValue().child && !e.getValue().bonded)
 				.sorted(Comparator.comparingInt((Map.Entry<UUID, Faction.Citizen> e) -> -(e.getValue().ambition + e.getValue().popularity)))
 				.limit(3).toList();
 		if (candidates.isEmpty()) return;
@@ -316,7 +316,7 @@ public final class Politics {
 
 		// Coups and revolutions when the ruler is hated.
 		if (f.approval >= 25 || f.ruler == null || random.nextInt(5) != 0) return;
-		UUID plotter = best(f, c -> !c.child && c.ambition > 60, c -> c.ambition + c.popularity);
+		UUID plotter = best(f, c -> !c.child && !c.bonded && c.ambition > 60, c -> c.ambition + c.popularity);
 		if (plotter == null || plotter.equals(f.ruler)) return;
 		Faction.Citizen p = f.citizens.get(plotter);
 		String deposed = f.rulerName;

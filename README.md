@@ -129,6 +129,45 @@ Factions play like a grand-strategy game:
 - **Off-screen.** When no player is nearby, settlers and armies make their long journeys "off-screen" and arrive at their destination. Settlements stay loaded, so sieges and battles happen even when you are far away.
 - **Map.** JourneyMap and Xaero's show every settlement with its population. They also show the realm it belongs to, whether it is the capital, its loyalty and whether it is under siege.
 
+## Law and order
+
+- **Law books.** Every faction has laws that its ruler writes and rewrites. Everyone bans theft, vandalism, assault and murder. Towns and stricter rulers add poaching. Aggressive rulers and monarchies add a night-time curfew in walled cities and treason. A cruel, aggressive ruler brings in the **death penalty**, and only a kind ruler abolishes it. `/colony laws` shows the current book.
+- **Crime needs a witness.** If a colonist sees you, it counts. That covers taking from chests or fields, breaking buildings, hitting or killing citizens, or killing their livestock. You become **wanted** with a "heat" level. Unseen crimes go unpunished. Colonists commit crimes too: poor, hungry, unkind ones steal from their neighbours' larders, and hotheads start brawls.
+- **Guards arrest, they don't kill.** They subdue the wanted, beating them down to a few hearts, then drag them to justice. While wanted, you can:
+  - **pay the fine** by right-clicking a guard holding emeralds,
+  - **try a bribe** by sneak-right-clicking with emeralds (greedy guards may take it, honest ones add a charge),
+  - **surrender** by sneak-right-clicking with an empty hand (a lighter sentence),
+  - or **run**. Heat fades after a day and a half.
+- **Sentences.** Small crimes get a fine. Larger ones mean **prison**: a barred cell where you serve your time. Guards who see you outside your cell put you back and add time. Get 48 blocks away unseen and you've escaped, which makes you wanted again. At 3+ heat in a city with a **work camp**, you mine a quota of stone inside the fence instead. Murder and treason mean the **gallows** when there is a death penalty. Under captivity laws with a harsh ruler, the sentence is **slavery**. With no prison and no money, the sentence is **exile**: guards kill you on sight in that faction's towns for five days.
+- **New buildings:** prison (towns with 8+ people), gallows (when the death penalty is law), work camp (cities).
+- `/colony wanted` shows where you're wanted and for what.
+
+## Economy
+
+- **Emeralds.** Every colonist has a purse, and every town has a treasury.
+- **Daily payday:**
+  - **Production:** the town earns from its work, plus a bonus if it has a market.
+  - **Taxes** on wealth: 10% in a chiefdom, 15% in a monarchy (nobles exempt), 8% in a republic.
+  - **Wages:** 1–4 emeralds by trade, more for the ruler and nobles, none for slaves.
+  - **An empty treasury** leaves workers unpaid, so approval drops and war weariness rises.
+- **Classes.** Poor (under 8), Common, Rich (60+). The rich build stone houses and manors. Slave owners build **estates**. Rich citizens buy slaves and gain influence in republics. The poor are the ones who steal.
+- **Prices follow supply.** Plenty is cheap, scarcity is dear, and food costs more in wartime. `/colony market` shows prices and the treasury of the town you're standing in.
+- **Merchants** work the market stall. Right-click one to trade: the town sells its surpluses and buys what it lacks.
+- **Caravans** move food, timber, stone and iron between towns of the same realm and between allies, paid from the treasuries.
+- **Your own shop.** Put goods in a chest inside a town, look at it, and run `/colony shop <price> <batch>`. The town buys what it's short of, if your price is within 25% of the market rate, and pays emeralds into the chest. `/colony shop remove` closes it.
+- **Money moves around.** Vassals pay a tenth of their treasury as tribute. Wealth is inherited, and a conquered town's treasury goes to the conqueror. You can gift emeralds to any colonist.
+
+## Slavery
+
+- A convict sentenced to slavery goes on the **auction block** at the town market for one minute. The town's rich bid, and players can bid with `/colony bid <emeralds>`. With no buyer, the convict belongs to the town.
+- **An enslaved player** is bound to within 48 blocks (about three chunks) of their owner's estate. They can only break blocks there and can't hurt their owner. Each day they get a **task** (timber, the harvest, stone, coal, iron) to hand in at the estate. Missing one brings a whipping and slowness. Straying past the line brings a warning, and then they're a **runaway** that guards hunt. A caught runaway is dragged back, and their price goes up.
+- **Ways to freedom:**
+  - buy it with `/colony freedom buy`, or someone else buys it with `/colony free <player>`,
+  - your owner dies and their will frees you (kind owners do this),
+  - the faction abolishes captivity,
+  - or you escape to a town that forbids slavery, which grants **refuge** and sours relations between the two factions.
+- Players who buy slaves set where they're bound with `/colony estate`. The `colonistsEnslavePlayers` gamerule turns player slavery off.
+
 ## Captives
 
 In cities where captivity is law, guards raid nearby villager settlements and bring villagers back as **captives**. Iron golems defend their village. Captives keep their villager appearance and profession and do forced labour on the fields or plaza, with their produce going into the stockpile. Captives go free (turning back into the original villager, trades and all) when:
@@ -180,6 +219,7 @@ You can also use the **Colonist Spawn Egg** in the Spawn Eggs creative tab.
 | `colonistsGrow` | true | Births and newcomers |
 | `colonistsMaxPerFaction` | 0 | Population cap per city (0 = unlimited) |
 | `colonistsLifespanMinDays` / `MaxDays` | 25 / 30 | Lifespan range in in-game days |
+| `colonistsEnslavePlayers` | `true` | Convicted players can be sold into slavery |
 | `colonistsKeepCitiesLoaded` | true | Keep city cores loaded so they live on while you're away |
 
 ## Building the mod
