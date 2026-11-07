@@ -1,9 +1,9 @@
 # gradle
 
 .gradle/
-build/
-out/
-classes/
+/build/
+/out/
+/classes/
 
 # eclipse
 
@@ -20,7 +20,7 @@ classes/
 
 .settings/
 .vscode/
-bin/
+/bin/
 .classpath
 .project
 
