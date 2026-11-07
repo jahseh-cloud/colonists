@@ -47,6 +47,8 @@ public final class Blueprint {
 	@Nullable public final BlockPos workstation;
 	/** Whether a small vegetable garden goes beside it (only narrow houses leave room for one). */
 	public final boolean garden;
+	/** Prison cells (relative floor positions). */
+	public final List<BlockPos> cells;
 
 	private Blueprint(Builder b) {
 		this.id = b.id;
@@ -57,6 +59,7 @@ public final class Blueprint {
 		this.entries = List.copyOf(b.entries);
 		this.doorX = b.doorX;
 		this.beds = List.copyOf(b.beds);
+		this.cells = List.copyOf(b.cells);
 		this.chest = b.chest;
 		this.workstation = b.workstation;
 		this.garden = b.garden;
@@ -102,6 +105,7 @@ public final class Blueprint {
 		int maxY;
 		int doorX = -1;
 		final List<BlockPos> beds = new ArrayList<>();
+		final List<BlockPos> cells = new ArrayList<>();
 		BlockPos chest, workstation;
 		boolean garden;
 
@@ -222,6 +226,11 @@ public final class Blueprint {
 
 		public Builder bed(int x, int z) {
 			this.beds.add(new BlockPos(x, 0, z));
+			return this;
+		}
+
+		public Builder cell(int x, int z) {
+			this.cells.add(new BlockPos(x, 0, z));
 			return this;
 		}
 

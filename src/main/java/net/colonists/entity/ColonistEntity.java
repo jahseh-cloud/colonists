@@ -77,7 +77,7 @@ import java.util.UUID;
  * An autonomous, player-shaped NPC. It keeps its own inventory, gets hungry, gathers, crafts,
  * builds a home, farms, sleeps, fights, chats with neighbours, and belongs to a faction.
  */
-public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
+public class ColonistEntity extends PathAwareEntity implements InventoryOwner, net.minecraft.village.Merchant {
 	private static final TrackedData<Integer> SKIN = DataTracker.registerData(ColonistEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final TrackedData<Boolean> CHILD = DataTracker.registerData(ColonistEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 	/** One Minecraft day from birth to adulthood. */
@@ -89,7 +89,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 
 	public enum Job {
 		NONE("Child"), FARMER("Farmer"), RANCHER("Rancher"), WOODCUTTER("Lumberjack"), MINER("Miner"),
-		BLACKSMITH("Blacksmith"), COOK("Cook"), BUILDER("Builder"), GUARD("Guard");
+		BLACKSMITH("Blacksmith"), COOK("Cook"), BUILDER("Builder"), GUARD("Guard"), MERCHANT("Merchant");
 
 		public final String label;
 
@@ -114,6 +114,11 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	/** Settlement to join on spawn (births, newcomers, colonists), or -1. */
 	public int pendingSettlement = -1;
 	public int settlementId = -1;
+	/** Backup of this colonist's emeralds (the faction's citizen record is authoritative). */
+	public int purse;
+	/** Set by the courts so the death report says "execution". */
+	@Nullable public String forcedDeathCause;
+	@Nullable private PlayerEntity customer;
 
 	public int hunger = 20;
 	private String surname = "";
@@ -267,7 +272,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		FactionManager fm = this.factions();
 		Faction f = fm == null ? null : fm.get(this.factionId);
 		if (f == null) return;
+		boolean fresh = !f.citizens.containsKey(this.getUuid());
 		Faction.Citizen c = f.citizens.computeIfAbsent(this.getUuid(), u -> new Faction.Citizen());
+		if (fresh) c.wealth = this.purse;
+		this.purse = c.wealth;
 		c.name = this.firstName;
 		c.surname = this.surname;
 		c.ambition = this.ambition;
@@ -450,6 +458,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		FactionManager fm = this.factions();
 		if (fm == null) return;
 		if (!this.factionId.isEmpty() && !this.factionId.equals(id)) {
+			this.purse = net.colonists.economy.Economy.wealth(this);
 			this.settlementId = -1;
 			fm.removeMember(this.server(), this.factionId, this.getUuid());
 			// A house belongs to the faction that built it, so leaving means moving out.
@@ -508,6 +517,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	public boolean isEnemy(LivingEntity e) {
 		FactionManager fm = this.factions();
 		if (fm == null || e == this || !e.isAlive()) return false;
+		if (net.colonists.law.Courts.wantedBy(this, e)) return true;
 		if (!this.isSoldier()) return false;
 		// Soldiers fight soldiers. Civilians of a conquered town become our people, so they are spared.
 		if (e instanceof ColonistEntity c) return c.isSoldier() && fm.relation(this.factionId, c.factionId) <= FactionManager.WAR;
@@ -545,7 +555,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.searchCooldowns.values().removeIf(t -> t < now);
 		}
 		if (phase % 2400 == 0) Society.tick(this, sw);
-		if (phase % 200 == 0) this.followConquest();
+		if (phase % 200 == 0) {
+			this.followConquest();
+			if (this.customer != null && (!this.customer.isAlive() || this.customer.squaredDistanceTo(this) > 16 * 16)) this.customer = null;
+		}
 		if (phase % 600 == 0) {
 			this.syncCitizen();
 			this.refreshName();
@@ -710,8 +723,27 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		FactionManager fm = this.factions();
 		if (fm == null) return ActionResult.PASS;
 
+		if (this.job == Job.GUARD && net.colonists.law.Courts.interactGuard(this, sp, hand)) return ActionResult.SUCCESS;
+		if (this.job == Job.MERCHANT && held.isEmpty() && !player.isSneaking() && this.customer == null
+				&& fm.standing(player, this.factionId) > FactionManager.WAR) {
+			net.colonists.faction.Settlement town = this.settlement();
+			if (town != null) {
+				this.customer = player;
+				this.offers = null;
+				this.sendOffers(player, Text.literal(this.fullName() + " — " + town.name + " market"), 0);
+				return ActionResult.SUCCESS;
+			}
+		}
 		if (held.isEmpty()) {
 			this.sendStatus(sp, fm);
+			return ActionResult.SUCCESS;
+		}
+		if (held.isOf(Items.EMERALD) && !player.isSneaking() && fm.standing(player, this.factionId) > FactionManager.WAR) {
+			int n = held.getCount();
+			net.colonists.economy.Economy.earn(this, n);
+			if (!player.getAbilities().creativeMode) held.decrement(n);
+			fm.changeRep(this.server(), player, this.factionId, Math.min(25, n));
+			this.tell(sp, n >= 10 ? "So much! I won't forget this." : "Thank you kindly.");
 			return ActionResult.SUCCESS;
 		}
 		if (player.isSneaking() && held.isOf(Items.EMERALD)) {
@@ -799,6 +831,15 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				this.isBaby() ? "Child (grows up in " + (this.growUpTicks / 1200) + " min)" : this.job.label,
 				this.ageDays(), this.lifespanDays,
 				this.partner == null ? "none" : this.partnerName, this.ambition, this.aggression, this.kindness)).formatted(Formatting.WHITE), false);
+		int wealth = net.colonists.economy.Economy.wealth(this);
+		net.colonists.law.Justice justice = net.colonists.law.Justice.get(this.server());
+		net.colonists.law.Justice.Slave bond = justice.slaves.get(this.getUuid());
+		int owned = justice.slavesOwnedBy(this.getUuid());
+		player.sendMessage(Text.literal("Wealth: " + wealth + " emeralds (" + net.colonists.economy.Economy.classOf(wealth) + ")"
+				+ (owned > 0 ? "   Owns " + owned + (owned == 1 ? " slave" : " slaves") : "")
+				+ (bond != null ? "   Enslaved to " + (bond.ownerName.isEmpty() ? "the town" : bond.ownerName) : "")
+				+ (justice.prisoners.containsKey(this.getUuid()) ? "   IMPRISONED" : "")
+				+ (justice.heat(this.factionId, this.getUuid()) > 0 ? "   WANTED" : "")).formatted(Formatting.GOLD), false);
 		player.sendMessage(Text.literal("Your standing: ").formatted(Formatting.GRAY)
 				.append(Text.literal(FactionManager.describe(standing) + " (" + standing + ")").formatted(FactionManager.describeColor(standing))), false);
 		Map<String, Integer> counts = new HashMap<>();
@@ -865,7 +906,22 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			}
 		}
 		Faction mine = fm.get(this.factionId);
-		if (mine != null) mine.recordDeath(today(sw), this.diedOfOldAge ? "old age" : deathCause(source));
+		if (mine != null) mine.recordDeath(today(sw), this.forcedDeathCause != null ? this.forcedDeathCause : this.diedOfOldAge ? "old age" : deathCause(source));
+		// Inheritance of money: to the spouse, else a child, else the town treasury.
+		if (mine != null) {
+			int estate = net.colonists.economy.Economy.wealth(this);
+			Faction.Citizen heirC = this.partner == null ? null : mine.citizens.get(this.partner);
+			if (heirC == null) {
+				for (Map.Entry<UUID, Faction.Citizen> e : mine.citizens.entrySet()) {
+					if (!e.getKey().equals(this.getUuid()) && e.getValue().surname.equals(this.surname)) {
+						heirC = e.getValue();
+						break;
+					}
+				}
+			}
+			if (heirC != null) heirC.wealth += estate;
+			else if (this.settlement() != null) this.settlement().treasury += estate;
+		}
 		if (mine != null && (killer instanceof ColonistEntity || killer instanceof PlayerEntity)) {
 			mine.warWeariness += 3;
 			fm.markDirty();
@@ -894,6 +950,82 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		}
 	}
 
+	/** Banished: leave the faction and wander off to start again elsewhere. */
+	public void leaveForExile() {
+		FactionManager fm = this.factions();
+		if (fm == null) return;
+		Faction f = fm.createFaction(this.random, null);
+		this.setFaction(f.id);
+		this.say("Fine. I'll make my own way in the world.");
+	}
+
+	// ---------------------------------------------------------------- the merchant's stall
+
+	@Override
+	public void setCustomer(@Nullable PlayerEntity customer) {
+		this.customer = customer;
+	}
+
+	@Nullable
+	@Override
+	public PlayerEntity getCustomer() {
+		return this.customer;
+	}
+
+	@Override
+	public net.minecraft.village.TradeOfferList getOffers() {
+		net.colonists.faction.Settlement town = this.settlement();
+		if (!(this.getWorld() instanceof ServerWorld sw) || town == null) return new net.minecraft.village.TradeOfferList();
+		if (this.offers == null) this.offers = net.colonists.economy.Economy.offers(sw, town);
+		return this.offers;
+	}
+
+	@Nullable private net.minecraft.village.TradeOfferList offers;
+
+	@Override
+	public void setOffersFromServer(net.minecraft.village.TradeOfferList offers) {
+		this.offers = offers;
+	}
+
+	@Override
+	public void trade(net.minecraft.village.TradeOffer offer) {
+		offer.use();
+		net.colonists.faction.Settlement town = this.settlement();
+		if (this.getWorld() instanceof ServerWorld sw && town != null) {
+			net.colonists.economy.Economy.traded(sw, town, offer);
+			this.factions().markDirty();
+		}
+		this.playSound(net.minecraft.sound.SoundEvents.ENTITY_VILLAGER_YES, 1f, 1f);
+	}
+
+	@Override
+	public void onSellingItem(ItemStack stack) {
+	}
+
+	@Override
+	public int getExperience() {
+		return 0;
+	}
+
+	@Override
+	public void setExperienceFromServer(int experience) {
+	}
+
+	@Override
+	public boolean isLeveledMerchant() {
+		return false;
+	}
+
+	@Override
+	public net.minecraft.sound.SoundEvent getYesSound() {
+		return net.minecraft.sound.SoundEvents.ENTITY_VILLAGER_YES;
+	}
+
+	@Override
+	public boolean isClient() {
+		return this.getWorld().isClient;
+	}
+
 	private static String deathCause(DamageSource source) {
 		Entity attacker = source.getAttacker();
 		if (attacker instanceof ColonistEntity) return "war";
@@ -918,6 +1050,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		nbt.put("ColonistInventory", this.inventory.toNbtList(this.getRegistryManager()));
 		nbt.putString("Faction", this.factionId);
 		nbt.putInt("Settlement", this.settlementId);
+		nbt.putInt("Purse", net.colonists.economy.Economy.wealth(this));
 		nbt.putString("FirstName", this.firstName);
 		nbt.putInt("Skin", this.getSkin());
 		nbt.putInt("Hunger", this.hunger);
@@ -953,6 +1086,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		this.inventory.readNbtList(nbt.getList("ColonistInventory", NbtElement.COMPOUND_TYPE), this.getRegistryManager());
 		this.factionId = nbt.getString("Faction");
 		this.settlementId = nbt.contains("Settlement") ? nbt.getInt("Settlement") : -1;
+		this.purse = nbt.getInt("Purse");
 		this.firstName = nbt.getString("FirstName");
 		this.dataTracker.set(SKIN, nbt.getInt("Skin"));
 		if (nbt.contains("Hunger")) this.hunger = nbt.getInt("Hunger");

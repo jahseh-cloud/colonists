@@ -58,6 +58,13 @@ public class Settlement {
 	public int quarrySize;
 	public int mineY = Integer.MIN_VALUE;
 	public int foodInStock;
+	/** Emeralds in the town treasury (taxes, fines, sales) and the last day wages were paid. */
+	public int treasury = 20;
+	public long lastPayday = -1;
+	/** Unpaid wage days in a row (an unpaid town grows restless). */
+	public int arrears;
+	private transient int[] boundsCache;
+	private transient long boundsTime = Long.MIN_VALUE;
 
 	public Faction.Rank rank = Faction.Rank.VILLAGE;
 	public boolean wallPlanned;
@@ -76,6 +83,42 @@ public class Settlement {
 
 	public MutableText displayName() {
 		return Text.literal(this.name).formatted(this.faction == null ? net.minecraft.util.Formatting.WHITE : this.faction.color);
+	}
+
+	/** The town's extent: its wall, or its buildings and fields plus a margin (minX, minZ, maxX, maxZ). */
+	public int[] bounds(long now) {
+		if (this.boundsCache != null && now - this.boundsTime < 200) return this.boundsCache;
+		BlockPos c = this.cityCenter;
+		int[] b;
+		if (c == null) {
+			b = new int[]{0, 0, -1, -1};
+		} else if (this.wallPlanned) {
+			b = new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ};
+		} else {
+			b = new int[]{c.getX() - City.PLAZA_HALF - 6, c.getZ() - City.PLAZA_HALF - 6, c.getX() + City.PLAZA_HALF + 6, c.getZ() + City.PLAZA_HALF + 6};
+			for (int[] r : CityGrowth.footprints(this)) {
+				b[0] = Math.min(b[0], r[0] - 4);
+				b[1] = Math.min(b[1], r[1] - 4);
+				b[2] = Math.max(b[2], r[2] + 4);
+				b[3] = Math.max(b[3], r[3] + 4);
+			}
+		}
+		this.boundsCache = b;
+		this.boundsTime = now;
+		return b;
+	}
+
+	public boolean contains(BlockPos pos, long now, int margin) {
+		int[] b = this.bounds(now);
+		return pos.getX() >= b[0] - margin && pos.getX() <= b[2] + margin && pos.getZ() >= b[1] - margin && pos.getZ() <= b[3] + margin
+				&& (this.cityCenter == null || Math.abs(pos.getY() - this.cityCenter.getY()) < 48);
+	}
+
+	/** Origin of the first finished building of a type, or null. */
+	@Nullable
+	public BlockPos builtOf(String type) {
+		for (BlockPos o : this.buildingsOf(type)) if (this.built.contains(o)) return o;
+		return null;
 	}
 
 	public boolean isCapital() {
@@ -166,6 +209,9 @@ public class Settlement {
 		nbt.putInt("QuarrySize", this.quarrySize);
 		nbt.putInt("MineY", this.mineY);
 		nbt.putInt("Food", this.foodInStock);
+		nbt.putInt("Treasury", this.treasury);
+		nbt.putLong("Payday", this.lastPayday);
+		nbt.putInt("Arrears", this.arrears);
 		nbt.putString("Rank", this.rank.name());
 		nbt.putBoolean("WallPlanned", this.wallPlanned);
 		nbt.putIntArray("Wall", new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ});
@@ -181,6 +227,9 @@ public class Settlement {
 		s.foundedDay = nbt.getLong("Founded");
 		s.loyalty = nbt.contains("Loyalty") ? nbt.getInt("Loyalty") : 100;
 		s.formerOwner = nbt.getString("FormerOwner");
+		s.treasury = nbt.contains("Treasury") ? nbt.getInt("Treasury") : 20;
+		s.lastPayday = nbt.contains("Payday") ? nbt.getLong("Payday") : -1;
+		s.arrears = nbt.getInt("Arrears");
 		if (nbt.contains("Center")) s.cityCenter = BlockPos.fromLong(nbt.getLong("Center"));
 		NbtList homeList = nbt.getList("Homes", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < homeList.size(); i++) {

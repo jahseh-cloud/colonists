@@ -35,6 +35,19 @@ final class Society {
 			c.say("I'm going to work as a " + switchTo.label.toLowerCase() + " from now on.");
 		}
 
+		// Brawls: a hothead sometimes comes to blows with someone they can't stand. That's assault, if anyone sees.
+		if (c.aggression > 75 && c.getRandom().nextInt(300) == 0) {
+			ColonistEntity rival = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(6),
+					o -> o != c && !o.isBaby() && o.getFactionId().equals(c.getFactionId()) && c.affinityWith(o.getUuid()) < -5).stream().findFirst().orElse(null);
+			if (rival != null) {
+				c.swingHand(net.minecraft.util.Hand.MAIN_HAND);
+				c.lookAtEntity(rival, 30f, 30f);
+				rival.damage(world.getDamageSources().generic(), 2f);
+				c.say("That's for what you said about me, " + rival.getFirstName() + "!");
+				net.colonists.law.Courts.report(world, c.settlement(), c, net.colonists.law.Law.Crime.ASSAULT, true);
+			}
+		}
+
 		// Widowed: free to remarry.
 		if (c.partner != null && !faction.citizens.containsKey(c.partner)) {
 			c.partner = null;

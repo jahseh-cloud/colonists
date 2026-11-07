@@ -134,6 +134,15 @@ public class WorkGoal extends Goal {
 		boolean canBuild = world.getGameRules().getBoolean(ColonistsMod.BUILD);
 		boolean city = f != null && f.cityCenter != null;
 
+		// Convicts serve their sentence; slaves stay on their master's estate.
+		net.colonists.law.Justice justice = net.colonists.law.Justice.get(world.getServer());
+		net.colonists.law.Justice.Prisoner jail = justice.prisoners.get(c.getUuid());
+		if (jail != null) return new net.colonists.ai.task.PrisonTask(c, jail.place, jail.sentence);
+		net.colonists.law.Justice.Slave bond = justice.slaves.get(c.getUuid());
+		if (bond != null && bond.estate.getSquaredDistance(c.getBlockPos().withY(bond.estate.getY())) > 40 * 40) {
+			return new MigrateTask(c, bond.estate, "Returning to the master's estate");
+		}
+
 		// 0. Belong somewhere: join one of the realm's settlements, or found the first one
 		//    (here, or far enough from everyone else's).
 		if (realm != null && f == null && !c.isBaby()) {
@@ -210,6 +219,11 @@ public class WorkGoal extends Goal {
 			if (c.home != null && city && FarmTask.matureCrops(c, f.site(c.home), false) > 0) return new FarmTask(c, f.site(c.home), false);
 			if (ForageTask.available(c)) return new ForageTask(c);
 			if (FishTask.available(c)) return new FishTask(c);
+			if (city && net.colonists.economy.Economy.wealth(c) < 8 && c.kindness < 45 && !c.onSearchCooldown("STEAL") && c.getRandom().nextInt(3) == 0) {
+				c.searchCooldown("STEAL", 2400);
+				Task steal = net.colonists.ai.task.StealTask.find(c, f);
+				if (steal != null) return steal;
+			}
 			AnimalEntity prey = findPrey(c);
 			if (prey != null) {
 				c.setTarget(prey);
@@ -241,7 +255,7 @@ public class WorkGoal extends Goal {
 				}
 			}
 			if (c.home == null && c.buildSite == null && canBuild && !c.onSearchCooldown("BUILD_SITE")) {
-				Blueprint want = Blueprints.homeFor(f.rank, c.isRuler());
+				Blueprint want = homeFor(c, f);
 				if (ColonistBrain.woodValue(inv) >= Math.min(want.woodCost(), 48) && stone(inv) >= Math.min(want.stoneCost(), 12)) {
 					Site site = BuildStructureTask.claimLot(c, f, want);
 					if (site == null) {
@@ -253,12 +267,35 @@ public class WorkGoal extends Goal {
 					}
 				}
 			}
-			Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : Blueprints.homeFor(f.rank, c.isRuler());
+			Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : homeFor(c, f);
 			if (c.home == null && c.buildSite != null && canBuild && c.needs.isEmpty()
 					&& ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
 				return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
 			}
 			if (c.home == null) {
+				Task supply = supply(c, f, canBreak, plan);
+				if (supply != null) return supply;
+			}
+		} else if (c.home != null && canBuild && city && (c.buildSite != null || upgradeWanted(c, f))) {
+			// Moving up in the world: the rich build better houses, slave owners build estates.
+			if (c.buildSite == null && !c.onSearchCooldown("UPGRADE")) {
+				c.searchCooldown("UPGRADE", 6000);
+				Blueprint want = homeFor(c, f);
+				int fee = upgradeFee(want);
+				Site site = net.colonists.economy.Economy.wealth(c) >= fee ? BuildStructureTask.claimLot(c, f, want) : null;
+				if (site != null) {
+					net.colonists.economy.Economy.spend(c, fee);
+					f.treasury += fee;
+					c.buildSite = site.origin();
+					fm.claimHome(f, site.origin(), c.getUuid());
+					c.say("I can afford something better now. A new " + want.name.toLowerCase() + "!");
+				}
+			}
+			if (c.buildSite != null) {
+				Blueprint plan = BuildStructureTask.blueprintAt(f, c.buildSite);
+				if (c.needs.isEmpty() && ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
+					return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
+				}
 				Task supply = supply(c, f, canBreak, plan);
 				if (supply != null) return supply;
 			}
@@ -374,6 +411,8 @@ public class WorkGoal extends Goal {
 			for (String id : Blueprints.PROJECTS[r]) {
 				if (!f.buildingsOf(id).isEmpty()) continue;
 				if ((id.equals("town_hall") && pop < 2) || (id.equals("lumber_camp") && pop < 3) || (id.equals("barn") && pop < 4)) continue;
+				if (id.equals("prison") && pop < 8) continue;
+				if (id.equals("gallows") && !f.faction.laws.contains(net.colonists.law.Law.DEATH_PENALTY)) continue;
 				Blueprint bp = Blueprints.get(id);
 				Site site = BuildStructureTask.claimLot(c, f, bp);
 				if (site == null) {
@@ -491,6 +530,10 @@ public class WorkGoal extends Goal {
 				}
 				if (c.getRandom().nextInt(2) == 0) return new PatrolTask(c);
 			}
+			case MERCHANT -> {
+				BlockPos market = nearestBuilt(c, f, "market");
+				if (market != null) return new net.colonists.ai.task.MarketTask(c, f.site(market).at(Blueprints.MARKET.workstation));
+			}
 			case NONE -> {
 			}
 		}
@@ -504,6 +547,30 @@ public class WorkGoal extends Goal {
 			return StockpileTask.deposit(c);
 		}
 		return null;
+	}
+
+	private static Blueprint homeFor(ColonistEntity c, Settlement f) {
+		boolean slaver = net.colonists.law.Justice.get(c.server()).slavesOwnedBy(c.getUuid()) > 0;
+		return Blueprints.homeFor(f.rank, c.isRuler(), net.colonists.economy.Economy.wealth(c), slaver);
+	}
+
+	private static int homeTier(Blueprint bp) {
+		if (bp == Blueprints.ESTATE) return 5;
+		if (bp == Blueprints.MANOR) return 4;
+		if (bp == Blueprints.STONE_HOUSE) return 3;
+		if (bp == Blueprints.COTTAGE) return 2;
+		return 1;
+	}
+
+	private static int upgradeFee(Blueprint bp) {
+		return bp == Blueprints.ESTATE ? 40 : bp == Blueprints.MANOR ? 30 : 15;
+	}
+
+	private static boolean upgradeWanted(ColonistEntity c, Settlement f) {
+		if (c.home == null || c.onSearchCooldown("UPGRADE")) return false;
+		Blueprint want = homeFor(c, f);
+		return homeTier(want) > homeTier(BuildStructureTask.blueprintAt(f, c.home)) + (want == Blueprints.ESTATE ? 0 : 1)
+				&& net.colonists.economy.Economy.wealth(c) >= upgradeFee(want);
 	}
 
 	@Nullable

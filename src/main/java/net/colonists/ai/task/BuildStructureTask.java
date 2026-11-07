@@ -341,7 +341,13 @@ public class BuildStructureTask extends Task {
 		f.buildingTypes.put(this.origin, this.bp.id);
 		fm.markDirty();
 		if (this.home) {
-			if (this.colonist.home == null) {
+			if (this.colonist.home == null || this.origin.equals(this.colonist.buildSite)) {
+				BlockPos old = this.colonist.home;
+				if (old != null && !old.equals(this.origin)) {
+					f.homes.put(old, null); // the old house goes to someone who needs one
+					this.colonist.bed = null;
+					this.colonist.chest = null;
+				}
 				this.colonist.home = this.origin;
 				this.colonist.buildSite = null;
 				fm.claimHome(f, this.origin, this.colonist.getUuid());

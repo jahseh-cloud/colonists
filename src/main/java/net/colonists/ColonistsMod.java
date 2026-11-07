@@ -53,6 +53,10 @@ public class ColonistsMod implements ModInitializer {
 	public static final GameRules.Key<GameRules.BooleanRule> KEEP_LOADED =
 			GameRuleRegistry.register("colonistsKeepCitiesLoaded", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
 
+	/** Whether convicted players can be sold into slavery. */
+	public static final GameRules.Key<GameRules.BooleanRule> ENSLAVE_PLAYERS =
+			GameRuleRegistry.register("colonistsEnslavePlayers", GameRules.Category.PLAYER, GameRuleFactory.createBooleanRule(true));
+
 	public static EntityType<ColonistEntity> COLONIST;
 	public static EntityType<CaptiveEntity> CAPTIVE;
 	public static Item COLONIST_SPAWN_EGG;
@@ -86,11 +90,17 @@ public class ColonistsMod implements ModInitializer {
 				new SpawnEggItem(COLONIST, 0x2F7FB5, 0x6B4A2B, new Item.Settings()));
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.SPAWN_EGGS).register(entries -> entries.add(COLONIST_SPAWN_EGG));
 
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ColonyCommand.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+			ColonyCommand.register(dispatcher);
+			net.colonists.command.LawCommand.register(dispatcher);
+		});
 
 		// Map mods (JourneyMap, Xaero's) on the client get city data from here.
 		PayloadTypeRegistry.playS2C().register(CityMapPayload.ID, CityMapPayload.CODEC);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> sendCityMap(server, handler.getPlayer())));
+
+		net.colonists.law.Courts.register();
+		net.colonists.law.Slavery.register();
 
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			if (server.getTicks() % 1200 == 0) {

@@ -159,7 +159,7 @@ public final class ColonyCommand {
 				+ f.totalHomes()));
 		for (net.colonists.faction.Settlement st : f.settlements.values()) {
 			MutableText row = Text.literal(st.isCapital() ? " ★ " : " • ").formatted(Formatting.GOLD).append(st.displayName())
-					.append(Text.literal(" — " + st.rank.label + ", pop. " + st.population() + ", " + st.homes.size() + " houses"
+					.append(Text.literal(" — " + st.rank.label + ", pop. " + st.population() + ", " + st.homes.size() + " houses, treasury " + st.treasury
 							+ (st.cityCenter == null ? "" : " @ " + st.cityCenter.getX() + ", " + st.cityCenter.getZ())
 							+ (st.wallPlanned && !st.wallBuilt ? ", wall " + st.wallProgress + "%" : "")
 							+ (st.isCapital() ? "" : ", loyalty " + st.loyalty + "%")

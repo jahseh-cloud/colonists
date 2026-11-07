@@ -55,6 +55,10 @@ public class Faction {
 		public String job = "NONE";
 		public int popularity;
 		public int settlement = -1;
+		/** Emeralds this citizen owns (the authoritative wallet, kept even while their chunk is unloaded). */
+		public int wealth;
+		/** Bonded: owned by someone (no wages, no office). */
+		public boolean bonded;
 
 		public String fullName() {
 			return this.surname.isEmpty() ? this.name : this.name + " " + this.surname;
@@ -71,6 +75,8 @@ public class Faction {
 			n.putString("Job", this.job);
 			n.putInt("Pop", this.popularity);
 			n.putInt("Settlement", this.settlement);
+			n.putInt("Wealth", this.wealth);
+			n.putBoolean("Bonded", this.bonded);
 			return n;
 		}
 
@@ -85,6 +91,8 @@ public class Faction {
 			c.job = n.getString("Job");
 			c.popularity = n.getInt("Pop");
 			c.settlement = n.contains("Settlement") ? n.getInt("Settlement") : -1;
+			c.wealth = n.getInt("Wealth");
+			c.bonded = n.getBoolean("Bonded");
 			return c;
 		}
 	}
@@ -119,6 +127,9 @@ public class Faction {
 	public long lastColonyDay = Long.MIN_VALUE;
 	/** The enemy settlement this faction's armies are marching on (-1 = none). */
 	public int warGoal = -1;
+	/** The law book. */
+	public final java.util.EnumSet<net.colonists.law.Law> laws = java.util.EnumSet.of(net.colonists.law.Law.THEFT,
+			net.colonists.law.Law.VANDALISM, net.colonists.law.Law.ASSAULT, net.colonists.law.Law.MURDER, net.colonists.law.Law.POACHING);
 	/** Recomputed every diplomacy tick: is this faction at war with anyone. */
 	public transient boolean atWar;
 	public final Map<UUID, UUID> playerVotes = new HashMap<>();
@@ -282,6 +293,9 @@ public class Faction {
 		nbt.putBoolean("Revolt", this.revolt);
 		nbt.putLong("LastColony", this.lastColonyDay);
 		nbt.putInt("WarGoal", this.warGoal);
+		NbtList lawList = new NbtList();
+		for (net.colonists.law.Law l : this.laws) lawList.add(net.minecraft.nbt.NbtString.of(l.name()));
+		nbt.put("Laws", lawList);
 		NbtList deaths = new NbtList();
 		for (String d : this.deathLog) deaths.add(net.minecraft.nbt.NbtString.of(d));
 		nbt.put("Deaths", deaths);
@@ -332,6 +346,16 @@ public class Faction {
 		f.revolt = nbt.getBoolean("Revolt");
 		f.lastColonyDay = nbt.contains("LastColony") ? nbt.getLong("LastColony") : Long.MIN_VALUE;
 		f.warGoal = nbt.contains("WarGoal") ? nbt.getInt("WarGoal") : -1;
+		if (nbt.contains("Laws")) {
+			f.laws.clear();
+			NbtList lawList = nbt.getList("Laws", NbtElement.STRING_TYPE);
+			for (int i = 0; i < lawList.size(); i++) {
+				try {
+					f.laws.add(net.colonists.law.Law.valueOf(lawList.getString(i)));
+				} catch (IllegalArgumentException ignored) {
+				}
+			}
+		}
 		NbtList deaths = nbt.getList("Deaths", NbtElement.STRING_TYPE);
 		for (int i = 0; i < deaths.size(); i++) f.deathLog.add(deaths.getString(i));
 		return f;

@@ -37,13 +37,15 @@ public final class Politics {
 			ColonistEntity.Job.GUARD, 0.14,
 			ColonistEntity.Job.RANCHER, 0.07,
 			ColonistEntity.Job.BLACKSMITH, 0.06,
-			ColonistEntity.Job.COOK, 0.06);
+			ColonistEntity.Job.COOK, 0.06,
+			ColonistEntity.Job.MERCHANT, 0.04);
 
 	/** Jobs that need their workplace built first. */
 	private static final Map<ColonistEntity.Job, String> WORKPLACE = Map.of(
 			ColonistEntity.Job.RANCHER, "animal_pen",
 			ColonistEntity.Job.BLACKSMITH, "smithy",
-			ColonistEntity.Job.COOK, "bakery");
+			ColonistEntity.Job.COOK, "bakery",
+			ColonistEntity.Job.MERCHANT, "market");
 
 	/** The job the city most needs filled. */
 	public static ColonistEntity.Job chooseJob(@Nullable Settlement f, UUID self) {
@@ -106,6 +108,7 @@ public final class Politics {
 			if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
 		}
 		Empire.tick(server, fm, random);
+		net.colonists.economy.Economy.tick(server, fm);
 		foreignPolicy(server, fm, fm.all(), random);
 		if (now % 12000 < 1200) tribute(server, fm, all);
 		fm.markDirty();
@@ -267,6 +270,7 @@ public final class Politics {
 	private static void laws(MinecraftServer server, Faction f) {
 		Faction.Citizen ruler = f.rulerCitizen();
 		if (ruler == null) return;
+		lawBook(server, f, ruler);
 		if (!f.slavery && ruler.kindness < 35 && ruler.aggression > 50) {
 			f.slavery = true;
 			FactionManager.broadcast(server, Text.literal("⛓ " + f.rulerName + " has decreed that the ").formatted(Formatting.DARK_RED)
@@ -276,6 +280,28 @@ public final class Politics {
 			FactionManager.broadcast(server, Text.literal("🕊 The ").formatted(Formatting.GREEN).append(f.displayName())
 					.append(Text.literal(" have abolished captivity. All captives are to be released.").formatted(Formatting.GREEN)));
 		}
+	}
+
+	/** The ruler writes the law book in their own image. */
+	private static void lawBook(MinecraftServer server, Faction f, Faction.Citizen ruler) {
+		java.util.EnumSet<net.colonists.law.Law> want = java.util.EnumSet.of(net.colonists.law.Law.THEFT, net.colonists.law.Law.VANDALISM,
+				net.colonists.law.Law.ASSAULT, net.colonists.law.Law.MURDER);
+		if (f.rank().ordinal() >= Faction.Rank.TOWN.ordinal() || ruler.kindness < 60) want.add(net.colonists.law.Law.POACHING);
+		if (ruler.aggression > 60 || f.government == Faction.Government.MONARCHY) want.add(net.colonists.law.Law.TRESPASS);
+		if (f.government == Faction.Government.MONARCHY || ruler.aggression > 70) want.add(net.colonists.law.Law.TREASON);
+		boolean hadDeath = f.laws.contains(net.colonists.law.Law.DEATH_PENALTY);
+		// The death penalty sticks around until a kind ruler abolishes it.
+		if ((ruler.aggression > 65 && ruler.kindness < 45) || (hadDeath && ruler.kindness <= 65)) want.add(net.colonists.law.Law.DEATH_PENALTY);
+		if (want.equals(f.laws)) return;
+		for (net.colonists.law.Law l : net.colonists.law.Law.values()) {
+			boolean before = f.laws.contains(l), after = want.contains(l);
+			if (before == after || l.ordinal() < net.colonists.law.Law.POACHING.ordinal()) continue;
+			FactionManager.broadcast(server, Text.literal("📜 " + f.rulerName + " of the ").formatted(after ? Formatting.GOLD : Formatting.GREEN)
+					.append(f.displayName()).append(Text.literal((after ? " decrees a new law: " : " repeals the law of ") + l.label.toLowerCase()
+							+ (after ? " (" + l.description + ")." : ".")).formatted(after ? Formatting.GOLD : Formatting.GREEN)));
+		}
+		f.laws.clear();
+		f.laws.addAll(want);
 	}
 
 	private static void unrest(MinecraftServer server, FactionManager fm, Faction f, long now, Random random) {
@@ -399,6 +425,9 @@ public final class Politics {
 				ItemStack rest = s;
 				for (Inventory inv : to) rest = net.colonists.entity.ColonistBrain.insert(inv, rest);
 			}
+			int coin = vc.treasury / 10;
+			vc.treasury -= coin;
+			lc.treasury += coin;
 			if (sent > 0) {
 				FactionManager.broadcastNear(world, vc.cityCenter, 128, Text.literal("The ").formatted(Formatting.GRAY)
 						.append(vassal.displayName()).append(Text.literal(" send " + sent + " goods in tribute to the ").formatted(Formatting.GRAY))

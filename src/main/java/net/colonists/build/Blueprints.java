@@ -120,6 +120,14 @@ public final class Blueprints {
 	}));
 
 	/** The house style a settlement of this rank builds. */
+	/** A home suited to the colonist's standing: rank sets the style, wealth buys better, slave owners build estates. */
+	public static Blueprint homeFor(Faction.Rank rank, boolean ruler, int wealth, boolean slaver) {
+		if (slaver && rank.ordinal() >= Faction.Rank.TOWN.ordinal()) return ESTATE;
+		if (wealth >= 120 && rank.ordinal() >= Faction.Rank.CITY.ordinal()) return MANOR;
+		if (wealth >= 50 && rank.ordinal() >= Faction.Rank.TOWN.ordinal()) return STONE_HOUSE;
+		return homeFor(rank, ruler);
+	}
+
 	public static Blueprint homeFor(Faction.Rank rank, boolean ruler) {
 		if (ruler && rank.ordinal() >= Faction.Rank.CITY.ordinal()) return MANOR;
 		return switch (rank) {
@@ -296,12 +304,89 @@ public final class Blueprints {
 		return b;
 	}));
 
+	// ------------------------------------------------------------------ justice
+
+	/** Stone gaol: a corridor in front, three barred cells along the back. */
+	public static final Blueprint PRISON = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("prison", "Prison", 10, 7)
+				.walls(0, 2, Mat.STONE, false)
+				.flatRoof(3, Mat.STONE)
+				.floor(Mat.STONE)
+				.window(0, 1, 2).window(9, 1, 2)
+				.door(4);
+		for (int x = 1; x <= 8; x++) {
+			if (x == 3 || x == 6) {
+				b.box(x, 0, 3, x, 2, 5, Mat.STONE);
+			} else {
+				for (int y = 0; y <= 2; y++) b.fixed(x, y, 3, Blocks.IRON_BARS.getDefaultState(), STONE, 1, false);
+			}
+		}
+		b.cell(1, 5).cell(4, 5).cell(7, 5).workstation(7, 0, 1);
+		torch(b, 2, 1);
+		torch(b, 7, 2);
+		return b;
+	}));
+
+	/** A fenced yard by the quarry where convicts break stone, with a lookout post in the corner. */
+	public static final Blueprint WORK_CAMP = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("work_camp", "Work camp", 11, 11);
+		for (int x = 0; x < 11; x++) {
+			for (int z = 0; z < 11; z++) {
+				boolean edge = x == 0 || z == 0 || x == 10 || z == 10;
+				if (!edge || (x == 5 && z == 0)) continue;
+				if (x <= 1 && z >= 9) continue; // the lookout post's corner
+				b.fixed(x, 0, z, Blocks.OAK_FENCE.getDefaultState(), PLANKS, 1, false);
+			}
+		}
+		b.fixed(5, 0, 0, facing(Blocks.OAK_FENCE_GATE, Direction.SOUTH), PLANKS, 2, false);
+		b.box(0, 0, 9, 1, 2, 10, Mat.LOG);
+		b.box(0, 3, 9, 1, 3, 10, Mat.PLANKS);
+		chestAt(b, 8, 9);
+		b.workstation(5, 0, 5);
+		torch(b, 9, 1);
+		return b;
+	}));
+
+	/** A plank scaffold on the plaza: posts, a crossbeam and a chain. */
+	public static final Blueprint GALLOWS = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("gallows", "Gallows", 5, 5)
+				.box(0, 0, 1, 4, 0, 4, Mat.PLANKS);
+		for (int x = 1; x <= 3; x++) b.stairs(x, 0, 0, Mat.STAIRS, Direction.SOUTH, false);
+		b.box(1, 1, 3, 1, 3, 3, Mat.LOG).box(3, 1, 3, 3, 3, 3, Mat.LOG).box(1, 4, 3, 3, 4, 3, Mat.PLANKS);
+		b.fixed(2, 3, 3, Blocks.CHAIN.getDefaultState(), STONE, 1, true);
+		b.workstation(2, 1, 3);
+		return b;
+	}));
+
+	/** A slave-owner's estate: a long manor house with servants' quarters in the east wing. */
+	public static final Blueprint ESTATE = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("estate", "Estate", 13, 9)
+				.walls(0, 1, Mat.STONE, true)
+				.walls(2, 4, Mat.PLANKS, true)
+				.box(8, 0, 1, 8, 4, 7, Mat.STONE)
+				.opening(8, 8, 0, 1, 4)
+				.window(2, 1, 0).window(5, 1, 0).window(10, 1, 0).window(0, 1, 4).window(12, 1, 4)
+				.window(2, 3, 0).window(4, 3, 0).window(6, 3, 0).window(10, 3, 0).window(0, 3, 3).window(0, 3, 5)
+				.window(12, 3, 3).window(12, 3, 5).window(3, 3, 8).window(6, 3, 8).window(10, 3, 8)
+				.gableRoof(4, Mat.STONE_STAIRS, Mat.STONE, Mat.PLANKS)
+				.floor(Mat.PLANKS)
+				.door(4)
+				.bed(1, 4).bed(9, 2).bed(11, 2).bed(9, 6).bed(11, 6);
+		chestAt(b, 1, 1);
+		chestAt(b, 7, 1);
+		craftingTable(b, 7, 7);
+		furnace(b, 6, 7, Direction.NORTH);
+		torch(b, 3, 6);
+		torch(b, 10, 4);
+		return b;
+	}));
+
 	/** Public buildings a settlement wants, in order, by rank (one of each). */
 	public static final String[][] PROJECTS = {
-			{"town_hall", "lumber_camp", "barn"},                  // village
-			{"animal_pen", "smithy", "bakery", "tavern"},          // town
-			{"barracks", "market"},                                 // city
-			{}                                                      // city-state
+			{"town_hall", "lumber_camp", "barn"},                          // village
+			{"animal_pen", "smithy", "bakery", "tavern", "prison", "gallows"}, // town
+			{"barracks", "market", "work_camp"},                            // city
+			{}                                                              // city-state
 	};
 
 	public static Blueprint get(String id) {
