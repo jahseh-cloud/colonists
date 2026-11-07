@@ -159,14 +159,9 @@ public class HarvestTask extends Task {
 			world.setBlockBreakingInfo(this.colonist.getId(), this.target, -1);
 			world.breakBlock(this.target, false, this.colonist);
 			for (ItemStack drop : drops) ColonistBrain.give(this.colonist, drop);
-			if (this.kind == Kind.WOOD) this.fellRestOfTree(world, this.target);
-			// Woodcutters replant: a sapling goes where the trunk stood.
-			if (this.kind == Kind.WOOD && world.getBlockState(this.target.down()).isIn(BlockTags.DIRT) && world.getBlockState(this.target).isAir()) {
-				ItemStack sapling = ColonistBrain.takeOne(this.colonist.getInventory(), s -> s.isIn(net.minecraft.registry.tag.ItemTags.SAPLINGS));
-				if (!sapling.isEmpty()) {
-					Block block = Block.getBlockFromItem(sapling.getItem());
-					if (block != Blocks.AIR) world.setBlockState(this.target, block.getDefaultState(), Block.NOTIFY_ALL);
-				}
+			if (this.kind == Kind.WOOD) {
+				java.util.List<BlockPos> trunk = this.fellRestOfTree(world, this.target);
+				this.replant(world, state.getBlock(), trunk);
 			}
 			this.colonist.swingHand(Hand.MAIN_HAND);
 			this.collected++;
@@ -178,7 +173,36 @@ public class HarvestTask extends Task {
 	}
 
 	/** Timber! Once the trunk is cut, every log connected to it comes down too; the leaves decay on their own. */
-	private void fellRestOfTree(ServerWorld world, BlockPos base) {
+	/**
+	 * Replants every stump: a matching sapling goes wherever the trunk met the ground (all four for
+	 * 2x2 trees like dark oak and big spruce). Uses saplings the lumberjack picked up, or plants one anyway.
+	 */
+	private void replant(ServerWorld world, Block log, java.util.List<BlockPos> trunk) {
+		Block sapling = saplingFor(log);
+		if (sapling == Blocks.AIR) return;
+		for (BlockPos p : trunk) {
+			if (!world.getBlockState(p).isAir() || !world.getBlockState(p.down()).isIn(BlockTags.DIRT)) continue;
+			BlockState plant = sapling.getDefaultState();
+			if (!plant.canPlaceAt(world, p)) continue;
+			ColonistBrain.take(this.colonist.getInventory(), s -> s.isOf(sapling.asItem()), 1);
+			world.setBlockState(p, plant, Block.NOTIFY_ALL);
+			world.playSound(null, p, net.minecraft.sound.SoundEvents.BLOCK_GRASS_PLACE, SoundCategory.BLOCKS, 0.8f, 1.0f);
+		}
+		this.colonist.swingHand(Hand.MAIN_HAND);
+	}
+
+	/** oak_log -> oak_sapling, mangrove_log -> mangrove_propagule, and so on. */
+	static Block saplingFor(Block log) {
+		net.minecraft.util.Identifier id = net.minecraft.registry.Registries.BLOCK.getId(log);
+		String wood = id.getPath().replace("stripped_", "").replace("_log", "").replace("_wood", "");
+		String name = wood.equals("mangrove") ? "mangrove_propagule" : wood + "_sapling";
+		Block b = net.minecraft.registry.Registries.BLOCK.get(net.minecraft.util.Identifier.of(id.getNamespace(), name));
+		return b.getDefaultState().isIn(BlockTags.SAPLINGS) || b == Blocks.MANGROVE_PROPAGULE ? b : Blocks.AIR;
+	}
+
+	private java.util.List<BlockPos> fellRestOfTree(ServerWorld world, BlockPos base) {
+		java.util.List<BlockPos> trunk = new java.util.ArrayList<>();
+		trunk.add(base);
 		java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
 		java.util.Set<BlockPos> seen = new java.util.HashSet<>();
 		queue.add(base);
@@ -187,14 +211,16 @@ public class HarvestTask extends Task {
 		while (!queue.isEmpty() && felled < 96) {
 			BlockPos p = queue.poll();
 			for (int dx = -1; dx <= 1; dx++) {
-				for (int dy = 0; dy <= 1; dy++) {
+				for (int dy = -1; dy <= 1; dy++) {
 					for (int dz = -1; dz <= 1; dz++) {
 						BlockPos n = p.add(dx, dy, dz);
-						if (!seen.add(n) || Math.abs(n.getX() - base.getX()) > 8 || Math.abs(n.getZ() - base.getZ()) > 8) continue;
+						if (!seen.add(n) || Math.abs(n.getX() - base.getX()) > 8 || Math.abs(n.getZ() - base.getZ()) > 8
+								|| n.getY() < base.getY() - 12) continue;
 						if (!world.getBlockState(n).isIn(BlockTags.LOGS)) continue;
 						FactionManager fm = this.colonist.factions();
 						if (fm != null && fm.isNearAnyHome(n)) continue; // never someone's log pillar
 						net.colonists.ai.Digger.breakNow(this.colonist, n);
+						trunk.add(n);
 						felled++;
 						queue.add(n);
 					}
@@ -203,6 +229,7 @@ public class HarvestTask extends Task {
 		}
 		if (felled > 3) world.playSound(null, base, net.minecraft.sound.SoundEvents.BLOCK_WOOD_BREAK, SoundCategory.BLOCKS, 1.0f, 0.6f);
 		this.collected += felled / 4; // a whole tree counts for more than one log
+		return trunk;
 	}
 
 	@Override
