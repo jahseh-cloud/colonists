@@ -13,7 +13,14 @@ Colonists are player-shaped NPCs who live their own lives. Nobody controls them.
 
 ## Cities
 
-Every faction builds a settlement on a planned grid of 10×10 lots and grows through four ranks:
+Settlements grow with the land, not on a grid:
+
+- **Founding.** A new city's plaza goes on a level, dry spot near its founder, preferably beside water and down in a valley.
+- **Streets.** Streets are pathfound across the terrain from the plaza. They avoid climbs of more than one block, bend around hills, and briefly bridge water. When a city runs out of roadside space, it lays a new street from one of its outer ends toward the most inviting nearby ground (level, low-lying and close to water). The result: towns string out along rivers and fill valleys.
+- **Buildings and fields** are placed along the streets, turned to face them, on the best roadside spot: close to the centre, level, near water, sheltered in a valley. Fields prefer the outskirts and flat, well-watered ground.
+- **No size limit.** Cities grow as big as births, housing and food allow (`colonistsMaxPerFaction` 0 = unlimited).
+
+Every settlement grows through four ranks:
 
 | Rank | Requirement |
 |---|---|
@@ -27,9 +34,8 @@ Promotions (and setbacks, if houses or the wall are lost) are announced in chat.
 - **City wall.** It is three blocks high and made of cobblestone (or deepslate or blackstone), following the terrain. Miners stockpile extra stone while it goes up, and builders fetch it from the stores (or quarry it themselves when the stores run dry). Hillsides count as wall, and gates open automatically when a new street needs to pass through.
 
 - **Plaza.** The first colonist picks a spot for the city centre. Builders level a 9×9 square and add a well, a bell, a banner in the faction's colour, corner lamps, and the **city stockpile** chests.
-- **Streets and lots.** Streets run east-west every 14 blocks and avenues north-south every 33. Each colonist claims the nearest free lot facing a street. They level the ground (filling holes, clearing trees and rocks) and build a cabin with a garden beside it. Steep or flooded lots and other people's buildings are skipped.
-- **Roads and lamps.** Builders pave dirt-path streets connecting every claimed lot to the plaza. They clear trees in the way, bridge small gaps, and put a lamp post in front of each house.
-- **Fields.** Some outer lots are communal fields: four rows of crops around a water channel. Farmers claim one field for every four citizens and keep them tilled, planted and harvested.
+- **Roads and lamps.** Builders pave the streets as dirt paths, clear trees in the way, bridge water, and put a lamp post beside each house.
+- **Fields.** Communal fields (9×9, with a water channel across the middle). Farmers claim one for every four citizens.
 - **Shared economy.** Workers haul their surplus (logs, stone, ore, wheat, food) to the stockpile. Hungry colonists eat from it, and builders draw stone and coal from it.
 - **Moving away.** A faction founded near another city (for example, rebels) walks about 160 blocks away before it builds.
 
@@ -95,6 +101,7 @@ How much the land gets reshaped grows with the settlement's rank, and stays mode
 - Colonists who chat often become friends. Close friends in the same faction (not family) may **marry**.
 - Married couples with a house and food to spare have **children**. Children inherit the family surname and a mix of their parents' traits. They play, follow their parents around and live in the family house.
 - After one Minecraft day a child **grows up**, takes a job and builds a house of its own.
+- Colonists live **25–30 in-game days** (`colonistsLifespanMinDays` / `colonistsLifespanMaxDays`), then die of old age. Their belongings go into the house chest, and a spouse or child without a house of their own inherits it.
 - **Jobs** are given out by what the city needs: farmers, woodcutters (who replant saplings), miners, builders and guards. Guards patrol the streets and keep night watch in shifts.
 
 ## Politics
@@ -123,6 +130,10 @@ In cities where captivity is law, guards raid nearby villager settlements and br
 - Relations run from -100 to +100. At **-50** two cities are at **war**, and at **+50** they are **allies**. Changes are announced in chat.
 - Right-click a colonist with an empty hand to see its job, spouse, traits, needs and inventory, and your standing.
 - Gifts raise your standing; hitting or killing colonists lowers it. Join a faction at standing 40+ with `/colony join`, or found your own with `/colony found <name>` and recruit colonists by sneak-right-clicking them with an emerald. Founders can use `/colony war|peace|ally`.
+
+## Off-screen life
+
+Minecraft only runs mobs in loaded chunks. With `colonistsKeepCitiesLoaded` (on by default), the mod keeps the heart of every city loaded, so colonists keep working, building and raising families while you're far away. The area grows with rank: 3×3 chunks for a village, up to 9×9 for a city-state, plus the quarry. Colonists who wander beyond that area pause until a player comes near. Politics (elections, wars, tribute) runs everywhere regardless. Turn the rule off if many cities strain your server.
 
 ## Map mods (optional)
 
@@ -153,7 +164,9 @@ You can also use the **Colonist Spawn Egg** in the Spawn Eggs creative tab.
 | `colonistsBuild` | true | Allow building houses and chests |
 | `colonistsChatter` | true | Colonists talk in chat near you |
 | `colonistsGrow` | true | Births and newcomers |
-| `colonistsMaxPerFaction` | 30 | Population cap per city-state |
+| `colonistsMaxPerFaction` | 0 | Population cap per city (0 = unlimited) |
+| `colonistsLifespanMinDays` / `MaxDays` | 25 / 30 | Lifespan range in in-game days |
+| `colonistsKeepCitiesLoaded` | true | Keep city cores loaded so they live on while you're away |
 
 ## Building the mod
 
@@ -177,7 +190,9 @@ To test in a development client without installing anything: `./gradlew runClien
 - `entity/ColonistBrain`: virtual crafting table and inventory helpers
 - `entity/Society`: births, newcomers and schisms
 - `entity/CaptiveEntity`: captive villagers and forced labour
-- `faction/City`: street grid, lots, plaza, roads and terrain checks
+- `faction/City`: plaza layout, walls and terrain checks
+- `faction/CityGrowth`: terrain-following streets and lot placement
+- `build/*`: blueprints, rotation and materials
 - `faction/Politics`: government, succession, elections, approval, coups, laws, wars, tribute
 - `faction/Stockpile`: the shared city stores
 - `ai/WorkGoal`: the planner that decides what to do next, by priority
