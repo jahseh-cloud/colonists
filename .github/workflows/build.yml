@@ -6,6 +6,9 @@
 name: build
 on: [pull_request, push]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -28,3 +31,19 @@ jobs:
         with:
           name: Artifacts
           path: build/libs/
+      - name: publish jar (dist branch + "latest" release)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          JAR=$(ls build/libs/colonists-*.jar | grep -v sources | head -1)
+          mkdir -p /tmp/dist && cp "$JAR" /tmp/dist/
+          cd /tmp/dist
+          git init -q -b dist
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add . && git commit -qm "Build ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" dist
+          cd "$GITHUB_WORKSPACE"
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest "$JAR" --title "Colonists (latest build)" --notes "Drop this jar and Fabric API into your mods folder (Minecraft 1.21.1, Fabric Loader)." --target "$GITHUB_SHA"
