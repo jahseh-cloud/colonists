@@ -4,7 +4,13 @@ import net.colonists.command.ColonyCommand;
 import net.colonists.entity.CaptiveEntity;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.FactionManager;
+import net.colonists.net.CityMapPayload;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory;
@@ -43,6 +49,12 @@ public class ColonistsMod implements ModInitializer {
 	public static EntityType<CaptiveEntity> CAPTIVE;
 	public static Item COLONIST_SPAWN_EGG;
 
+	private static void sendCityMap(MinecraftServer server, ServerPlayerEntity player) {
+		if (ServerPlayNetworking.canSend(player, CityMapPayload.ID)) {
+			ServerPlayNetworking.send(player, CityMapPayload.build(FactionManager.get(server), player));
+		}
+	}
+
 	public static Identifier id(String path) {
 		return Identifier.of(MOD_ID, path);
 	}
@@ -68,9 +80,16 @@ public class ColonistsMod implements ModInitializer {
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ColonyCommand.register(dispatcher));
 
+		// Map mods (JourneyMap, Xaero's) on the client get city data from here.
+		PayloadTypeRegistry.playS2C().register(CityMapPayload.ID, CityMapPayload.CODEC);
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> sendCityMap(server, handler.getPlayer())));
+
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			if (server.getTicks() % 1200 == 0) {
 				FactionManager.get(server).tickDiplomacy(server);
+			}
+			if (server.getTicks() % 200 == 0) {
+				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) sendCityMap(server, player);
 			}
 		});
 

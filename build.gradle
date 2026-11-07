@@ -6,6 +6,19 @@ base {
 	archivesName = 'colonists'
 }
 
+repositories {
+	// JourneyMap API
+	maven { url = "https://maven.blamejared.com" }
+	maven { url = "https://jm.gserv.me/repository/maven-public/" }
+	// Xaero's Minimap (compile-time only)
+	exclusiveContent {
+		forRepository {
+			maven { url = "https://api.modrinth.com/maven" }
+		}
+		filter { includeGroup "maven.modrinth" }
+	}
+}
+
 loom {
 	splitEnvironmentSourceSets()
 
@@ -22,6 +35,10 @@ dependencies {
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Optional map integrations: compiled against, never bundled or required.
+	modCompileOnly "info.journeymap:journeymap-api-fabric:${project.journeymap_api_version}"
+	modCompileOnly "maven.modrinth:xaeros-minimap:${project.xaeros_minimap_version}"
 }
 
 processResources {

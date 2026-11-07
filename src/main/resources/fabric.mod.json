@@ -9,12 +9,17 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": ["net.colonists.ColonistsMod"],
-		"client": ["net.colonists.client.ColonistsClient"]
+		"client": ["net.colonists.client.ColonistsClient"],
+		"journeymap": ["net.colonists.client.map.ColonistsJourneyMapPlugin"]
 	},
 	"depends": {
 		"fabricloader": ">=0.16.0",
 		"minecraft": "~1.21.1",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"journeymap": "*",
+		"xaerominimap": "*"
 	}
 }
