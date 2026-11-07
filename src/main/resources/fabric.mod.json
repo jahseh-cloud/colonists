@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "colonists",
+	"version": "${version}",
+	"name": "Colonists",
+	"description": "Autonomous Steve-like NPCs who chop wood, mine, build homes, farm, sleep, fight, socialize, and form factions with alliances and wars.",
+	"authors": ["jahx"],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["net.colonists.ColonistsMod"],
+		"client": ["net.colonists.client.ColonistsClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
