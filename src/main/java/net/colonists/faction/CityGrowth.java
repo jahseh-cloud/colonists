@@ -34,14 +34,14 @@ public final class CityGrowth {
 	// ---------------------------------------------------------------- footprints
 
 	/** World bounds {minX, minZ, maxX, maxZ} of everything standing on a claimed lot (doorstep row included). */
-	public static int[] footprint(Faction f, BlockPos origin) {
+	public static int[] footprint(Settlement f, BlockPos origin) {
 		Site site = f.site(origin);
 		if (f.farms.contains(origin)) return site.rect(0, -1, FIELD_SIZE - 1, FIELD_SIZE - 1);
 		Blueprint bp = Blueprints.get(f.buildingTypes.getOrDefault(origin, "cabin"));
 		return site.rect(0, -1, bp.lotWidth() - 1, bp.depth - 1);
 	}
 
-	public static List<int[]> footprints(Faction f) {
+	public static List<int[]> footprints(Settlement f) {
 		List<int[]> list = new ArrayList<>();
 		Set<BlockPos> lots = new HashSet<>(f.buildingTypes.keySet());
 		lots.addAll(f.homes.keySet());
@@ -54,7 +54,7 @@ public final class CityGrowth {
 		return a[0] - margin <= b[2] && a[2] + margin >= b[0] && a[1] - margin <= b[3] && a[3] + margin >= b[1];
 	}
 
-	private static boolean inPlaza(Faction f, int x, int z, int margin) {
+	private static boolean inPlaza(Settlement f, int x, int z, int margin) {
 		BlockPos c = f.cityCenter;
 		return c != null && Math.abs(x - c.getX()) <= City.PLAZA_HALF + margin && Math.abs(z - c.getZ()) <= City.PLAZA_HALF + margin;
 	}
@@ -62,7 +62,7 @@ public final class CityGrowth {
 	/** True if a world column is inside any lot of any faction (with a margin). */
 	public static boolean occupied(FactionManager fm, int x, int z, int margin) {
 		int[] p = {x, z, x, z};
-		for (Faction f : fm.all()) {
+		for (Settlement f : fm.allSettlements()) {
 			if (inPlaza(f, x, z, margin)) return true;
 			for (int[] r : footprints(f)) if (overlaps(r, p, margin)) return true;
 		}
@@ -79,7 +79,7 @@ public final class CityGrowth {
 	 * for next time).
 	 */
 	@Nullable
-	public static Site claim(ServerWorld world, FactionManager fm, Faction f, @Nullable Blueprint bp, Purpose purpose, Random random) {
+	public static Site claim(ServerWorld world, FactionManager fm, Settlement f, @Nullable Blueprint bp, Purpose purpose, Random random) {
 		if (f.cityCenter == null) return null;
 		if (f.roads.isEmpty()) seedRoads(world, fm, f, random);
 		Site site = bestLot(world, fm, f, bp, purpose, random);
@@ -97,14 +97,14 @@ public final class CityGrowth {
 	}
 
 	@Nullable
-	private static Site bestLot(ServerWorld world, FactionManager fm, Faction f, @Nullable Blueprint bp, Purpose purpose, Random random) {
+	private static Site bestLot(ServerWorld world, FactionManager fm, Settlement f, @Nullable Blueprint bp, Purpose purpose, Random random) {
 		int width = purpose == Purpose.FIELD ? FIELD_SIZE : bp.lotWidth();
 		int depth = purpose == Purpose.FIELD ? FIELD_SIZE : bp.depth;
 		int doorX = purpose == Purpose.FIELD ? FIELD_SIZE / 2 : (bp.doorX < 0 ? bp.width / 2 : bp.doorX);
 		int tolerance = purpose == Purpose.FIELD ? 1 : net.colonists.ai.task.BuildStructureTask.tolerance(f.rank);
 		List<BlockPos> roads = new ArrayList<>(f.roads);
 		List<int[]> taken = new ArrayList<>();
-		for (Faction other : fm.all()) taken.addAll(footprints(other));
+		for (Settlement other : fm.allSettlements()) taken.addAll(footprints(other));
 		Site best = null;
 		double bestScore = -Double.MAX_VALUE;
 		int tries = Math.min(48, roads.size());
@@ -139,7 +139,7 @@ public final class CityGrowth {
 		return best;
 	}
 
-	private static boolean touchesRoad(Faction f, int[] rect) {
+	private static boolean touchesRoad(Settlement f, int[] rect) {
 		for (int x = rect[0]; x <= rect[2]; x++) {
 			for (int z = rect[1]; z <= rect[3]; z++) {
 				if (f.roads.contains(new BlockPos(x, 0, z))) return true;
@@ -154,7 +154,7 @@ public final class CityGrowth {
 	}
 
 	/** Higher is better: close to the centre, level, near water, down in a valley. Fields like the outskirts. */
-	private static double score(ServerWorld world, Faction f, int[] rect, int floor, Purpose purpose) {
+	private static double score(ServerWorld world, Settlement f, int[] rect, int floor, Purpose purpose) {
 		BlockPos c = f.cityCenter;
 		double cx = (rect[0] + rect[2]) / 2.0, cz = (rect[1] + rect[3]) / 2.0;
 		double dist = Math.hypot(cx - c.getX(), cz - c.getZ());
@@ -226,7 +226,7 @@ public final class CityGrowth {
 	// ---------------------------------------------------------------- streets
 
 	/** The first streets: out from two opposite sides of the plaza, along the easiest axis. */
-	static void seedRoads(ServerWorld world, FactionManager fm, Faction f, Random random) {
+	static void seedRoads(ServerWorld world, FactionManager fm, Settlement f, Random random) {
 		BlockPos c = f.cityCenter;
 		for (Direction d : Direction.Type.HORIZONTAL) {
 			BlockPos start = c.offset(d, City.PLAZA_HALF + 1);
@@ -236,7 +236,7 @@ public final class CityGrowth {
 	}
 
 	/** Extends the network: a new street from a far end, toward the most inviting nearby spot. */
-	public static boolean extendRoads(ServerWorld world, FactionManager fm, Faction f, Random random) {
+	public static boolean extendRoads(ServerWorld world, FactionManager fm, Settlement f, Random random) {
 		if (f.roads.isEmpty()) {
 			seedRoads(world, fm, f, random);
 			return true;
@@ -256,7 +256,7 @@ public final class CityGrowth {
 		return growFrom(world, fm, f, start, out, random);
 	}
 
-	private static boolean growFrom(ServerWorld world, FactionManager fm, Faction f, BlockPos start, Direction generally, Random random) {
+	private static boolean growFrom(ServerWorld world, FactionManager fm, Settlement f, BlockPos start, Direction generally, Random random) {
 		int y0 = City.surfaceYOr(world, start.getX(), start.getZ(), f.cityCenter.getY());
 		BlockPos target = null;
 		double bestScore = -Double.MAX_VALUE;
@@ -295,7 +295,7 @@ public final class CityGrowth {
 	}
 
 	/** A three-wide street centred on a path cell, never cutting into a lot. */
-	private static void addStrip(Faction f, BlockPos p) {
+	private static void addStrip(Settlement f, BlockPos p) {
 		List<int[]> lots = footprints(f);
 		for (int dx = -1; dx <= 1; dx++) {
 			for (int dz = -1; dz <= 1; dz++) {
@@ -318,13 +318,13 @@ public final class CityGrowth {
 	 * is impossible (no cliffs), and short stretches of water are allowed (to be bridged). Lots are obstacles.
 	 */
 	@Nullable
-	static List<BlockPos> path(ServerWorld world, FactionManager fm, Faction f, BlockPos from, BlockPos to) {
+	static List<BlockPos> path(ServerWorld world, FactionManager fm, Settlement f, BlockPos from, BlockPos to) {
 		record Node(long key, int x, int z, int y, double g, double fScore) {}
 		Map<Long, Double> bestG = new HashMap<>();
 		Map<Long, Long> cameFrom = new HashMap<>();
 		PriorityQueue<Node> open = new PriorityQueue<>((a, b) -> Double.compare(a.fScore, b.fScore));
 		List<int[]> lots = new ArrayList<>();
-		for (Faction other : fm.all()) lots.addAll(footprints(other));
+		for (Settlement other : fm.allSettlements()) lots.addAll(footprints(other));
 		int sy = City.surfaceYOr(world, from.getX(), from.getZ(), f.cityCenter.getY());
 		long startKey = BlockPos.asLong(from.getX(), 0, from.getZ());
 		open.add(new Node(startKey, from.getX(), from.getZ(), sy, 0, from.getManhattanDistance(to)));

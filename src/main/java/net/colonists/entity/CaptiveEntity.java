@@ -173,7 +173,9 @@ public class CaptiveEntity extends PathAwareEntity implements VillagerDataContai
 		this.swingHand(Hand.MAIN_HAND);
 		if (++this.workTimer < 30) return; // called every 40 ticks while at work, so about once a minute
 		this.workTimer = 0;
-		List<Inventory> chests = Stockpile.chests(world, f);
+		net.colonists.faction.Settlement town = f.nearestTo(this.getBlockPos());
+		if (town == null) return;
+		List<Inventory> chests = Stockpile.chests(world, town);
 		if (chests.isEmpty()) return;
 		VillagerProfession job = this.getVillagerData().getProfession();
 		ItemStack produce;
@@ -276,7 +278,9 @@ public class CaptiveEntity extends PathAwareEntity implements VillagerDataContai
 			if (--this.timer > 0) return;
 			this.timer = 40;
 			if (!(this.captive.getWorld() instanceof ServerWorld world)) return;
-			Faction f = FactionManager.get(world.getServer()).get(this.captive.ownerFaction);
+			Faction realm = FactionManager.get(world.getServer()).get(this.captive.ownerFaction);
+			if (realm == null) return;
+			net.colonists.faction.Settlement f = realm.nearestTo(this.captive.getBlockPos());
 			if (f == null) return;
 			BlockPos center = f.cityCenter;
 
@@ -301,7 +305,7 @@ public class CaptiveEntity extends PathAwareEntity implements VillagerDataContai
 				walkToward(goal, distance);
 			} else if (working) {
 				this.captive.getLookControl().lookAt(goal.getX() + 0.5, goal.getY(), goal.getZ() + 0.5);
-				this.captive.work(world, f);
+				this.captive.work(world, realm);
 			}
 		}
 

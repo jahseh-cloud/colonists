@@ -53,9 +53,12 @@ public class ColonistsJourneyMapPlugin implements IClientPlugin {
 						new BlockPos(c.minX(), y, c.minZ()));
 				PolygonOverlay overlay = new PolygonOverlay(ColonistsMod.MOD_ID, World.OVERWORLD, shape, area);
 				overlay.setOverlayGroupName("Colonist cities")
-						.setLabel(c.name() + " (" + c.rank() + ", pop. " + c.population() + ")")
-						.setTitle(c.name() + " — " + c.rank()
+						.setLabel((c.capital() ? "★ " : "") + c.name() + " (" + c.rank() + ", pop. " + c.population() + ")")
+						.setTitle(c.name() + " — " + c.rank() + (c.capital() ? " (capital)" : "")
+								+ "\n" + c.realm()
 								+ "\nPopulation: " + c.population()
+								+ (c.capital() ? "" : "\nLoyalty: " + c.loyalty() + "%")
+								+ (c.besieged() ? "\n⚔ Under siege!" : "")
 								+ (c.ruler().isEmpty() ? "" : "\n" + c.ruler())
 								+ "\n" + ClientCities.relationLabel(c))
 						.setTextProperties(text);

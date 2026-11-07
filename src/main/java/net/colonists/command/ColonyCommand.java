@@ -110,8 +110,9 @@ public final class ColonyCommand {
 		source.sendFeedback(() -> Text.literal("Factions:").formatted(Formatting.BOLD), false);
 		for (Faction f : factions) {
 			MutableText line = Text.literal(" • ").append(f.displayName())
-					.append(Text.literal(" (" + f.id + ") — " + f.rank.label + ", " + f.government.label + (f.rulerName.isEmpty() ? "" : " under " + f.rulerName)
-							+ ", " + fm.memberCount(f.id) + " people, " + f.homes.size() + " houses").formatted(Formatting.GRAY));
+					.append(Text.literal(" (" + f.id + ") — " + f.realmTitle() + ", " + f.government.label + (f.rulerName.isEmpty() ? "" : " under " + f.rulerName)
+							+ ", " + fm.memberCount(f.id) + " people in " + f.settlements.size() + (f.settlements.size() == 1 ? " town" : " towns")
+							+ (f.atWar ? ", AT WAR" : "")).formatted(Formatting.GRAY));
 			if (player != null) {
 				int standing = fm.standing(player, f.id);
 				line.append(Text.literal(" — you: ").formatted(Formatting.GRAY))
@@ -147,17 +148,32 @@ public final class ColonyCommand {
 		List<Text> lines = new java.util.ArrayList<>();
 		lines.add(Text.literal("═══ ").formatted(Formatting.DARK_GRAY).append(f.displayName().formatted(Formatting.BOLD))
 				.append(Text.literal(" ═══").formatted(Formatting.DARK_GRAY)));
-		lines.add(Text.literal("Settlement: " + f.rank.label
-				+ (f.wallPlanned && !f.wallBuilt ? " (wall " + f.wallProgress + "% built)" : "")
-				+ (f.rank.ordinal() < Faction.Rank.CITY_STATE.ordinal() ? "   Next: " + nextRank(f) : "")).formatted(Formatting.YELLOW));
+		lines.add(Text.literal("Realm: " + f.realmTitle() + " of " + f.settlements.size() + (f.settlements.size() == 1 ? " settlement" : " settlements"))
+				.formatted(Formatting.YELLOW));
 		lines.add(Text.literal("Government: " + f.government.label
 				+ (f.rulerName.isEmpty() ? "" : "   " + f.government.title + ": " + f.rulerName)
 				+ (f.government == Faction.Government.MONARCHY && !f.dynasty.isEmpty() ? " (House " + f.dynasty + ")" : "")));
 		lines.add(Text.literal("Approval: " + f.approval + "%   War weariness: " + f.warWeariness
-				+ "   Food in stores: " + f.foodInStock).formatted(f.approval < 30 ? Formatting.RED : Formatting.WHITE));
+				+ "   Food in stores: " + f.totalFood()).formatted(f.approval < 30 ? Formatting.RED : Formatting.WHITE));
 		lines.add(Text.literal("People: " + f.adults() + " adults, " + (f.citizens.size() - f.adults()) + " children   Houses: "
-				+ f.homes.size() + "   Fields: " + f.farms.size()
-				+ (f.cityCenter == null ? "   (no city yet)" : "   City: " + f.cityCenter.getX() + ", " + f.cityCenter.getZ())));
+				+ f.totalHomes()));
+		for (net.colonists.faction.Settlement st : f.settlements.values()) {
+			MutableText row = Text.literal(st.isCapital() ? " ★ " : " • ").formatted(Formatting.GOLD).append(st.displayName())
+					.append(Text.literal(" — " + st.rank.label + ", pop. " + st.population() + ", " + st.homes.size() + " houses"
+							+ (st.cityCenter == null ? "" : " @ " + st.cityCenter.getX() + ", " + st.cityCenter.getZ())
+							+ (st.wallPlanned && !st.wallBuilt ? ", wall " + st.wallProgress + "%" : "")
+							+ (st.isCapital() ? "" : ", loyalty " + st.loyalty + "%")
+							+ (st.occupation > 0 ? ", UNDER SIEGE" : "")
+							+ (st.rank.ordinal() < Faction.Rank.CITY_STATE.ordinal() ? " (next: " + nextRank(st) + ")" : "")).formatted(Formatting.GRAY));
+			lines.add(row);
+		}
+		net.colonists.faction.Settlement goal = fm.settlement(f.warGoal);
+		if (goal != null && goal.faction != null) {
+			lines.add(Text.literal("⚔ War goal: ").formatted(Formatting.RED).append(goal.displayName())
+					.append(Text.literal(" of the ").formatted(Formatting.RED)).append(goal.faction.displayName())
+					.append(Text.literal(goal.occupation > 0 && goal.occupier.equals(f.id)
+							? " (siege " + goal.occupation * 100 / net.colonists.faction.Empire.SIEGE_POINTS + "%)" : "").formatted(Formatting.RED)));
+		}
 		StringBuilder jobs = new StringBuilder("Trades: ");
 		for (ColonistEntity.Job job : ColonistEntity.Job.values()) {
 			if (job == ColonistEntity.Job.NONE) continue;
@@ -186,7 +202,7 @@ public final class ColonyCommand {
 		return 1;
 	}
 
-	private static String nextRank(Faction f) {
+	private static String nextRank(net.colonists.faction.Settlement f) {
 		return switch (f.rank) {
 			case VILLAGE -> "Town at 6 houses";
 			case TOWN -> "City at 15 houses";

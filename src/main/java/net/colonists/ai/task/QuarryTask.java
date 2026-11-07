@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.ai.Digger;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
@@ -54,7 +55,7 @@ public class QuarryTask extends Task {
 	}
 
 	/** How deep (below the rim) the quarry is allowed to go: more ambitious as the settlement grows. */
-	public static int depthFor(Faction f) {
+	public static int depthFor(Settlement f) {
 		int d = switch (f.rank) {
 			case VILLAGE -> 4;
 			case TOWN -> 7;
@@ -65,12 +66,12 @@ public class QuarryTask extends Task {
 	}
 
 	/** The stair cells along the north row keep their blocks below a given depth. */
-	private static boolean isStair(Faction f, int x, int z, int depth) {
+	private static boolean isStair(Settlement f, int x, int z, int depth) {
 		return z == f.quarry.getZ() && depth >= x - f.quarry.getX();
 	}
 
 	@Nullable
-	private static BlockPos nextCell(ColonistEntity c, Faction f) {
+	private static BlockPos nextCell(ColonistEntity c, Settlement f) {
 		World world = c.getWorld();
 		BlockPos q = f.quarry;
 		int size = f.quarrySize;
@@ -111,7 +112,7 @@ public class QuarryTask extends Task {
 
 	/** Fence posts around the rim, leaving a gap at the top of the stairs; torches on the corners. */
 	@Nullable
-	private static BlockPos nextRim(ColonistEntity c, Faction f) {
+	private static BlockPos nextRim(ColonistEntity c, Settlement f) {
 		if (ColonistBrain.count(c.getInventory(), ColonistBrain.PLANKS) == 0) return null;
 		World world = c.getWorld();
 		BlockPos q = f.quarry;
@@ -131,13 +132,13 @@ public class QuarryTask extends Task {
 		return null;
 	}
 
-	public static boolean hasWork(ColonistEntity c, Faction f) {
+	public static boolean hasWork(ColonistEntity c, Settlement f) {
 		return f.quarry != null && !c.onSearchCooldown("QUARRY") && nextCell(c, f) != null;
 	}
 
 	/** Picks a quarry site off to the side of town: outside every lot and road, on dry, fairly even ground. */
 	@Nullable
-	public static BlockPos planSite(ColonistEntity c, Faction f) {
+	public static BlockPos planSite(ColonistEntity c, Settlement f) {
 		if (f.cityCenter == null) return null;
 		ServerWorld world = (ServerWorld) c.getWorld();
 		FactionManager fm = c.factions();
@@ -189,7 +190,7 @@ public class QuarryTask extends Task {
 	@Override
 	public void start() {
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null) {
 			this.done = true;
 			return;
@@ -204,8 +205,8 @@ public class QuarryTask extends Task {
 			f.quarry = site;
 			f.quarrySize = sizeFor(f.rank);
 			fm.markDirty();
-			FactionManager.broadcastNear((ServerWorld) this.colonist.getWorld(), site, 128, Text.literal("⛏ The ").formatted(Formatting.GRAY)
-					.append(f.displayName()).append(Text.literal(" have opened a quarry outside town.").formatted(Formatting.GRAY)));
+			FactionManager.broadcastNear((ServerWorld) this.colonist.getWorld(), site, 128, Text.literal("⛏ ").formatted(Formatting.GRAY)
+					.append(f.displayName()).append(Text.literal(" has opened a quarry outside town.").formatted(Formatting.GRAY)));
 		}
 	}
 
@@ -213,7 +214,7 @@ public class QuarryTask extends Task {
 	public void tick() {
 		if (this.done) return;
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null || f.quarry == null) {
 			this.done = true;
 			return;

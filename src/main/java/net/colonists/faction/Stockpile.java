@@ -101,7 +101,7 @@ public final class Stockpile {
 	}
 
 	/** The plaza chests that exist and are loaded. */
-	public static List<Inventory> chests(ServerWorld world, Faction f) {
+	public static List<Inventory> chests(ServerWorld world, Settlement f) {
 		List<Inventory> list = new ArrayList<>();
 		if (f.cityCenter == null) return list;
 		for (BlockPos pos : City.stockpileSlots(f.cityCenter)) {

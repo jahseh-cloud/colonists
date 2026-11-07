@@ -46,12 +46,12 @@ public final class Politics {
 			ColonistEntity.Job.COOK, "bakery");
 
 	/** The job the city most needs filled. */
-	public static ColonistEntity.Job chooseJob(@Nullable Faction f, UUID self) {
+	public static ColonistEntity.Job chooseJob(@Nullable Settlement f, UUID self) {
 		if (f == null) return ColonistEntity.Job.WOODCUTTER;
 		Map<String, Integer> counts = new HashMap<>();
 		int adults = 0;
-		for (Map.Entry<UUID, Faction.Citizen> e : f.citizens.entrySet()) {
-			if (e.getKey().equals(self) || e.getValue().child) continue;
+		for (Map.Entry<UUID, Faction.Citizen> e : f.faction.citizens.entrySet()) {
+			if (e.getKey().equals(self) || e.getValue().child || e.getValue().settlement != f.id) continue;
 			adults++;
 			counts.merge(e.getValue().job, 1, Integer::sum);
 		}
@@ -77,7 +77,7 @@ public final class Politics {
 
 	/** When a new workplace opens and nobody works there, someone from a crowded trade takes it. */
 	@Nullable
-	public static ColonistEntity.Job reconsiderJob(@Nullable Faction f, UUID self, ColonistEntity.Job current) {
+	public static ColonistEntity.Job reconsiderJob(@Nullable Settlement f, UUID self, ColonistEntity.Job current) {
 		if (f == null || current == ColonistEntity.Job.NONE || WORKPLACE.containsKey(current)) return null;
 		if (f.countJob(current.name()) <= 1) return null;
 		for (Map.Entry<ColonistEntity.Job, String> e : WORKPLACE.entrySet()) {
@@ -97,7 +97,7 @@ public final class Politics {
 				continue;
 			}
 			ensureRuler(server, fm, f, now, random);
-			growth(server, f);
+			for (Settlement st : new java.util.ArrayList<>(f.settlements.values())) growth(server, st);
 			updateApproval(f, random);
 			if (f.government == Faction.Government.REPUBLIC && now - f.lastElection > ELECTION_INTERVAL) election(server, fm, f, now);
 			reforms(server, fm, f, now, random);
@@ -105,7 +105,8 @@ public final class Politics {
 			unrest(server, fm, f, now, random);
 			if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
 		}
-		foreignPolicy(server, fm, all, random);
+		Empire.tick(server, fm, random);
+		foreignPolicy(server, fm, fm.all(), random);
 		if (now % 12000 < 1200) tribute(server, fm, all);
 		fm.markDirty();
 	}
@@ -197,8 +198,8 @@ public final class Politics {
 		int adults = Math.max(1, f.adults());
 		int target = 50;
 		if (ruler != null) target += (ruler.kindness - 50) / 4;
-		target += f.homes.size() >= adults ? 8 : -8;
-		target += f.foodInStock == 0 ? -8 : Math.min(15, f.foodInStock / 6);
+		target += f.totalHomes() >= adults ? 8 : -8;
+		target += f.totalFood() == 0 ? -8 : Math.min(15, f.totalFood() / 6);
 		target -= f.warWeariness * 2;
 		if (f.slavery && f.captives > 0) {
 			int kindness = 0;
@@ -215,7 +216,8 @@ public final class Politics {
 		Faction.Citizen ruler = f.rulerCitizen();
 		if (ruler == null) return;
 		// Only a walled City-State outgrows rule by a chief: it becomes a kingdom or a republic.
-		if (f.government == Faction.Government.CHIEFDOM && f.rank == Faction.Rank.CITY_STATE) {
+		if (f.government == Faction.Government.CHIEFDOM
+				&& (f.settlements.values().stream().anyMatch(st -> st.rank == Faction.Rank.CITY_STATE) || f.settlements.size() >= 3)) {
 			if (ruler.kindness > 60 && ruler.ambition < 60) {
 				changeGovernment(server, f, Faction.Government.REPUBLIC, "The people of the ", " have founded a Republic!");
 				election(server, fm, f, now);
@@ -227,12 +229,12 @@ public final class Politics {
 	}
 
 	/** Settlement rank: Village, Town (6 houses), City (15 houses, walls begin), City-State (15 houses and a finished wall). */
-	private static void growth(MinecraftServer server, Faction f) {
+	private static void growth(MinecraftServer server, Settlement f) {
 		if (f.cityCenter == null) return;
 		if (f.homes.size() >= 15 && !f.wallPlanned) {
 			City.planWall(f);
-			FactionManager.broadcast(server, Text.literal("🧱 The ").formatted(Formatting.GRAY).append(f.displayName())
-					.append(Text.literal(" have begun building a wall around their city.").formatted(Formatting.GRAY)));
+			FactionManager.broadcast(server, Text.literal("🧱 ").formatted(Formatting.GRAY).append(f.displayName())
+					.append(Text.literal(" has begun building a city wall.").formatted(Formatting.GRAY)));
 		}
 		if (f.wallPlanned) {
 			int progress = City.wallProgress(server.getOverworld(), f);
@@ -247,12 +249,12 @@ public final class Politics {
 		boolean up = rank.ordinal() > f.rank.ordinal();
 		f.rank = rank;
 		String message = switch (rank) {
-			case VILLAGE -> " have dwindled to a village.";
-			case TOWN -> up ? " have grown into a Town!" : " are down to a Town.";
-			case CITY -> up ? " have grown into a City!" : "'s wall has fallen into ruin. They are a City once more.";
-			case CITY_STATE -> " have finished their wall and become a City-State!";
+			case VILLAGE -> " has dwindled to a village.";
+			case TOWN -> up ? " has grown into a Town!" : " is down to a Town.";
+			case CITY -> up ? " has grown into a City!" : "'s wall has fallen into ruin. They are a City once more.";
+			case CITY_STATE -> " has finished its wall and become a City-State!";
 		};
-		FactionManager.broadcast(server, Text.literal(up ? "🏰 The " : "The ").formatted(up ? Formatting.YELLOW : Formatting.GRAY)
+		FactionManager.broadcast(server, Text.literal(up ? "🏰 " : "").formatted(up ? Formatting.YELLOW : Formatting.GRAY)
 				.append(f.displayName()).append(Text.literal(message).formatted(up ? Formatting.YELLOW : Formatting.GRAY)));
 	}
 
@@ -316,14 +318,14 @@ public final class Politics {
 			for (Faction b : all) {
 				if (a == b) continue;
 				int rel = fm.relation(a.id, b.id);
-				boolean neighbours = a.center() != null && b.center() != null && a.center().getSquaredDistance(b.center()) < 200 * 200;
+				boolean neighbours = closestTowns(a, b) < 350;
 				Faction.Citizen rb = b.rulerCitizen();
 
 				// Kind rulers despise slavers.
 				if (b.slavery && ra.kindness > 65 && random.nextInt(3) == 0) fm.changeRelation(server, a.id, b.id, -1);
 
-				// Aggressive rulers pick fights with weaker neighbours.
-				if (a.overlord.isEmpty() && neighbours && ra.aggression > 70 && rel > FactionManager.WAR && rel < 10
+				// Aggressive (or ambitious) rulers pick fights with weaker neighbours to take their land.
+				if (a.overlord.isEmpty() && neighbours && (ra.aggression > 70 || ra.ambition > 80) && !a.atWar && rel > FactionManager.WAR && rel < 10
 						&& b.members.size() < a.members.size() && !b.id.equals(a.overlord) && !a.id.equals(b.overlord)
 						&& random.nextInt(25) == 0) {
 					fm.setRelation(server, a.id, b.id, -70);
@@ -334,6 +336,11 @@ public final class Politics {
 				}
 
 				if (rel <= FactionManager.WAR) {
+					// A beaten empire buys peace by ceding the town under attack.
+					if (b.warWeariness >= 6 && a.warWeariness < b.warWeariness && random.nextInt(5) == 0
+							&& Empire.sueForPeace(server, fm, a, b)) {
+						continue;
+					}
 					// The losing side surrenders and becomes a tributary.
 					if (b.members.size() * 2 <= a.members.size() && b.warWeariness >= 8 && b.overlord.isEmpty() && random.nextInt(4) == 0) {
 						b.overlord = a.id;
@@ -363,14 +370,27 @@ public final class Politics {
 		}
 	}
 
+	/** Distance between the two closest towns of two factions. */
+	private static double closestTowns(Faction a, Faction b) {
+		double best = Double.MAX_VALUE;
+		for (Settlement x : a.settlements.values()) {
+			for (Settlement y : b.settlements.values()) {
+				if (x.cityCenter != null && y.cityCenter != null) best = Math.min(best, Empire.horizontalDist(x.cityCenter, y.cityCenter));
+			}
+		}
+		return best;
+	}
+
 	/** Tributaries send part of their stockpile to their overlord every half day (when both stockpiles are loaded). */
 	private static void tribute(MinecraftServer server, FactionManager fm, List<Faction> all) {
 		ServerWorld world = server.getOverworld();
 		for (Faction vassal : all) {
 			Faction lord = fm.get(vassal.overlord);
 			if (lord == null) continue;
-			List<Inventory> from = Stockpile.chests(world, vassal);
-			List<Inventory> to = Stockpile.chests(world, lord);
+			Settlement vc = vassal.capital(), lc = lord.capital();
+			if (vc == null || lc == null) continue;
+			List<Inventory> from = Stockpile.chests(world, vc);
+			List<Inventory> to = Stockpile.chests(world, lc);
 			if (from.isEmpty() || to.isEmpty()) continue;
 			int sent = 0;
 			for (ItemStack s : Stockpile.take(from, st -> st.contains(net.minecraft.component.DataComponentTypes.FOOD)
@@ -380,7 +400,7 @@ public final class Politics {
 				for (Inventory inv : to) rest = net.colonists.entity.ColonistBrain.insert(inv, rest);
 			}
 			if (sent > 0) {
-				FactionManager.broadcastNear(world, vassal.cityCenter, 128, Text.literal("The ").formatted(Formatting.GRAY)
+				FactionManager.broadcastNear(world, vc.cityCenter, 128, Text.literal("The ").formatted(Formatting.GRAY)
 						.append(vassal.displayName()).append(Text.literal(" send " + sent + " goods in tribute to the ").formatted(Formatting.GRAY))
 						.append(lord.displayName()));
 			}

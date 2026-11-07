@@ -118,7 +118,7 @@ public final class City {
 	 * Road columns (x, z packed as BlockPos with y = 0) that connect every claimed lot to the plaza:
 	 * the street in front of each lot, the avenue from street 0 to that street, and street 0 out to that avenue.
 	 */
-	public static Set<BlockPos> roadColumns(Faction f) {
+	public static Set<BlockPos> roadColumns(Settlement f) {
 		Set<BlockPos> roads = new LinkedHashSet<>(f.roads);
 		BlockPos c = f.cityCenter;
 		if (c != null) roads.removeIf(p -> Math.abs(p.getX() - c.getX()) <= PLAZA_HALF && Math.abs(p.getZ() - c.getZ()) <= PLAZA_HALF);
@@ -152,7 +152,7 @@ public final class City {
 	}
 
 	/** Fixes the wall line around everything the city has claimed so far (plus the plaza), with room to spare. */
-	public static void planWall(Faction f) {
+	public static void planWall(Settlement f) {
 		BlockPos c = f.cityCenter;
 		if (c == null) return;
 		int minX = c.getX() - PLAZA_HALF, maxX = c.getX() + PLAZA_HALF, minZ = c.getZ() - PLAZA_HALF, maxZ = c.getZ() + PLAZA_HALF;
@@ -170,7 +170,7 @@ public final class City {
 	}
 
 	/** Columns on the wall line (x, z with y = 0), leaving gates wherever a road crosses it. */
-	public static List<BlockPos> wallColumns(Faction f) {
+	public static List<BlockPos> wallColumns(Settlement f) {
 		List<BlockPos> cols = new ArrayList<>();
 		if (!f.wallPlanned) return cols;
 		Set<BlockPos> roads = roadColumns(f);
@@ -205,7 +205,7 @@ public final class City {
 	}
 
 	/** Share (0-100) of the wall's loaded columns that are fully built, or -1 if too little of it is loaded to tell. */
-	public static int wallProgress(ServerWorld world, Faction f) {
+	public static int wallProgress(ServerWorld world, Settlement f) {
 		List<BlockPos> cols = wallColumns(f);
 		if (cols.isEmpty()) return -1;
 		int checked = 0, built = 0;

@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.build.Blueprint;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
@@ -74,7 +75,7 @@ public class WorkshopTask extends Task {
 		return ColonistBrain.count(this.colonist.getInventory(), this.inputs());
 	}
 
-	public static boolean worthDoing(ColonistEntity c, Faction f, Trade trade) {
+	public static boolean worthDoing(ColonistEntity c, Settlement f, Trade trade) {
 		if (c.onSearchCooldown("WORKSHOP")) return false;
 		ServerWorld world = (ServerWorld) c.getWorld();
 		Predicate<ItemStack> in = trade == Trade.SMITH
@@ -88,7 +89,7 @@ public class WorkshopTask extends Task {
 	public void tick() {
 		ServerWorld world = (ServerWorld) this.colonist.getWorld();
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null || f.cityCenter == null) {
 			this.done = true;
 			return;

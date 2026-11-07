@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
@@ -51,7 +52,7 @@ public class StockpileTask extends Task {
 	public void tick() {
 		ServerWorld world = (ServerWorld) this.colonist.getWorld();
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null || f.cityCenter == null) {
 			this.done = true;
 			return;

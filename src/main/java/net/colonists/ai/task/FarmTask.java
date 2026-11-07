@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.build.Site;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
@@ -126,14 +127,14 @@ public class FarmTask extends Task {
 	@Nullable
 	public static Site pickField(ColonistEntity c) {
 		FactionManager fm = c.factions();
-		Faction f = fm == null ? null : fm.get(c.getFactionId());
+		Settlement f = c.settlement();
 		if (f == null || f.cityCenter == null) return null;
 		for (BlockPos farm : f.farms) {
 			Site site = f.site(farm);
 			if (c.getWorld().isChunkLoaded(farm.getX() >> 4, farm.getZ() >> 4) && hasWork(c, site, true)) return site;
 		}
 		// One field for every four citizens.
-		if (f.farms.size() * 4 >= Math.max(4, f.members.size()) || c.onSearchCooldown("FIELD")) return null;
+		if (f.farms.size() * 4 >= Math.max(4, f.population()) || c.onSearchCooldown("FIELD")) return null;
 		c.searchCooldown("FIELD", 1200);
 		Site site = net.colonists.faction.CityGrowth.claim((ServerWorld) c.getWorld(), fm, f, null,
 				net.colonists.faction.CityGrowth.Purpose.FIELD, c.getRandom());

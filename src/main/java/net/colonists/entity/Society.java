@@ -27,7 +27,8 @@ final class Society {
 		boolean room = cap <= 0 || fm.memberCount(faction.id) < cap;
 
 		// A newly opened workplace pulls someone out of a crowded trade.
-		ColonistEntity.Job switchTo = net.colonists.faction.Politics.reconsiderJob(faction, c.getUuid(), c.job);
+		net.colonists.faction.Settlement town = c.settlement();
+		ColonistEntity.Job switchTo = net.colonists.faction.Politics.reconsiderJob(town, c.getUuid(), c.job);
 		if (switchTo != null && c.getRandom().nextInt(2) == 0) {
 			c.job = switchTo;
 			c.syncCitizen();
@@ -43,7 +44,7 @@ final class Society {
 		// Births: a married couple with a house and food to spare.
 		if (grow && c.partner != null && c.home != null && room
 				&& world.getTime() - c.lastBirthTime > BIRTH_INTERVAL
-				&& (ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 || faction.foodInStock >= 8) && c.getRandom().nextInt(2) == 0) {
+				&& (ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 || (town != null && town.foodInStock >= 8)) && c.getRandom().nextInt(2) == 0) {
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),
 					o -> o.getUuid().equals(c.partner)).stream().findFirst().orElse(null);
 			if (spouse != null) {
@@ -53,6 +54,7 @@ final class Society {
 					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, Math.min(4, ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD)));
 					baby.refreshPositionAndAngles(door.getX() + 0.5, door.getY(), door.getZ() + 0.5, c.getRandom().nextFloat() * 360f, 0f);
 					baby.pendingFaction = faction.id;
+					baby.pendingSettlement = c.settlementId;
 					baby.bornTo(c, spouse);
 					baby.initialize(world, world.getLocalDifficulty(door), SpawnReason.BREEDING, null);
 					world.spawnEntity(baby);
@@ -66,7 +68,7 @@ final class Society {
 		}
 
 		// Newcomers only drift into tiny settlements; after that the town grows by births.
-		if (grow && c.home != null && fm.memberCount(faction.id) < 4 && c.getRandom().nextInt(6) == 0
+		if (grow && c.home != null && town != null && town.population() < 4 && c.getRandom().nextInt(6) == 0
 				&& ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4) {
 			List<ColonistEntity> nearby = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(64), e -> true);
 			if (nearby.size() < 24) {
@@ -76,6 +78,7 @@ final class Society {
 					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, 4);
 					newcomer.refreshPositionAndAngles(door.getX() + 0.5, door.getY(), door.getZ() + 0.5, c.getRandom().nextFloat() * 360f, 0f);
 					newcomer.pendingFaction = faction.id;
+					newcomer.pendingSettlement = c.settlementId;
 					newcomer.initialize(world, world.getLocalDifficulty(door), SpawnReason.EVENT, null);
 					world.spawnEntity(newcomer);
 					FactionManager.broadcastNear(world, door, 96, Text.literal(newcomer.fullName() + " has settled with the ")

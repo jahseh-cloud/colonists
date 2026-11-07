@@ -101,8 +101,10 @@ public class FactionManager extends PersistentState {
 		if (f == null) return;
 		f.members.remove(colonist);
 		f.citizens.remove(colonist);
-		for (Map.Entry<BlockPos, UUID> e : f.homes.entrySet()) {
-			if (colonist.equals(e.getValue())) e.setValue(null);
+		for (Settlement st : f.settlements.values()) {
+			for (Map.Entry<BlockPos, UUID> e : st.homes.entrySet()) {
+				if (colonist.equals(e.getValue())) e.setValue(null);
+			}
 		}
 		markDirty();
 		if (memberCount(id) == 0) {
@@ -114,19 +116,15 @@ public class FactionManager extends PersistentState {
 
 	// ---------------------------------------------------------------- homes
 
-	public void claimHome(String factionId, BlockPos origin, UUID owner) {
-		Faction f = get(factionId);
-		if (f == null) return;
-		f.homes.put(origin.toImmutable(), owner);
+	public void claimHome(Settlement st, BlockPos origin, UUID owner) {
+		st.homes.put(origin.toImmutable(), owner);
 		markDirty();
 	}
 
-	/** Gives the colonist an empty house belonging to its faction, if any. */
+	/** Gives the colonist an empty house in their settlement, if any. */
 	@Nullable
-	public BlockPos claimVacantHome(String factionId, UUID owner) {
-		Faction f = get(factionId);
-		if (f == null) return null;
-		for (Map.Entry<BlockPos, UUID> e : f.homes.entrySet()) {
+	public BlockPos claimVacantHome(Settlement st, UUID owner) {
+		for (Map.Entry<BlockPos, UUID> e : st.homes.entrySet()) {
 			if (e.getValue() == null) {
 				e.setValue(owner);
 				markDirty();
@@ -136,48 +134,129 @@ public class FactionManager extends PersistentState {
 		return null;
 	}
 
-	public void forgetHome(BlockPos origin) {
+	// ---------------------------------------------------------------- settlements
+
+	private int nextSettlementId = 1;
+	private final Map<Integer, String> settlementOwners = new HashMap<>();
+
+	public int newSettlementId() {
+		markDirty();
+		return this.nextSettlementId++;
+	}
+
+	@Nullable
+	public Settlement settlement(int id) {
+		Faction f = get(this.settlementOwners.get(id));
+		Settlement s = f == null ? null : f.settlements.get(id);
+		if (s == null) {
+			// Index may be stale after a conquest; rebuild it.
+			this.reindex();
+			f = get(this.settlementOwners.get(id));
+			s = f == null ? null : f.settlements.get(id);
+		}
+		return s;
+	}
+
+	public void reindex() {
+		this.settlementOwners.clear();
 		for (Faction f : factions.values()) {
-			if (f.homes.containsKey(origin)) {
-				f.homes.remove(origin);
-				markDirty();
+			for (Settlement s : f.settlements.values()) {
+				s.faction = f;
+				this.settlementOwners.put(s.id, f.id);
 			}
 		}
 	}
 
-	/** True if pos lies inside (or right next to) any colonist house, farm plot, field or plaza. */
+	public List<Settlement> allSettlements() {
+		List<Settlement> list = new ArrayList<>();
+		for (Faction f : factions.values()) list.addAll(f.settlements.values());
+		return list;
+	}
+
+	/** Founds a new settlement for a faction around a plaza centre (y = first air block above ground). */
+	public Settlement foundSettlement(MinecraftServer server, Faction f, BlockPos center, boolean announce) {
+		Random random = server.getOverworld().getRandom();
+		Settlement s = new Settlement(newSettlementId(), Settlement.randomName(random));
+		s.cityCenter = center.toImmutable();
+		s.foundedDay = server.getOverworld().getTimeOfDay() / 24000L;
+		f.addSettlement(s);
+		this.settlementOwners.put(s.id, f.id);
+		markDirty();
+		if (announce) {
+			broadcast(server, Text.literal("🏙 The ").formatted(Formatting.YELLOW).append(f.displayName())
+					.append(Text.literal(" have founded " + (f.settlements.size() == 1 ? "" : "a new settlement, ")).formatted(Formatting.YELLOW))
+					.append(s.displayName()).append(Text.literal(" at " + center.getX() + ", " + center.getZ() + ".").formatted(Formatting.YELLOW)));
+		}
+		return s;
+	}
+
+	/** Removes a faction that has no settlements and no members left (conquered to the last town). */
+	public boolean dissolveIfEmpty(MinecraftServer server, Faction f) {
+		if (!f.settlements.isEmpty() || memberCount(f.id) > 0 || !factions.containsKey(f.id)) return false;
+		factions.remove(f.id);
+		relations.keySet().removeIf(k -> k.startsWith(f.id + "|") || k.endsWith("|" + f.id));
+		for (Faction o : factions.values()) if (o.overlord.equals(f.id)) o.overlord = "";
+		broadcast(server, Text.literal("☠ The ").append(f.displayName()).append(" are no more. Their last town has fallen.").formatted(Formatting.GRAY));
+		markDirty();
+		return true;
+	}
+
+	/** Hands a settlement to another faction (conquest, cession, secession). Its people follow when they next wake. */
+	public void transferSettlement(Settlement s, Faction to) {
+		Faction from = s.faction;
+		if (from == to) return;
+		if (from != null) {
+			from.settlements.remove(s.id);
+			if (from.capital == s.id) from.capital = from.settlements.isEmpty() ? -1 : from.settlements.keySet().iterator().next();
+			for (Map.Entry<UUID, Faction.Citizen> e : new ArrayList<>(from.citizens.entrySet())) {
+				if (e.getValue().settlement == s.id) {
+					from.citizens.remove(e.getKey());
+					from.members.remove(e.getKey());
+					to.citizens.put(e.getKey(), e.getValue());
+					to.members.add(e.getKey());
+				}
+			}
+			s.formerOwner = from.id;
+		}
+		to.addSettlement(s);
+		this.settlementOwners.put(s.id, to.id);
+		markDirty();
+	}
+
+	/** True if pos lies inside (or right next to) any colonist building, field or plaza. */
 	public boolean isNearAnyHome(BlockPos pos) {
 		for (Faction f : factions.values()) {
-			if (f.cityCenter != null && Math.abs(pos.getX() - f.cityCenter.getX()) <= City.PLAZA_HALF + 1
-					&& Math.abs(pos.getZ() - f.cityCenter.getZ()) <= City.PLAZA_HALF + 1
-					&& Math.abs(pos.getY() - f.cityCenter.getY()) <= 6) return true;
-			java.util.Set<BlockPos> lots = new java.util.HashSet<>(f.homes.keySet());
-			lots.addAll(f.farms);
-			lots.addAll(f.buildingTypes.keySet());
-			for (BlockPos o : lots) {
-				int[] r = CityGrowth.footprint(f, o);
-				if (pos.getX() >= r[0] - 1 && pos.getX() <= r[2] + 1 && pos.getZ() >= r[1] - 1 && pos.getZ() <= r[3] + 1
-						&& pos.getY() >= o.getY() - 7 && pos.getY() <= o.getY() + 10) return true;
+			for (Settlement st : f.settlements.values()) {
+				if (st.cityCenter != null && Math.abs(pos.getX() - st.cityCenter.getX()) <= City.PLAZA_HALF + 1
+						&& Math.abs(pos.getZ() - st.cityCenter.getZ()) <= City.PLAZA_HALF + 1
+						&& Math.abs(pos.getY() - st.cityCenter.getY()) <= 6) return true;
+				java.util.Set<BlockPos> lots = new java.util.HashSet<>(st.homes.keySet());
+				lots.addAll(st.farms);
+				lots.addAll(st.buildingTypes.keySet());
+				for (BlockPos o : lots) {
+					int[] r = CityGrowth.footprint(st, o);
+					if (pos.getX() >= r[0] - 1 && pos.getX() <= r[2] + 1 && pos.getZ() >= r[1] - 1 && pos.getZ() <= r[3] + 1
+							&& pos.getY() >= o.getY() - 7 && pos.getY() <= o.getY() + 10) return true;
+				}
 			}
 		}
 		return false;
 	}
 
-	private static boolean inLot(BlockPos pos, BlockPos o) {
-		return pos.getX() >= o.getX() - 1 && pos.getX() <= o.getX() + 9
-				&& pos.getZ() >= o.getZ() - 2 && pos.getZ() <= o.getZ() + City.LOT_DEPTH
-				&& pos.getY() >= o.getY() - 7 && pos.getY() <= o.getY() + 9;
-	}
-
-	/** True if a house at origin would crowd a house belonging to a different faction. */
-	public boolean tooCloseToForeignHome(Faction self, BlockPos origin) {
-		for (Faction f : factions.values()) {
-			if (f == self) continue;
-			for (BlockPos o : f.homes.keySet()) {
-				if (Math.abs(o.getX() - origin.getX()) < 14 && Math.abs(o.getZ() - origin.getZ()) < 10) return true;
+	/** Nearest settlement centre (of any faction, optionally excluding one settlement), or null. */
+	@Nullable
+	public Settlement nearestSettlement(BlockPos pos, @Nullable Settlement except) {
+		Settlement best = null;
+		double bestD = Double.MAX_VALUE;
+		for (Settlement s : allSettlements()) {
+			if (s == except || s.cityCenter == null) continue;
+			double d = s.cityCenter.getSquaredDistance(pos.getX(), s.cityCenter.getY(), pos.getZ());
+			if (d < bestD) {
+				bestD = d;
+				best = s;
 			}
 		}
-		return false;
+		return best;
 	}
 
 	// ---------------------------------------------------------------- relations
@@ -343,7 +422,7 @@ public class FactionManager extends PersistentState {
 		ServerWorld world = server.getOverworld();
 		java.util.Set<Long> want = new java.util.HashSet<>();
 		if (world.getGameRules().getBoolean(net.colonists.ColonistsMod.KEEP_LOADED)) {
-			for (Faction f : factions.values()) {
+			for (Settlement f : allSettlements()) {
 				if (f.cityCenter == null) continue;
 				int r = switch (f.rank) {
 					case VILLAGE -> 1;
@@ -371,30 +450,6 @@ public class FactionManager extends PersistentState {
 			}
 		}
 		markDirty();
-	}
-
-	/** Lays out a new city around the given plaza centre (y = first air block above the ground). */
-	public void foundCity(MinecraftServer server, Faction f, BlockPos center) {
-		f.cityCenter = center.toImmutable();
-		markDirty();
-		broadcast(server, Text.literal("🏙 The ").formatted(Formatting.YELLOW).append(f.displayName())
-				.append(Text.literal(" have founded a city at " + center.getX() + ", " + center.getZ() + ".").formatted(Formatting.YELLOW)));
-	}
-
-	/** Nearest other city centre to a point, or null. */
-	@Nullable
-	public BlockPos nearestOtherCity(Faction self, BlockPos pos) {
-		BlockPos best = null;
-		double bestD = Double.MAX_VALUE;
-		for (Faction f : factions.values()) {
-			if (f == self || f.cityCenter == null) continue;
-			double d = f.cityCenter.getSquaredDistance(pos);
-			if (d < bestD) {
-				bestD = d;
-				best = f.cityCenter;
-			}
-		}
-		return best;
 	}
 
 	public static void broadcast(MinecraftServer server, Text text) {
@@ -426,6 +481,7 @@ public class FactionManager extends PersistentState {
 		});
 		nbt.put("Players", players);
 		nbt.putLongArray("Forced", this.forced.stream().mapToLong(Long::longValue).toArray());
+		nbt.putInt("NextSettlement", this.nextSettlementId);
 		return nbt;
 	}
 
@@ -433,7 +489,7 @@ public class FactionManager extends PersistentState {
 		FactionManager m = new FactionManager();
 		NbtList list = nbt.getList("Factions", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < list.size(); i++) {
-			Faction f = Faction.fromNbt(list.getCompound(i));
+			Faction f = Faction.fromNbt(list.getCompound(i), () -> m.nextSettlementId++);
 			m.factions.put(f.id, f);
 		}
 		NbtCompound rel = nbt.getCompound("Relations");
@@ -444,6 +500,9 @@ public class FactionManager extends PersistentState {
 			m.playerFactions.put(p.getUuid("U"), p.getString("F"));
 		}
 		for (long l : nbt.getLongArray("Forced")) m.forced.add(l);
+		if (nbt.contains("NextSettlement")) m.nextSettlementId = Math.max(m.nextSettlementId, nbt.getInt("NextSettlement"));
+		for (Faction f : m.factions.values()) for (int sid : f.settlements.keySet()) m.nextSettlementId = Math.max(m.nextSettlementId, sid + 1);
+		m.reindex();
 		return m;
 	}
 }

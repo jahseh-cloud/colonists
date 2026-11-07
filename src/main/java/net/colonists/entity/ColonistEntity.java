@@ -111,6 +111,9 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	private String firstName = "";
 	/** Faction to join on spawn (set by commands / births before initialize). */
 	@Nullable public String pendingFaction;
+	/** Settlement to join on spawn (births, newcomers, colonists), or -1. */
+	public int pendingSettlement = -1;
+	public int settlementId = -1;
 
 	public int hunger = 20;
 	private String surname = "";
@@ -235,7 +238,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				ColonistEntity nearest = sw.getEntitiesByClass(ColonistEntity.class, this.getBoundingBox().expand(48),
 								c -> c != this && fm.get(c.factionId) != null)
 						.stream().min(Comparator.comparingDouble(this::squaredDistanceTo)).orElse(null);
-				if (nearest != null && (max <= 0 || fm.memberCount(nearest.factionId) < max)) join = nearest.factionId;
+				if (nearest != null && (max <= 0 || fm.memberCount(nearest.factionId) < max)) {
+					join = nearest.factionId;
+					if (this.pendingSettlement < 0) this.pendingSettlement = nearest.settlementId;
+				}
 			}
 			Faction f = fm.get(join);
 			if (f == null) {
@@ -246,7 +252,12 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.setFaction(f.id);
 		}
 		this.pendingFaction = null;
-		if (!this.isBaby() && this.job == Job.NONE) this.job = net.colonists.faction.Politics.chooseJob(fm.get(this.factionId), this.getUuid());
+		if (this.pendingSettlement >= 0) {
+			net.colonists.faction.Settlement s = fm.settlement(this.pendingSettlement);
+			if (s != null && s.faction != null && s.faction.id.equals(this.factionId)) this.settlementId = s.id;
+			this.pendingSettlement = -1;
+		}
+		if (!this.isBaby() && this.job == Job.NONE && this.settlement() != null) this.job = net.colonists.faction.Politics.chooseJob(this.settlement(), this.getUuid());
 		this.syncCitizen();
 		this.refreshName();
 	}
@@ -264,6 +275,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		c.kindness = this.kindness;
 		c.child = this.isBaby();
 		c.job = this.job.name();
+		c.settlement = this.settlementId;
 		int liked = 0;
 		for (int v : this.affinity.values()) liked += Math.max(0, v);
 		c.popularity = Math.min(100, liked / 4);
@@ -406,10 +418,39 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		return this.getWorld() instanceof ServerWorld sw ? sw.getServer() : null;
 	}
 
+	/** The settlement this colonist lives in (and works for), or null. */
+	@Nullable
+	public net.colonists.faction.Settlement settlement() {
+		FactionManager fm = this.factions();
+		if (fm == null || this.settlementId < 0) return null;
+		net.colonists.faction.Settlement s = fm.settlement(this.settlementId);
+		return s != null && s.faction != null && s.faction.id.equals(this.factionId) ? s : null;
+	}
+
+	public void joinSettlement(net.colonists.faction.Settlement s) {
+		this.settlementId = s.id;
+		if (!this.isBaby() && this.job == Job.NONE) this.job = net.colonists.faction.Politics.chooseJob(s, this.getUuid());
+		this.syncCitizen();
+	}
+
+	/** Conquest: the settlement now flies another flag, and its people (and their houses) go with it. */
+	private void followConquest() {
+		FactionManager fm = this.factions();
+		if (fm == null || this.settlementId < 0) return;
+		net.colonists.faction.Settlement s = fm.settlement(this.settlementId);
+		if (s == null || s.faction == null || s.faction.id.equals(this.factionId)) return;
+		this.factionId = s.faction.id;
+		fm.addMember(s.faction.id, this.getUuid());
+		this.setTarget(null);
+		this.syncCitizen();
+		this.refreshName();
+	}
+
 	public void setFaction(String id) {
 		FactionManager fm = this.factions();
 		if (fm == null) return;
 		if (!this.factionId.isEmpty() && !this.factionId.equals(id)) {
+			this.settlementId = -1;
 			fm.removeMember(this.server(), this.factionId, this.getUuid());
 			// A house belongs to the faction that built it, so leaving means moving out.
 			this.home = null;
@@ -452,11 +493,24 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		return false;
 	}
 
+	/**
+	 * Who takes up arms: guards always; in wartime, the bolder colonists who are not farmers or builders are
+	 * conscripted. Everyone else is a civilian, and civilians are never targeted.
+	 */
+	public boolean isSoldier() {
+		if (this.isBaby()) return false;
+		if (this.job == Job.GUARD) return true;
+		FactionManager fm = this.factions();
+		Faction f = fm == null ? null : fm.get(this.factionId);
+		return f != null && f.atWar && this.aggression >= 55 && this.job != Job.FARMER && this.job != Job.BUILDER && this.job != Job.NONE;
+	}
+
 	public boolean isEnemy(LivingEntity e) {
 		FactionManager fm = this.factions();
 		if (fm == null || e == this || !e.isAlive()) return false;
-		if (this.isBaby()) return false;
-		if (e instanceof ColonistEntity c) return !c.isBaby() && fm.relation(this.factionId, c.factionId) <= FactionManager.WAR;
+		if (!this.isSoldier()) return false;
+		// Soldiers fight soldiers. Civilians of a conquered town become our people, so they are spared.
+		if (e instanceof ColonistEntity c) return c.isSoldier() && fm.relation(this.factionId, c.factionId) <= FactionManager.WAR;
 		if (e instanceof PlayerEntity p) return !p.isCreative() && !p.isSpectator() && fm.standing(p, this.factionId) <= FactionManager.WAR;
 		return false;
 	}
@@ -491,6 +545,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.searchCooldowns.values().removeIf(t -> t < now);
 		}
 		if (phase % 2400 == 0) Society.tick(this, sw);
+		if (phase % 200 == 0) this.followConquest();
 		if (phase % 600 == 0) {
 			this.syncCitizen();
 			this.refreshName();
@@ -505,7 +560,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	private void growUp(ServerWorld sw) {
 		this.setChild(false);
 		FactionManager fm = FactionManager.get(sw.getServer());
-		this.job = net.colonists.faction.Politics.chooseJob(fm.get(this.factionId), this.getUuid());
+		this.job = net.colonists.faction.Politics.chooseJob(this.settlement(), this.getUuid());
 		this.syncCitizen();
 		this.say("I'm all grown up! I'll be a " + this.job.label.toLowerCase() + ".");
 	}
@@ -820,6 +875,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			if (!stack.isEmpty()) ItemScatterer.spawn(sw, this.getX(), this.getY(), this.getZ(), stack);
 		}
 		BlockPos house = this.home;
+		net.colonists.faction.Settlement mySettlement = this.settlement();
 		fm.removeMember(sw.getServer(), this.factionId, this.getUuid());
 		// Inheritance: a spouse or child without a house of their own moves in.
 		if (house != null) {
@@ -832,7 +888,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				heir.bed = this.bed;
 				heir.chest = this.chest;
 				heir.buildSite = null;
-				fm.claimHome(this.factionId, house, heir.getUuid());
+				if (mySettlement != null) fm.claimHome(mySettlement, house, heir.getUuid());
 				heir.say("I'll look after the house now.");
 			}
 		}
@@ -861,6 +917,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		super.writeCustomDataToNbt(nbt);
 		nbt.put("ColonistInventory", this.inventory.toNbtList(this.getRegistryManager()));
 		nbt.putString("Faction", this.factionId);
+		nbt.putInt("Settlement", this.settlementId);
 		nbt.putString("FirstName", this.firstName);
 		nbt.putInt("Skin", this.getSkin());
 		nbt.putInt("Hunger", this.hunger);
@@ -895,6 +952,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 		super.readCustomDataFromNbt(nbt);
 		this.inventory.readNbtList(nbt.getList("ColonistInventory", NbtElement.COMPOUND_TYPE), this.getRegistryManager());
 		this.factionId = nbt.getString("Faction");
+		this.settlementId = nbt.contains("Settlement") ? nbt.getInt("Settlement") : -1;
 		this.firstName = nbt.getString("FirstName");
 		this.dataTracker.set(SKIN, nbt.getInt("Skin"));
 		if (nbt.contains("Hunger")) this.hunger = nbt.getInt("Hunger");

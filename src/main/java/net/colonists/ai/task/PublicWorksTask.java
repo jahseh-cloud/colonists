@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
@@ -55,18 +56,17 @@ public class PublicWorksTask extends Task {
 	}
 
 	@Nullable
-	private static Faction faction(ColonistEntity c) {
-		FactionManager fm = c.factions();
-		return fm == null ? null : fm.get(c.getFactionId());
+	private static Settlement faction(ColonistEntity c) {
+		return c.settlement();
 	}
 
 	public static boolean hasWork(ColonistEntity c) {
-		Faction f = faction(c);
+		Settlement f = faction(c);
 		return f != null && f.cityCenter != null && !c.onSearchCooldown("WORKS") && findJob(c, f) != null;
 	}
 
 	@Nullable
-	private static Job findJob(ColonistEntity c, Faction f) {
+	private static Job findJob(ColonistEntity c, Settlement f) {
 		ServerWorld world = (ServerWorld) c.getWorld();
 		BlockPos center = f.cityCenter;
 		if (center == null) return null;
@@ -190,7 +190,7 @@ public class PublicWorksTask extends Task {
 	@Override
 	public void tick() {
 		if (this.cooldown-- > 0) return;
-		Faction f = faction(this.colonist);
+		Settlement f = faction(this.colonist);
 		if (f == null || f.cityCenter == null) {
 			this.done = true;
 			return;
@@ -220,7 +220,7 @@ public class PublicWorksTask extends Task {
 		if (++this.jobsDone >= 40) this.done = true;
 	}
 
-	private void perform(ServerWorld world, Faction f, Job job) {
+	private void perform(ServerWorld world, Settlement f, Job job) {
 		var inv = this.colonist.getInventory();
 		BlockPos p = job.pos;
 		BlockState state = null;
@@ -261,7 +261,7 @@ public class PublicWorksTask extends Task {
 				state = net.colonists.build.Materials.blockOf(stone, Blocks.COBBLESTONE).getDefaultState();
 			}
 			case BELL -> state = Blocks.BELL.getDefaultState();
-			case BANNER -> state = bannerFor(f.color).getDefaultState().with(BannerBlock.ROTATION, 8);
+			case BANNER -> state = bannerFor(f.faction.color).getDefaultState().with(BannerBlock.ROTATION, 8);
 			case LAMP -> {
 				if (!ColonistBrain.take(inv, Items.TORCH, 1)) return;
 				ColonistBrain.take(inv, ColonistBrain.PLANKS, 1);

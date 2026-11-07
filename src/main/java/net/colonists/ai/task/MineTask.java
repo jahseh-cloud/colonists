@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.ai.Digger;
 import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
@@ -65,7 +66,7 @@ public class MineTask extends Task {
 	}
 
 	/** The tunnel's floor cells, in digging order. Each cell is dug two high (three on the stairs). */
-	static List<BlockPos> route(Faction f) {
+	static List<BlockPos> route(Settlement f) {
 		List<BlockPos> cells = new ArrayList<>();
 		BlockPos q = f.quarry;
 		int x = q.getX() + f.quarrySize - 2;
@@ -104,7 +105,7 @@ public class MineTask extends Task {
 
 	/** The next block to dig: ore beside the tunnel first, then the tunnel itself. */
 	@Nullable
-	static BlockPos next(ColonistEntity c, Faction f) {
+	static BlockPos next(ColonistEntity c, Settlement f) {
 		World world = c.getWorld();
 		List<BlockPos> route = route(f);
 		int stairCells = Math.max(0, Math.min(160, f.mineY - targetY(f.rank)));
@@ -131,7 +132,7 @@ public class MineTask extends Task {
 		return null;
 	}
 
-	public static boolean hasWork(ColonistEntity c, Faction f) {
+	public static boolean hasWork(ColonistEntity c, Settlement f) {
 		return f.quarry != null && f.rank.ordinal() >= Faction.Rank.TOWN.ordinal() && !c.onSearchCooldown("MINE")
 				&& ColonistBrain.tier(c.getInventory(), ColonistBrain.PICKAXES) >= ColonistBrain.STONE;
 	}
@@ -139,7 +140,7 @@ public class MineTask extends Task {
 	@Override
 	public void start() {
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null || f.quarry == null) {
 			this.done = true;
 			return;
@@ -155,7 +156,7 @@ public class MineTask extends Task {
 	public void tick() {
 		if (this.done) return;
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null || f.quarry == null || f.mineY == Integer.MIN_VALUE) {
 			this.done = true;
 			return;

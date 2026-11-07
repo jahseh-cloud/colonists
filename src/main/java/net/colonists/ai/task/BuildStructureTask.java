@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.build.Blueprint;
 import net.colonists.build.Blueprints;
 import net.colonists.build.Materials;
@@ -192,7 +193,7 @@ public class BuildStructureTask extends Task {
 	@Override
 	public void start() {
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		this.plan = plan(this.site, this.bp, tolerance(f == null ? Faction.Rank.VILLAGE : f.rank));
 	}
 
@@ -333,7 +334,7 @@ public class BuildStructureTask extends Task {
 		this.done = true;
 		if (!complete(world, this.site, this.bp)) return; // something was in the way; try again later
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
+		Settlement f = this.colonist.settlement();
 		if (f == null) return;
 		boolean wasBuilt = f.built.contains(this.origin);
 		f.built.add(this.origin);
@@ -343,16 +344,16 @@ public class BuildStructureTask extends Task {
 			if (this.colonist.home == null) {
 				this.colonist.home = this.origin;
 				this.colonist.buildSite = null;
-				fm.claimHome(f.id, this.origin, this.colonist.getUuid());
-				this.colonist.say(f.homes.size() == 1 ? "The first house of the " + f.name + " is finished!" : "My new " + this.bp.name.toLowerCase() + " is finished!");
+				fm.claimHome(f, this.origin, this.colonist.getUuid());
+				this.colonist.say(f.homes.size() == 1 ? "The first house of " + f.name + " is finished!" : "My new " + this.bp.name.toLowerCase() + " is finished!");
 			}
 			for (BlockPos b : this.bp.beds) {
 				if (this.colonist.bed == null && world.getBlockState(this.site.at(b)).getBlock() instanceof BedBlock) this.colonist.bed = this.site.at(b);
 			}
 			if (this.bp.chest != null && world.getBlockState(this.site.at(this.bp.chest)).isOf(Blocks.CHEST)) this.colonist.chest = this.site.at(this.bp.chest);
 		} else if (!wasBuilt) {
-			FactionManager.broadcastNear(world, this.origin, 128, Text.literal("🔨 The ").formatted(Formatting.YELLOW).append(f.displayName())
-					.append(Text.literal(" have finished building a " + this.bp.name.toLowerCase() + ".").formatted(Formatting.YELLOW)));
+			FactionManager.broadcastNear(world, this.origin, 128, Text.literal("🔨 ").formatted(Formatting.YELLOW).append(f.displayName())
+					.append(Text.literal(" has finished building a " + this.bp.name.toLowerCase() + ".").formatted(Formatting.YELLOW)));
 		}
 	}
 
@@ -360,13 +361,13 @@ public class BuildStructureTask extends Task {
 
 	/** Claims the best roadside lot for a blueprint (turned to face its street), or null. */
 	@Nullable
-	public static Site claimLot(ColonistEntity c, Faction f, Blueprint bp) {
+	public static Site claimLot(ColonistEntity c, Settlement f, Blueprint bp) {
 		FactionManager fm = c.factions();
 		if (fm == null || f.cityCenter == null) return null;
 		return net.colonists.faction.CityGrowth.claim((ServerWorld) c.getWorld(), fm, f, bp, net.colonists.faction.CityGrowth.Purpose.BUILDING, c.getRandom());
 	}
 
-	public static boolean isTaken(Faction f, BlockPos lotOrigin) {
+	public static boolean isTaken(Settlement f, BlockPos lotOrigin) {
 		for (BlockPos h : f.homes.keySet()) if (City.sameColumn(h, lotOrigin)) return true;
 		for (BlockPos h : f.farms) if (City.sameColumn(h, lotOrigin)) return true;
 		for (BlockPos h : f.buildingTypes.keySet()) if (City.sameColumn(h, lotOrigin)) return true;
@@ -375,13 +376,13 @@ public class BuildStructureTask extends Task {
 
 	public static Blueprint blueprintFor(ColonistEntity c, BlockPos origin) {
 		FactionManager fm = c.factions();
-		Faction f = fm == null ? null : fm.get(c.getFactionId());
+		Settlement f = c.settlement();
 		return f == null ? Blueprints.CABIN : blueprintAt(f, origin);
 	}
 
 	public static Site siteFor(ColonistEntity c, BlockPos origin) {
 		FactionManager fm = c.factions();
-		Faction f = fm == null ? null : fm.get(c.getFactionId());
+		Settlement f = c.settlement();
 		return f == null ? Site.of(origin) : f.site(origin);
 	}
 
@@ -394,7 +395,7 @@ public class BuildStructureTask extends Task {
 	}
 
 	/** The blueprint used on a lot (cabins for anything unknown). */
-	public static Blueprint blueprintAt(Faction f, BlockPos origin) {
+	public static Blueprint blueprintAt(Settlement f, BlockPos origin) {
 		String id = f.buildingTypes.get(origin);
 		return id == null ? Blueprints.CABIN : Blueprints.get(id);
 	}

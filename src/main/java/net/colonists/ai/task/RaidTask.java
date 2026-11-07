@@ -1,5 +1,6 @@
 package net.colonists.ai.task;
 
+import net.colonists.faction.Settlement;
 import net.colonists.entity.CaptiveEntity;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.Faction;
@@ -45,8 +46,8 @@ public class RaidTask extends Task {
 	@Override
 	public void tick() {
 		FactionManager fm = this.colonist.factions();
-		Faction f = fm == null ? null : fm.get(this.colonist.getFactionId());
-		if (f == null || !f.slavery || !this.target.isAlive() || this.target.isRemoved()
+		Settlement f = this.colonist.settlement();
+		if (f == null || !f.faction.slavery || !this.target.isAlive() || this.target.isRemoved()
 				|| this.colonist.squaredDistanceTo(this.target) > 100 * 100) {
 			this.done = true;
 			return;
@@ -69,9 +70,9 @@ public class RaidTask extends Task {
 			world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, this.target.getX(), this.target.getEyeY() + 0.3, this.target.getZ(), 2, 0.3, 0.2, 0.3, 0.0);
 		}
 		if (++this.subdue >= 40) {
-			CaptiveEntity.capture(world, this.target, this.colonist, f);
+			CaptiveEntity.capture(world, this.target, this.colonist, f.faction);
 			FactionManager.broadcastNear(world, this.colonist.getBlockPos(), 96, Text.literal("⛓ The ").formatted(Formatting.DARK_RED)
-					.append(f.displayName()).append(Text.literal(" have taken a villager captive.").formatted(Formatting.DARK_RED)));
+					.append(f.faction.displayName()).append(Text.literal(" have taken a villager captive.").formatted(Formatting.DARK_RED)));
 			this.done = true;
 		}
 	}

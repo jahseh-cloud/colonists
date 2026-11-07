@@ -8,16 +8,22 @@ import net.minecraft.util.math.Vec3d;
 /** A long walk to a distant place (for founding a new city), in hops the pathfinder can manage. */
 public class MigrateTask extends Task {
 	private final BlockPos destination;
+	private final String label;
 	private BlockPos hop;
 
 	public MigrateTask(ColonistEntity colonist, BlockPos destination) {
+		this(colonist, destination, "Setting out to found a new city");
+	}
+
+	public MigrateTask(ColonistEntity colonist, BlockPos destination, String label) {
 		super(colonist);
 		this.destination = destination;
+		this.label = label;
 	}
 
 	@Override
 	public String describe() {
-		return "Setting out to found a new city";
+		return this.label;
 	}
 
 	@Override
@@ -35,6 +41,15 @@ public class MigrateTask extends Task {
 		Vec3d here = this.colonist.getPos();
 		Vec3d there = Vec3d.ofCenter(this.destination);
 		if (here.squaredDistanceTo(there.x, here.y, there.z) < 12 * 12) {
+			this.done = true;
+			return;
+		}
+		// Nobody watching: the chunks along the way are not loaded, so the journey happens "off-screen".
+		if (this.ticks == 1 && !net.colonists.faction.Empire.watched((net.minecraft.server.world.ServerWorld) this.colonist.getWorld(), this.colonist, 128)) {
+			int x = this.destination.getX() + this.colonist.getRandom().nextInt(9) - 4, z = this.destination.getZ() + this.colonist.getRandom().nextInt(9) - 4;
+			int y = City.surfaceYOr(this.colonist.getWorld(), x, z, this.destination.getY());
+			this.colonist.refreshPositionAndAngles(x + 0.5, y, z + 0.5, this.colonist.getYaw(), 0f);
+			this.colonist.getNavigation().stop();
 			this.done = true;
 			return;
 		}

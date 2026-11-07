@@ -2,6 +2,7 @@ package net.colonists.ai;
 
 import net.colonists.ColonistsMod;
 import net.colonists.ai.task.BuildStructureTask;
+import net.colonists.ai.task.CampaignTask;
 import net.colonists.ai.task.MineTask;
 import net.colonists.ai.task.QuarryTask;
 import net.colonists.ai.task.RanchTask;
@@ -31,6 +32,7 @@ import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
 import net.colonists.faction.Faction;
 import net.colonists.faction.FactionManager;
+import net.colonists.faction.Settlement;
 import net.colonists.faction.Stockpile;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -126,20 +128,40 @@ public class WorkGoal extends Goal {
 		ServerWorld world = (ServerWorld) c.getWorld();
 		SimpleInventory inv = c.getInventory();
 		FactionManager fm = FactionManager.get(world.getServer());
-		Faction f = fm.get(c.getFactionId());
+		Faction realm = fm.get(c.getFactionId());
+		Settlement f = c.settlement();
 		boolean canBreak = world.getGameRules().getBoolean(ColonistsMod.BREAK_BLOCKS);
 		boolean canBuild = world.getGameRules().getBoolean(ColonistsMod.BUILD);
 		boolean city = f != null && f.cityCenter != null;
 
-		// 0. A faction without a city founds one: here, or far enough from everyone else's.
-		if (f != null && f.cityCenter == null && !c.isBaby() && canBuild) {
-			BlockPos other = fm.nearestOtherCity(f, c.getBlockPos());
+		// 0. Belong somewhere: join one of the realm's settlements, or found the first one
+		//    (here, or far enough from everyone else's).
+		if (realm != null && f == null && !c.isBaby()) {
+			Settlement nearestOwn = null;
+			double bestD = Double.MAX_VALUE;
+			for (Settlement st : realm.settlements.values()) {
+				if (st.cityCenter == null) continue;
+				double d = st.cityCenter.getSquaredDistance(c.getBlockPos());
+				if (d < bestD) {
+					bestD = d;
+					nearestOwn = st;
+				}
+			}
+			if (nearestOwn != null) {
+				c.joinSettlement(nearestOwn);
+				return null;
+			}
+		}
+		if (realm != null && f == null && realm.settlements.isEmpty() && !c.isBaby() && canBuild) {
+			Settlement nearby = fm.nearestSettlement(c.getBlockPos(), null);
+			BlockPos other = nearby == null ? null : nearby.cityCenter;
 			if (other == null || other.getSquaredDistance(c.getBlockPos().withY(other.getY())) > 140 * 140) {
 				BlockPos center = net.colonists.faction.CityGrowth.bestCenter(world, c.getBlockPos(), c.getRandom());
 				if (center != null) {
-					fm.foundCity(world.getServer(), f, center);
+					Settlement founded = fm.foundSettlement(world.getServer(), realm, center, true);
+					c.joinSettlement(founded);
 					c.say("We'll build our city right here!");
-					city = true;
+					return null;
 				}
 			} else {
 				Vec3d away = c.getPos().subtract(Vec3d.ofCenter(other)).multiply(1, 0, 1);
@@ -147,6 +169,23 @@ public class WorkGoal extends Goal {
 				Vec3d target = Vec3d.ofCenter(other).add(away.normalize().multiply(160));
 				return new MigrateTask(c, BlockPos.ofFloored(target));
 			}
+		}
+
+		// 0b. War: soldiers march on the realm's objective, day and night (as long as they are not starving).
+		if (realm != null && realm.warGoal >= 0 && c.isSoldier() && (c.hunger > 6 || ColonistBrain.count(inv, ColonistBrain.FOOD) > 0)) {
+			Settlement goal = fm.settlement(realm.warGoal);
+			if (goal != null && goal.faction != realm && goal.cityCenter != null
+					&& net.colonists.faction.Empire.atWarWith(fm, realm, goal.faction)
+					// Some guards stay behind to defend a town that is itself under threat.
+					&& !(c.job == ColonistEntity.Job.GUARD && f != null && f.occupation > 0)) {
+				return new CampaignTask(c, goal.id);
+			}
+		}
+
+		// 0c. Settlers (and anyone who wandered off) make the long trip to their own town.
+		if (f != null && f.cityCenter != null && !c.isBaby()
+				&& f.cityCenter.getSquaredDistance(c.getBlockPos().withY(f.cityCenter.getY())) > 112 * 112) {
+			return new MigrateTask(c, f.cityCenter, "Travelling to " + f.name);
 		}
 
 		// 1. Night: guards keep watch in shifts; everyone else goes to bed, or at least indoors.
@@ -209,7 +248,7 @@ public class WorkGoal extends Goal {
 						c.searchCooldown("BUILD_SITE", 2400);
 					} else {
 						c.buildSite = site.origin();
-						fm.claimHome(f.id, site.origin(), c.getUuid());
+						fm.claimHome(f, site.origin(), c.getUuid());
 						c.say("I've picked out a lot for my new " + want.name.toLowerCase() + ".");
 					}
 				}
@@ -281,7 +320,7 @@ public class WorkGoal extends Goal {
 
 	/** Fetches whatever a building job ran short of: from the city stores if possible, otherwise from the land. */
 	@Nullable
-	private static Task supply(ColonistEntity c, Faction f, boolean canBreak, @Nullable Blueprint bp) {
+	private static Task supply(ColonistEntity c, Settlement f, boolean canBreak, @Nullable Blueprint bp) {
 		SimpleInventory inv = c.getInventory();
 		boolean needWood = "wood".equals(c.needs) || (bp != null && ColonistBrain.woodValue(inv) < Math.min(bp.woodCost(), 48));
 		boolean needStone = "stone".equals(c.needs) || (bp != null && bp.stoneCost() > 0 && stone(inv) < Math.min(bp.stoneCost(), 12));
@@ -313,7 +352,7 @@ public class WorkGoal extends Goal {
 
 	/** The city's next public building: finish one under construction, or claim a lot for the next one it needs. */
 	@Nullable
-	private static Task project(ColonistEntity c, Faction f, boolean canBreak) {
+	private static Task project(ColonistEntity c, Settlement f, boolean canBreak) {
 		if (c.onSearchCooldown("PROJECT")) return null;
 		net.minecraft.server.world.ServerWorld world = (net.minecraft.server.world.ServerWorld) c.getWorld();
 		for (java.util.Map.Entry<BlockPos, String> e : f.buildingTypes.entrySet()) {
@@ -330,7 +369,7 @@ public class WorkGoal extends Goal {
 			c.searchCooldown("PROJECT", 600);
 			return null;
 		}
-		int pop = f.members.size();
+		int pop = f.population();
 		for (int r = 0; r <= f.rank.ordinal(); r++) {
 			for (String id : Blueprints.PROJECTS[r]) {
 				if (!f.buildingsOf(id).isEmpty()) continue;
@@ -341,7 +380,7 @@ public class WorkGoal extends Goal {
 					c.searchCooldown("PROJECT", 2400);
 					return null;
 				}
-				c.say("The " + f.name + " need a " + bp.name.toLowerCase() + ". I'll start on it.");
+				c.say(f.name + " needs a " + bp.name.toLowerCase() + ". I'll start on it.");
 				return new BuildStructureTask(c, site, bp, false);
 			}
 		}
@@ -354,7 +393,7 @@ public class WorkGoal extends Goal {
 	}
 
 	@Nullable
-	private static BlockPos nearestBuilt(ColonistEntity c, Faction f, String type) {
+	private static BlockPos nearestBuilt(ColonistEntity c, Settlement f, String type) {
 		BlockPos best = null;
 		double bestD = Double.MAX_VALUE;
 		for (BlockPos p : f.buildingsOf(type)) {
@@ -369,7 +408,7 @@ public class WorkGoal extends Goal {
 	}
 
 	@Nullable
-	private static Task jobTask(ColonistEntity c, Faction f, boolean canBreak, boolean canBuild) {
+	private static Task jobTask(ColonistEntity c, Settlement f, boolean canBreak, boolean canBuild) {
 		SimpleInventory inv = c.getInventory();
 		boolean haul = canBuild && Stockpile.surplus(inv) >= 32 && !c.onSearchCooldown("DEPOSIT");
 		switch (c.job) {
@@ -444,8 +483,8 @@ public class WorkGoal extends Goal {
 				if (PublicWorksTask.hasWork(c)) return new PublicWorksTask(c);
 			}
 			case GUARD -> {
-				int adults = Math.max(1, f.adults());
-				if (f.slavery && f.captives < Math.max(2, adults / 2) && !c.onSearchCooldown("RAID") && c.getRandom().nextInt(3) == 0) {
+				int adults = Math.max(1, f.faction.adults());
+				if (f.faction.slavery && f.faction.captives < Math.max(2, adults / 2) && !c.onSearchCooldown("RAID") && c.getRandom().nextInt(3) == 0) {
 					c.searchCooldown("RAID", 3600);
 					VillagerEntity victim = RaidTask.findTarget(c);
 					if (victim != null) return new RaidTask(c, victim);
