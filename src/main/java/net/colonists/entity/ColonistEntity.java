@@ -215,6 +215,11 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			this.setPersistent();
 			if (this.surname.isEmpty()) this.surname = SURNAMES[this.random.nextInt(SURNAMES.length)];
 			if (this.birthDay == Long.MIN_VALUE) this.birthDay = today(sw) - 1 - this.random.nextInt(6); // settlers arrive as young adults
+			if (!this.isBaby() && this.pendingFaction == null) {
+				// New settlers bring provisions and seed for the first harvest.
+				ColonistBrain.give(this, new ItemStack(Items.BREAD, 6));
+				ColonistBrain.give(this, new ItemStack(Items.WHEAT_SEEDS, 8));
+			}
 			if (this.ambition == 0 && this.aggression == 0 && this.kindness == 0) {
 				this.ambition = 10 + this.random.nextInt(81);
 				this.aggression = 10 + this.random.nextInt(81);
@@ -507,18 +512,21 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 
 	/** Vanilla monsters only hunt players and villagers; make them notice colonists too. */
 	private void attractHostiles(ServerWorld sw) {
-		for (HostileEntity monster : sw.getEntitiesByClass(HostileEntity.class, this.getBoundingBox().expand(16, 6, 16),
+		// Only colonists caught out in the open: indoors (no sky overhead) they are safe.
+		if (this.isSleeping() || !sw.isSkyVisible(this.getBlockPos().up())) return;
+		for (HostileEntity monster : sw.getEntitiesByClass(HostileEntity.class, this.getBoundingBox().expand(12, 5, 12),
 				m -> m.getTarget() == null && !(m instanceof Angerable) && m.canSee(this))) {
-			if (this.random.nextInt(3) == 0) monster.setTarget(this);
+			if (this.random.nextInt(6) == 0) monster.setTarget(this);
 		}
 	}
 
 	private void tickNeeds(ServerWorld sw) {
-		if (++this.hungerTimer >= (this.isSleeping() ? 2400 : 1200)) {
+		// About 2.5 in-game days from full to starving.
+		if (++this.hungerTimer >= (this.isSleeping() ? 6000 : 3000)) {
 			this.hungerTimer = 0;
 			if (this.hunger > 0) this.hunger--;
 		}
-		if (this.hunger <= 0 && this.age % 80 == 0) {
+		if (this.hunger <= 0 && this.age % 200 == 0) {
 			this.damage(this.getDamageSources().starve(), 1.0f);
 		}
 		if (this.hunger >= 14 && this.getHealth() < this.getMaxHealth() && this.age % 60 == 0) {
@@ -802,6 +810,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			}
 		}
 		Faction mine = fm.get(this.factionId);
+		if (mine != null) mine.recordDeath(today(sw), this.diedOfOldAge ? "old age" : deathCause(source));
 		if (mine != null && (killer instanceof ColonistEntity || killer instanceof PlayerEntity)) {
 			mine.warWeariness += 3;
 			fm.markDirty();
@@ -827,6 +836,22 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 				heir.say("I'll look after the house now.");
 			}
 		}
+	}
+
+	private static String deathCause(DamageSource source) {
+		Entity attacker = source.getAttacker();
+		if (attacker instanceof ColonistEntity) return "war";
+		if (attacker instanceof PlayerEntity) return "players";
+		if (attacker != null) return attacker.getType().getName().getString().toLowerCase();
+		String id = source.getName();
+		return switch (id) {
+			case "starve" -> "starvation";
+			case "fall" -> "falls";
+			case "drown" -> "drowning";
+			case "lava", "inFire", "onFire", "hotFloor" -> "fire and lava";
+			case "inWall" -> "suffocation";
+			default -> id;
+		};
 	}
 
 	// ---------------------------------------------------------------- save & load

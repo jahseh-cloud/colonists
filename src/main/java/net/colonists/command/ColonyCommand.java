@@ -166,6 +166,13 @@ public final class ColonyCommand {
 		lines.add(Text.literal(jobs.toString()).formatted(Formatting.GRAY));
 		lines.add(Text.literal("Laws: captivity " + (f.slavery ? "PRACTISED (" + f.captives + " captives)" : "forbidden"))
 				.formatted(f.slavery ? Formatting.DARK_RED : Formatting.GREEN));
+		java.util.Map<String, Integer> deaths = f.recentDeaths(source.getWorld().getTimeOfDay() / 24000L, 7);
+		if (!deaths.isEmpty()) {
+			StringBuilder sb = new StringBuilder("Deaths (last 7 days): ");
+			deaths.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue())
+					.forEach(e -> sb.append(e.getValue()).append(" ").append(e.getKey()).append(", "));
+			lines.add(Text.literal(sb.substring(0, sb.length() - 2)).formatted(Formatting.GRAY));
+		}
 		Faction lord = fm.get(f.overlord);
 		if (lord != null) lines.add(Text.literal("Tributary of the ").append(lord.displayName()));
 		for (Faction other : fm.all()) {

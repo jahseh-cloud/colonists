@@ -68,7 +68,7 @@ public final class XaeroCompat {
 			it.remove();
 		}
 		for (CityMapPayload.CityInfo c : ClientCities.get()) {
-			String name = c.name() + " (" + c.rank() + ", " + ClientCities.relationLabel(c) + ")";
+			String name = c.name() + " (" + c.rank() + ", pop. " + c.population() + ", " + ClientCities.relationLabel(c) + ")";
 			Waypoint w = new Waypoint(c.centerX(), c.centerY() + 2, c.centerZ(), name, initials(c.name()),
 					WaypointColor.fromIndex(closestColor(ClientCities.borderColor(c))), WaypointPurpose.NORMAL, false, true);
 			set.add(w);

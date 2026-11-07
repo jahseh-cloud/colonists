@@ -19,7 +19,7 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 	public static final PacketCodec<RegistryByteBuf, CityMapPayload> CODEC = PacketCodec.of(CityMapPayload::write, CityMapPayload::read);
 
 	public record CityInfo(String id, String name, int color, String rank, String ruler, int centerX, int centerY, int centerZ,
-						   int minX, int minZ, int maxX, int maxZ, int standing, boolean walled) {
+						   int minX, int minZ, int maxX, int maxZ, int standing, boolean walled, int population) {
 	}
 
 	@Override
@@ -44,6 +44,7 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 			buf.writeInt(c.maxZ());
 			buf.writeInt(c.standing());
 			buf.writeBoolean(c.walled());
+			buf.writeVarInt(c.population());
 		}
 	}
 
@@ -53,7 +54,7 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 		for (int i = 0; i < n; i++) {
 			list.add(new CityInfo(buf.readString(), buf.readString(), buf.readInt(), buf.readString(), buf.readString(),
 					buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-					buf.readInt(), buf.readBoolean()));
+					buf.readInt(), buf.readBoolean(), buf.readVarInt()));
 		}
 		return new CityMapPayload(list);
 	}
@@ -85,7 +86,7 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 			Integer rgb = f.color.getColorValue();
 			String ruler = f.rulerName.isEmpty() ? "" : f.government.title + " " + f.rulerName;
 			list.add(new CityInfo(f.id, f.name, rgb == null ? 0xFFFFFF : rgb, f.rank.label, ruler, c.getX(), c.getY(), c.getZ(),
-					minX, minZ, maxX, maxZ, fm.standing(player, f.id), f.wallBuilt));
+					minX, minZ, maxX, maxZ, fm.standing(player, f.id), f.wallBuilt, f.members.size()));
 		}
 		return new CityMapPayload(list);
 	}

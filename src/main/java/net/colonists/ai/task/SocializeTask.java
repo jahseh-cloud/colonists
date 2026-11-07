@@ -97,7 +97,7 @@ public class SocializeTask extends Task {
 			}
 			if (relation >= 100 && !this.colonist.isBaby() && !this.partner.isBaby()
 					&& this.colonist.partner == null && this.partner.partner == null && !this.colonist.isFamily(this.partner)
-					&& this.colonist.affinityWith(this.partner.getUuid()) >= 30 && this.partner.affinityWith(this.colonist.getUuid()) >= 30
+					&& this.colonist.affinityWith(this.partner.getUuid()) >= 20 && this.partner.affinityWith(this.colonist.getUuid()) >= 20
 					&& this.colonist.getRandom().nextInt(2) == 0) {
 				this.colonist.marry(this.partner);
 			}

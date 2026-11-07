@@ -11,6 +11,8 @@ import net.colonists.build.Blueprints;
 import net.colonists.build.Materials;
 import net.colonists.build.Site;
 import net.colonists.ai.task.ChildTask;
+import net.colonists.ai.task.FishTask;
+import net.colonists.ai.task.ForageTask;
 import net.colonists.ai.task.MigrateTask;
 import net.colonists.ai.task.PatrolTask;
 import net.colonists.ai.task.PublicWorksTask;
@@ -160,13 +162,15 @@ public class WorkGoal extends Goal {
 
 		// 3. Hunger.
 		int food = ColonistBrain.count(inv, ColonistBrain.FOOD);
-		if (c.hunger <= 12 && food == 0) {
+		if (c.hunger <= 14 && food == 0) {
 			if (StoreTask.chestHasFood(c)) return new StoreTask(c, true);
 			if (city && f.foodInStock > 0 && !c.onSearchCooldown("STOCK_FOOD")) {
 				c.searchCooldown("STOCK_FOOD", 600);
 				return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, ColonistBrain.FOOD, 8, "Getting food from the city stores");
 			}
 			if (c.home != null && city && FarmTask.matureCrops(c, f.site(c.home), false) > 0) return new FarmTask(c, f.site(c.home), false);
+			if (ForageTask.available(c)) return new ForageTask(c);
+			if (FishTask.available(c)) return new FishTask(c);
 			AnimalEntity prey = findPrey(c);
 			if (prey != null) {
 				c.setTarget(prey);

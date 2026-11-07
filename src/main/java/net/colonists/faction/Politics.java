@@ -55,9 +55,10 @@ public final class Politics {
 			adults++;
 			counts.merge(e.getValue().job, 1, Integer::sum);
 		}
-		// A lone founder starts out cutting wood; the second settler becomes the builder.
-		if (adults == 0) return ColonistEntity.Job.WOODCUTTER;
+		// Food first: the founder farms, the second settler builds, the third cuts timber.
+		if (adults == 0) return ColonistEntity.Job.FARMER;
 		if (counts.getOrDefault("BUILDER", 0) == 0) return ColonistEntity.Job.BUILDER;
+		if (counts.getOrDefault("WOODCUTTER", 0) == 0) return ColonistEntity.Job.WOODCUTTER;
 		ColonistEntity.Job best = ColonistEntity.Job.FARMER;
 		double bestGap = -Double.MAX_VALUE;
 		for (Map.Entry<ColonistEntity.Job, Double> e : JOB_SHARE.entrySet()) {

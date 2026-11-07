@@ -145,6 +145,26 @@ public class Faction {
 		return Rank.VILLAGE;
 	}
 	public final Map<UUID, UUID> playerVotes = new HashMap<>();
+	/** Recent deaths as "day:cause" entries (newest last, capped), for the death report. */
+	public final java.util.List<String> deathLog = new java.util.ArrayList<>();
+
+	public void recordDeath(long day, String cause) {
+		this.deathLog.add(day + ":" + cause);
+		while (this.deathLog.size() > 60) this.deathLog.remove(0);
+	}
+
+	/** Death counts by cause over the last {@code days} in-game days. */
+	public Map<String, Integer> recentDeaths(long today, int days) {
+		Map<String, Integer> counts = new LinkedHashMap<>();
+		for (String e : this.deathLog) {
+			int i = e.indexOf(':');
+			try {
+				if (today - Long.parseLong(e.substring(0, i)) <= days) counts.merge(e.substring(i + 1), 1, Integer::sum);
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		return counts;
+	}
 
 	public Faction(String id, String name, Formatting color) {
 		this.id = id;
@@ -254,6 +274,9 @@ public class Faction {
 		nbt.putString("Overlord", this.overlord);
 		nbt.putLong("LastElection", this.lastElection);
 		nbt.putBoolean("Revolt", this.revolt);
+		NbtList deaths = new NbtList();
+		for (String d : this.deathLog) deaths.add(net.minecraft.nbt.NbtString.of(d));
+		nbt.put("Deaths", deaths);
 		nbt.putString("Rank", this.rank.name());
 		nbt.putBoolean("WallPlanned", this.wallPlanned);
 		nbt.putIntArray("Wall", new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ});
@@ -321,6 +344,8 @@ public class Faction {
 		f.overlord = nbt.getString("Overlord");
 		f.lastElection = nbt.getLong("LastElection");
 		f.revolt = nbt.getBoolean("Revolt");
+		NbtList deaths = nbt.getList("Deaths", NbtElement.STRING_TYPE);
+		for (int i = 0; i < deaths.size(); i++) f.deathLog.add(deaths.getString(i));
 		try {
 			f.rank = Rank.valueOf(nbt.getString("Rank"));
 		} catch (IllegalArgumentException e) {

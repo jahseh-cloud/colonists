@@ -16,7 +16,7 @@ final class Society {
 	private Society() {}
 
 	/** Ticks between births for a couple (two Minecraft days). */
-	static final int BIRTH_INTERVAL = 48000;
+	static final int BIRTH_INTERVAL = 30000;
 
 	static void tick(ColonistEntity c, ServerWorld world) {
 		FactionManager fm = FactionManager.get(world.getServer());
@@ -43,14 +43,14 @@ final class Society {
 		// Births: a married couple with a house and food to spare.
 		if (grow && c.partner != null && c.home != null && room
 				&& world.getTime() - c.lastBirthTime > BIRTH_INTERVAL
-				&& ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 && c.getRandom().nextInt(3) == 0) {
+				&& (ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 || faction.foodInStock >= 8) && c.getRandom().nextInt(2) == 0) {
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),
 					o -> o.getUuid().equals(c.partner)).stream().findFirst().orElse(null);
 			if (spouse != null) {
 				BlockPos door = net.colonists.ai.task.BuildStructureTask.doorstep(c, c.home);
 				ColonistEntity baby = ColonistsMod.COLONIST.create(world);
 				if (baby != null) {
-					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, 4);
+					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, Math.min(4, ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD)));
 					baby.refreshPositionAndAngles(door.getX() + 0.5, door.getY(), door.getZ() + 0.5, c.getRandom().nextFloat() * 360f, 0f);
 					baby.pendingFaction = faction.id;
 					baby.bornTo(c, spouse);
