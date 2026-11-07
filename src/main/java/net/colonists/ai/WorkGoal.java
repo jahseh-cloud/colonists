@@ -164,7 +164,7 @@ public class WorkGoal extends Goal {
 		if (realm != null && f == null && realm.settlements.isEmpty() && !c.isBaby() && canBuild) {
 			Settlement nearby = fm.nearestSettlement(c.getBlockPos(), null);
 			BlockPos other = nearby == null ? null : nearby.cityCenter;
-			if (other == null || other.getSquaredDistance(c.getBlockPos().withY(other.getY())) > 140 * 140) {
+			if (other == null || other.getSquaredDistance(c.getBlockPos().withY(other.getY())) > 50 * 50) {
 				BlockPos center = net.colonists.faction.CityGrowth.bestCenter(world, c.getBlockPos(), c.getRandom());
 				if (center != null) {
 					Settlement founded = fm.foundSettlement(world.getServer(), realm, center, true);
@@ -175,7 +175,7 @@ public class WorkGoal extends Goal {
 			} else {
 				Vec3d away = c.getPos().subtract(Vec3d.ofCenter(other)).multiply(1, 0, 1);
 				if (away.lengthSquared() < 1) away = new Vec3d(1, 0, 0);
-				Vec3d target = Vec3d.ofCenter(other).add(away.normalize().multiply(160));
+				Vec3d target = Vec3d.ofCenter(other).add(away.normalize().multiply(70));
 				return new MigrateTask(c, BlockPos.ofFloored(target));
 			}
 		}

@@ -29,7 +29,7 @@ public final class Empire {
 	static final int COLONY_POPULATION = 12;
 	/** Minecraft days between new colonies for one faction. */
 	static final int COLONY_COOLDOWN_DAYS = 4;
-	static final int COLONY_MIN_DIST = 150, COLONY_MAX_DIST = 300;
+	static final int COLONY_MIN_DIST = 50, COLONY_MAX_DIST = 300;
 	/** Siege points needed to take a plaza (one point per besieging soldier per second). */
 	public static final int SIEGE_POINTS = 90;
 
@@ -84,7 +84,7 @@ public final class Empire {
 			BlockPos c = CityGrowth.bestCenter(world, near, random);
 			if (c == null) continue;
 			Settlement other = fm.nearestSettlement(c, null);
-			if (other != null && other.cityCenter != null && horizontalDist(other.cityCenter, c) < 140) continue;
+			if (other != null && other.cityCenter != null && horizontalDist(other.cityCenter, c) < COLONY_MIN_DIST) continue;
 			site = c;
 		}
 		if (site == null) return;
