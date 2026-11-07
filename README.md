@@ -115,6 +115,16 @@ Once a minute, every city-state's politics updates:
 - **Laws.** A cruel, aggressive ruler may decree that the city takes **captives**. A kind ruler, or a deeply unpopular regime, abolishes it.
 - The ruler's name tag shows a crown (♔). `/colony politics <faction>` shows everything.
 
+## Free villages
+
+- **Vanilla villages become small realms** of free men, discovered as players come near. Each gets a name ("the Free Men of Ashford"), borders drawn around its houses, and a population count on the maps. It has its own relations, and its trade adds to its treasury. Villagers are called *Free Man / Free Woman of …* when you look at them, and their trading and breeding are untouched.
+- **Colonists live in villages.** Each village starts with 2–3 colonist guests and draws newcomers over time, up to about half as many as the villagers. Guests never build, pave or dig inside the village, because it's the villagers' home.
+- **What the guests do, over time:**
+  - **A — Seize the village.** An ambitious, aggressive leader with at least two followers takes over and proclaims a new faction, and the village's iron golems turn on them. A kind leader makes the villagers *subjects* who pay dues. A cruel one puts up to six of them in chains.
+  - **B — Leave** to found a people of their own. An ambitious leader sets out with up to three companions.
+  - **C — Stay loyal**, until something happens. **Grievances** push guests toward A or B: guests outnumbering villagers, raids on the village, and the death of a fellow guest.
+- **Villages can be conquered.** Factions can declare war on free villages and take them by siege like any town. A conquered village keeps its villagers as subjects, and their dues go into its new owner's treasury. Raiding a free village for captives sours relations with it, and colonists never raid their own subjects.
+
 ## Empires and conquest
 
 Factions play like a grand-strategy game:
