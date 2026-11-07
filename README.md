@@ -111,9 +111,23 @@ Once a minute, every city-state's politics updates:
 - **Government.** Villages, towns and unwalled cities are ruled by a **Chief**. Only on becoming a **City-State** do they reform into a **Kingdom** (founding a dynasty) or a **Republic**, depending on the ruler's temperament.
 - **Succession.** In a monarchy, power passes within the ruling house. A Republic holds **elections** every three days: candidates are the most ambitious and popular citizens, and every adult votes for the one closest to their own temperament. Players in a Republic can `/colony vote`.
 - **Approval** depends on housing, food in the stores, war weariness, tribute and captive-taking (which kind citizens dislike). Low approval leads to **coups** (an aggressive plotter seizes the throne), **revolutions** (a Republic is declared), and **schisms** where an ambitious citizen leads followers away to found a rival city.
-- **Rulers drive foreign policy.** Aggressive rulers declare war on weaker neighbours, and kind rulers grow closer to each other. Exhausted sides make peace. A badly beaten faction **surrenders and becomes a tributary**, sending part of its stockpile to its overlord every half day, until it is strong enough to rise up for independence.
+- **Rulers drive foreign policy.** Aggressive or ambitious rulers declare war on weaker neighbours, and kind rulers grow closer to each other. Exhausted sides make peace. A badly beaten faction **surrenders and becomes a tributary**, sending part of its stockpile to its overlord every half day, until it is strong enough to rise up for independence.
 - **Laws.** A cruel, aggressive ruler may decree that the city takes **captives**. A kind ruler, or a deeply unpopular regime, abolishes it.
 - The ruler's name tag shows a crown (♔). `/colony politics <faction>` shows everything.
+
+## Empires and conquest
+
+Factions play like a grand-strategy game:
+
+- **Settlements.** A faction can own many villages, towns and cities. Each one grows and ranks up on its own, and has its own name, people, stores, fields and wall. The first one is the **capital** (★). A faction with 2+ settlements is a **Kingdom**; with 4+ and a City-State among them it is an **Empire**.
+- **Colonies.** When a settlement has 12+ adults and 6+ houses, the faction sends out about five settlers every few days. The homeless go first, then a builder, a farmer and a guard, and couples travel together. They found a new settlement under the same flag 150–300 blocks away, on the best river or valley spot they can find.
+- **War goals.** Wars are fought for land. Each faction at war picks the nearest enemy settlement as its objective and announces the march.
+- **Armies.** Guards are always soldiers. In wartime, bold colonists who are not farmers or builders get conscripted. Soldiers fight soldiers (and hostile players). **Civilians are never targeted**, because after the conquest they will be your people.
+- **Sieges.** An army that holds the enemy plaza with no defenders nearby takes the town after about 90 soldier-seconds. The town **changes hands intact**: houses, fields, stores and people all go to the conqueror. If the capital falls, the loser moves its capital elsewhere. A faction is wiped out only when its last town falls.
+- **Treaties.** A war-weary loser with more than one town can buy peace by ceding the town under attack.
+- **Loyalty and rebellion.** A conquered town starts at 20% loyalty, which recovers over time (faster with a garrison of guards). Unpopular rulers, sieges and distance from the capital (600+ blocks) erode it. Below 12% the town may revolt, either back to its old masters or into a new independent faction, and the war starts again.
+- **Off-screen.** When no player is nearby, settlers and armies make their long journeys "off-screen" and arrive at their destination. Settlements stay loaded, so sieges and battles happen even when you are far away.
+- **Map.** JourneyMap and Xaero's show every settlement with its population. They also show the realm it belongs to, whether it is the capital, its loyalty and whether it is under siege.
 
 ## Captives
 

@@ -100,36 +100,4 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 		}
 		return new CityMapPayload(list);
 	}
-
-	/** Builds the map data as seen by one player. */
-	public static CityMapPayload build(FactionManager fm, ServerPlayerEntity player) {
-		List<CityInfo> list = new ArrayList<>();
-		for (Faction f : fm.all()) {
-			BlockPos c = f.cityCenter;
-			if (c == null) continue;
-			int minX, minZ, maxX, maxZ;
-			if (f.wallPlanned) {
-				minX = f.wallMinX;
-				minZ = f.wallMinZ;
-				maxX = f.wallMaxX;
-				maxZ = f.wallMaxZ;
-			} else {
-				minX = c.getX() - City.PLAZA_HALF - 6;
-				maxX = c.getX() + City.PLAZA_HALF + 6;
-				minZ = c.getZ() - City.PLAZA_HALF - 6;
-				maxZ = c.getZ() + City.PLAZA_HALF + 6;
-				for (int[] r : net.colonists.faction.CityGrowth.footprints(f)) {
-					minX = Math.min(minX, r[0] - 4);
-					maxX = Math.max(maxX, r[2] + 4);
-					minZ = Math.min(minZ, r[1] - 4);
-					maxZ = Math.max(maxZ, r[3] + 4);
-				}
-			}
-			Integer rgb = f.color.getColorValue();
-			String ruler = f.rulerName.isEmpty() ? "" : f.government.title + " " + f.rulerName;
-			list.add(new CityInfo(f.id, f.name, rgb == null ? 0xFFFFFF : rgb, f.rank.label, ruler, c.getX(), c.getY(), c.getZ(),
-					minX, minZ, maxX, maxZ, fm.standing(player, f.id), f.wallBuilt, f.members.size()));
-		}
-		return new CityMapPayload(list);
-	}
 }

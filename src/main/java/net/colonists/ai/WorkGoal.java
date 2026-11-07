@@ -233,7 +233,7 @@ public class WorkGoal extends Goal {
 		// 6. A home of one's own, on a lot in the city (the style depends on how big the settlement has grown).
 		if (c.home == null && city) {
 			if (c.buildSite == null) {
-				BlockPos vacant = fm.claimVacantHome(c.getFactionId(), c.getUuid());
+				BlockPos vacant = fm.claimVacantHome(f, c.getUuid());
 				if (vacant != null) {
 					c.home = vacant;
 					c.bed = null;
