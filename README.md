@@ -129,6 +129,45 @@ Factions play like a grand-strategy game:
 - **Off-screen.** When no player is nearby, settlers and armies make their long journeys "off-screen" and arrive at their destination. Settlements stay loaded, so sieges and battles happen even when you are far away.
 - **Map.** JourneyMap and Xaero's show every settlement with its population. They also show the realm it belongs to, whether it is the capital, its loyalty and whether it is under siege.
 
+## The political atlas
+
+Press **G**, or right-click a **Political Atlas** (crafted from a book, a map and an emerald), to open a parchment map of the world.
+
+**Reading the map**
+- **Terrain** is sketched straight from the world generator, so you can see continents and oceans you haven't explored. Drawing it loads no chunks.
+- **Borders** are shown for every town, with capitals starred. Dotted lines show armies marching to their war goals, and a flag marks a town under siege.
+- **Map modes:** Realms, Relations (your diplomacy in colour), Wealth (treasuries) and Loyalty.
+- **Hover** a town for a summary. **Click** it for details. **Drag** to pan and **scroll** to zoom.
+
+**Ruling.** Everyone can read the atlas, but only a ruler can give orders. There are four ways to take power:
+1. **Found** a faction (`/colony found`).
+2. **Win an election** in a Republic you belong to. Click *Stand for election*; your standing and the senate's mood decide the vote.
+3. **Stage a coup** in a faction you belong to. This needs 50+ standing, and your odds go up the more the current ruler is disliked. Fail, and you're wanted for treason.
+4. **Inherit the throne.** A kind monarch names a trusted member with 80+ standing as heir.
+
+**What a ruler can order**
+- **In your own towns:**
+  - Raise or lower taxes.
+  - Set the size of the garrison.
+  - Grant autonomy: lower taxes and faster loyalty, but the town ignores your orders.
+  - Pay 25 emeralds to fund a building that gets built first, including a wall.
+  - Choose which town sends settlers, then click open land to found a colony there.
+  - Cede a town to buy peace.
+- **Toward foreign towns:**
+  - Declare war and set that town as your armies' goal.
+  - Propose an alliance, or demand that they pay you tribute.
+  - Offer peace: a white peace, taking that town, or making them a vassal. The enemy accepts if they're losing or tired of war.
+- **Realm and Laws panels:**
+  - Change your form of government.
+  - Pay the army a bonus.
+  - Toggle each law, including captivity.
+  - Abdicate.
+
+**Orders need support.** Every order is weighed against the **army**, the **court** (nobles, council or senate) and the **people**. Your government decides how much each counts: the army matters most in a kingdom, the senate in a republic, and the army and the people in a chiefdom. Popular orders always go through. Unpopular ones may be refused, and you'll be told how much support they had.
+- The **army** wants its pay, enjoys victories (if it's aggressive), and tires of long wars. Bonuses help.
+- The **court** dislikes high taxes, an empty treasury, and (if it's kind) harsh laws.
+- **Losing them is dangerous.** If the army's opinion drops below 20, a military coup becomes likely. If the people and the court both turn on you, expect an uprising. In a Republic, you can simply be voted out.
+
 ## Law and order
 
 - **Law books.** Every faction has laws that its ruler writes and rewrites. Everyone bans theft, vandalism, assault and murder. Towns and stricter rulers add poaching. Aggressive rulers and monarchies add a night-time curfew in walled cities and treason. A cruel, aggressive ruler brings in the **death penalty**, and only a kind ruler abolishes it. `/colony laws` shows the current book.
