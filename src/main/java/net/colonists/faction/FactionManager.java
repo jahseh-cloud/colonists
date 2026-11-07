@@ -151,14 +151,15 @@ public class FactionManager extends PersistentState {
 					&& Math.abs(pos.getY() - f.cityCenter.getY()) <= 6) return true;
 			for (BlockPos o : f.homes.keySet()) if (inLot(pos, o)) return true;
 			for (BlockPos o : f.farms) if (inLot(pos, o)) return true;
+			for (BlockPos o : f.buildingTypes.keySet()) if (inLot(pos, o)) return true;
 		}
 		return false;
 	}
 
 	private static boolean inLot(BlockPos pos, BlockPos o) {
 		return pos.getX() >= o.getX() - 1 && pos.getX() <= o.getX() + 9
-				&& pos.getZ() >= o.getZ() - 2 && pos.getZ() <= o.getZ() + 5
-				&& pos.getY() >= o.getY() - 3 && pos.getY() <= o.getY() + 5;
+				&& pos.getZ() >= o.getZ() - 2 && pos.getZ() <= o.getZ() + City.LOT_DEPTH
+				&& pos.getY() >= o.getY() - 7 && pos.getY() <= o.getY() + 9;
 	}
 
 	/** True if a house at origin would crowd a house belonging to a different faction. */

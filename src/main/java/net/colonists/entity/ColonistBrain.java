@@ -161,6 +161,22 @@ public final class ColonistBrain {
 		return sword >= axe ? new ItemStack(SWORDS[sword]) : new ItemStack(AXES[axe]);
 	}
 
+	/** Would this item (a tool or piece of armour) be an upgrade over what the colonist has? */
+	public static boolean isUpgrade(ColonistEntity c, ItemStack s) {
+		Inventory inv = c.getInventory();
+		for (Item[] family : List.of(SWORDS, PICKAXES, AXES)) {
+			for (int t = 0; t < family.length; t++) {
+				if (s.isOf(family[t])) return t > tier(inv, family);
+			}
+		}
+		if (s.getItem() instanceof ArmorItem armor) {
+			ItemStack worn = c.getEquippedStack(armor.getSlotType());
+			int wornProt = worn.getItem() instanceof ArmorItem w ? w.getProtection() : -1;
+			return armor.getProtection() > wornProt;
+		}
+		return false;
+	}
+
 	public static int woodValue(Inventory inv) {
 		return count(inv, PLANKS) + count(inv, LOGS) * 4;
 	}

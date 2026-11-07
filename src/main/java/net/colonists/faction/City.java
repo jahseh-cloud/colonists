@@ -21,20 +21,21 @@ import java.util.Set;
  * The street plan every colonist city follows.
  *
  * <pre>
- *   Streets run east-west every 10 blocks (z = cz + 10k), avenues north-south every 33 blocks (x = cx + 33m).
+ *   Streets run east-west every 14 blocks (z = cz + 10k), avenues north-south every 33 blocks (x = cx + 33m).
  *   Between two avenues sit three 10-wide lots facing the street to their north:
  *
  *      ===== street (3 wide) ==================================
  *      [house 5x5] . [plot 3x4] .  [house] . [plot] .  [house] ...
  *
  *   The plaza (9x9: well, bell, banner, stockpile chests) sits where avenue 0 meets street 0.
- *   Some outer lots are communal fields (9x5, with a water channel down the middle).
+ *   Lots are 10x10. Some outer lots are communal fields (9x9, with a water channel across the middle).
  * </pre>
  */
 public final class City {
 	private City() {}
 
-	public static final int STREET_SPACING = 10;
+	public static final int STREET_SPACING = 14;
+	public static final int LOT_DEPTH = 10;
 	public static final int AVENUE_SPACING = 33;
 	public static final int LOT_WIDTH = 10;
 	public static final int MAX_RADIUS = 80;
@@ -63,14 +64,14 @@ public final class City {
 						int x = center.getX() + AVENUE_SPACING * m + 2 + LOT_WIDTH * j;
 						int z = center.getZ() + STREET_SPACING * k + 2;
 						if (overlapsPlaza(center, x, z)) continue;
-						double d = Math.hypot(x + 4 - center.getX(), z + 2 - center.getZ());
+						double d = Math.hypot(x + 4 - center.getX(), z + 4 - center.getZ());
 						if (d > MAX_RADIUS) continue;
 						boolean farm = d > 26 && Math.floorMod(m * 7 + k * 3 + j * 5, 4) == 0;
 						lots.add(new Lot(m, k, j, new BlockPos(x, 0, z), farm));
 					}
 				}
 			}
-			lots.sort(Comparator.comparingDouble(l -> Math.hypot(l.origin.getX() + 4 - center.getX(), l.origin.getZ() + 2 - center.getZ())));
+			lots.sort(Comparator.comparingDouble(l -> Math.hypot(l.origin.getX() + 4 - center.getX(), l.origin.getZ() + 4 - center.getZ())));
 			return lots;
 		});
 	}
@@ -78,7 +79,7 @@ public final class City {
 	private static boolean overlapsPlaza(BlockPos c, int x, int z) {
 		int px0 = c.getX() - PLAZA_HALF - 1, px1 = c.getX() + PLAZA_HALF + 1;
 		int pz0 = c.getZ() - PLAZA_HALF - 1, pz1 = c.getZ() + PLAZA_HALF + 1;
-		return x <= px1 && x + LOT_WIDTH - 1 >= px0 && z <= pz1 && z + 4 >= pz0;
+		return x <= px1 && x + LOT_WIDTH - 1 >= px0 && z <= pz1 && z + LOT_DEPTH - 1 >= pz0;
 	}
 
 	@Nullable
@@ -123,6 +124,7 @@ public final class City {
 		if (c == null) return roads;
 		List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
 		claimed.addAll(f.farms);
+		claimed.addAll(f.buildingTypes.keySet());
 		for (BlockPos origin : claimed) {
 			Lot lot = lotAt(c, origin);
 			if (lot == null) continue;
@@ -146,9 +148,9 @@ public final class City {
 		}
 	}
 
-	/** Lamp posts sit in the gap between each house and its plot, right on the street side. */
+	/** Lamp posts stand in the gap between neighbouring lots, right on the street side. */
 	public static BlockPos lampColumn(BlockPos lotOrigin) {
-		return new BlockPos(lotOrigin.getX() + 5, 0, lotOrigin.getZ());
+		return new BlockPos(lotOrigin.getX() + 9, 0, lotOrigin.getZ());
 	}
 
 	// ---------------------------------------------------------------- walls
@@ -173,11 +175,12 @@ public final class City {
 		int minX = c.getX() - PLAZA_HALF, maxX = c.getX() + PLAZA_HALF, minZ = c.getZ() - PLAZA_HALF, maxZ = c.getZ() + PLAZA_HALF;
 		List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
 		claimed.addAll(f.farms);
+		claimed.addAll(f.buildingTypes.keySet());
 		for (BlockPos o : claimed) {
 			minX = Math.min(minX, o.getX());
 			maxX = Math.max(maxX, o.getX() + LOT_WIDTH - 1);
 			minZ = Math.min(minZ, o.getZ() - 3); // include the street in front
-			maxZ = Math.max(maxZ, o.getZ() + 4);
+			maxZ = Math.max(maxZ, o.getZ() + LOT_DEPTH - 1);
 		}
 		f.wallMinX = minX - 4;
 		f.wallMaxX = maxX + 4;

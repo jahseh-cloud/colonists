@@ -88,7 +88,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			"Gale", "Rook", "Ember", "Frost", "Moss", "Birch", "Copper", "Dale", "Wolfe", "Hart"};
 
 	public enum Job {
-		NONE("Child"), FARMER("Farmer"), WOODCUTTER("Woodcutter"), MINER("Miner"), BUILDER("Builder"), GUARD("Guard");
+		NONE("Child"), FARMER("Farmer"), RANCHER("Rancher"), WOODCUTTER("Lumberjack"), MINER("Miner"),
+		BLACKSMITH("Blacksmith"), COOK("Cook"), BUILDER("Builder"), GUARD("Guard");
 
 		public final String label;
 
@@ -134,6 +135,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 	@Nullable public BlockPos buildSite;
 
 	public String activity = "Idle";
+	/** What the last building job ran short of ("wood" or "stone"), so the planner can fetch it. */
+	public String needs = "";
 	public long lastSocialTime;
 	public ToolKind wantedTool = ToolKind.WEAPON;
 	private final Map<BlockPos, Long> blacklist = new HashMap<>();

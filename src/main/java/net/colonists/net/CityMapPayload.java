@@ -77,11 +77,12 @@ public record CityMapPayload(List<CityInfo> cities) implements CustomPayload {
 				maxZ = c.getZ() + City.PLAZA_HALF + 6;
 				List<BlockPos> claimed = new ArrayList<>(f.homes.keySet());
 				claimed.addAll(f.farms);
+				claimed.addAll(f.buildingTypes.keySet());
 				for (BlockPos o : claimed) {
 					minX = Math.min(minX, o.getX() - 4);
 					maxX = Math.max(maxX, o.getX() + City.LOT_WIDTH + 3);
 					minZ = Math.min(minZ, o.getZ() - 6);
-					maxZ = Math.max(maxZ, o.getZ() + 8);
+					maxZ = Math.max(maxZ, o.getZ() + City.LOT_DEPTH + 2);
 				}
 			}
 			Integer rgb = f.color.getColorValue();

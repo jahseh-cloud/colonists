@@ -62,6 +62,6 @@ public class ChildTask extends Task {
 			this.done = true;
 			return;
 		}
-		if (this.approach(BuildHouseTask.doorstep(home), 3.0, 1.0) || this.stuck()) this.done = true;
+		if (this.approach(BuildStructureTask.doorstep(this.colonist, home), 3.0, 1.0) || this.stuck()) this.done = true;
 	}
 }

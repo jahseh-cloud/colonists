@@ -294,7 +294,7 @@ public class CaptiveEntity extends PathAwareEntity implements VillagerDataContai
 				for (BlockPos farm : f.farms) {
 					if (farm.getSquaredDistance(this.captive.getBlockPos()) < field.getSquaredDistance(this.captive.getBlockPos())) field = farm;
 				}
-				goal = field.add(4, 0, 2);
+				goal = field.add(4, 0, 3);
 			}
 			double distance = this.captive.getBlockPos().getSquaredDistance(goal);
 			if (distance > 6 * 6) {

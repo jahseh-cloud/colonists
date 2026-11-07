@@ -237,7 +237,7 @@ public class PublicWorksTask extends Task {
 				ItemStack fill = ColonistBrain.takeOne(inv, s -> s.isOf(Items.DIRT) || s.isOf(Items.COBBLESTONE) || s.isOf(Items.GRAVEL));
 				if (fill.isEmpty()) fill = ColonistBrain.takeOne(inv, ColonistBrain.PLANKS);
 				if (fill.isEmpty()) return;
-				state = BuildHouseTask.blockOf(fill, Blocks.DIRT).getDefaultState();
+				state = net.colonists.build.Materials.blockOf(fill, Blocks.DIRT).getDefaultState();
 			}
 			case PAVE -> {
 				// The plaza gets cobblestone when there is some to spare; streets are packed-earth paths.
@@ -253,12 +253,12 @@ public class PublicWorksTask extends Task {
 			case RIM -> {
 				ItemStack stone = ColonistBrain.takeOne(inv, ColonistBrain.STONE_MATS);
 				if (stone.isEmpty()) return;
-				state = BuildHouseTask.blockOf(stone, Blocks.COBBLESTONE).getDefaultState();
+				state = net.colonists.build.Materials.blockOf(stone, Blocks.COBBLESTONE).getDefaultState();
 			}
 			case WALL -> {
 				ItemStack stone = ColonistBrain.takeOne(inv, ColonistBrain.STONE_MATS);
 				if (stone.isEmpty()) return;
-				state = BuildHouseTask.blockOf(stone, Blocks.COBBLESTONE).getDefaultState();
+				state = net.colonists.build.Materials.blockOf(stone, Blocks.COBBLESTONE).getDefaultState();
 			}
 			case BELL -> state = Blocks.BELL.getDefaultState();
 			case BANNER -> state = bannerFor(f.color).getDefaultState().with(BannerBlock.ROTATION, 8);

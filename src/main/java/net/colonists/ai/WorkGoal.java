@@ -1,7 +1,14 @@
 package net.colonists.ai;
 
 import net.colonists.ColonistsMod;
-import net.colonists.ai.task.BuildHouseTask;
+import net.colonists.ai.task.BuildStructureTask;
+import net.colonists.ai.task.MineTask;
+import net.colonists.ai.task.QuarryTask;
+import net.colonists.ai.task.RanchTask;
+import net.colonists.ai.task.WorkshopTask;
+import net.colonists.build.Blueprint;
+import net.colonists.build.Blueprints;
+import net.colonists.build.Materials;
 import net.colonists.ai.task.ChildTask;
 import net.colonists.ai.task.MigrateTask;
 import net.colonists.ai.task.PatrolTask;
@@ -180,7 +187,7 @@ public class WorkGoal extends Goal {
 			if (c.home != null) return new StoreTask(c, false);
 		}
 
-		// 6. A home of one's own, on a lot in the city.
+		// 6. A home of one's own, on a lot in the city (the style depends on how big the settlement has grown).
 		if (c.home == null && city) {
 			if (c.buildSite == null) {
 				BlockPos vacant = fm.claimVacantHome(c.getFactionId(), c.getUuid());
@@ -190,22 +197,40 @@ public class WorkGoal extends Goal {
 					c.say("There's an empty house on my street. I'll take it!");
 				}
 			}
-			if (c.home == null && canBuild && !c.onSearchCooldown("BUILD_SITE")
-					&& ColonistBrain.woodValue(inv) >= (c.buildSite == null ? BuildHouseTask.WOOD_NEEDED : 8)) {
-				return new BuildHouseTask(c);
-			}
-			if (c.home == null && canBreak && ColonistBrain.woodValue(inv) < BuildHouseTask.WOOD_NEEDED
-					&& !c.onSearchCooldown(HarvestTask.Kind.WOOD.name())) {
-				if (city && f.cityCenter != null && ColonistBrain.woodValue(inv) < 40 && !c.onSearchCooldown("STOCK_WOOD")) {
-					c.searchCooldown("STOCK_WOOD", 2400);
-					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> ColonistBrain.LOGS.test(s) || ColonistBrain.PLANKS.test(s),
-							64, "Fetching timber from the city stores");
+			if (c.home == null && c.buildSite == null && canBuild && !c.onSearchCooldown("BUILD_SITE")) {
+				Blueprint want = Blueprints.homeFor(f.rank, c.isRuler());
+				if (ColonistBrain.woodValue(inv) >= Math.min(want.woodCost(), 48) && stone(inv) >= Math.min(want.stoneCost(), 12)) {
+					BlockPos site = BuildStructureTask.claimLot(c, f, want);
+					if (site == null) {
+						c.searchCooldown("BUILD_SITE", 2400);
+					} else {
+						c.buildSite = site;
+						fm.claimHome(f.id, site, c.getUuid());
+						c.say("I've picked out a lot for my new " + want.name.toLowerCase() + ".");
+					}
 				}
-				return new HarvestTask(c, HarvestTask.Kind.WOOD, 8);
 			}
-		} else if (c.home != null && canBuild && !c.onSearchCooldown("REPAIR")) {
+			Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : Blueprints.homeFor(f.rank, c.isRuler());
+			if (c.home == null && c.buildSite != null && canBuild && c.needs.isEmpty()
+					&& ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
+				return new BuildStructureTask(c, c.buildSite, plan, true);
+			}
+			if (c.home == null) {
+				Task supply = supply(c, f, canBreak, plan);
+				if (supply != null) return supply;
+			}
+		} else if (c.home != null && canBuild && city && !c.onSearchCooldown("REPAIR")) {
 			c.searchCooldown("REPAIR", 400);
-			if (BuildHouseTask.hasWork(c)) return new BuildHouseTask(c);
+			Blueprint bp = BuildStructureTask.blueprintAt(f, c.home);
+			if (BuildStructureTask.hasWork(c, c.home, bp)) return new BuildStructureTask(c, c.home, bp, true);
+		}
+
+		// Better tools and armour from the city stores (made by the blacksmith).
+		if (city && !c.onSearchCooldown("STOCK_TOOLS")) {
+			c.searchCooldown("STOCK_TOOLS", 3000);
+			if (Stockpile.count(Stockpile.chests(world, f), s -> ColonistBrain.isUpgrade(c, s)) > 0) {
+				return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> ColonistBrain.isUpgrade(c, s), 2, "Picking up new gear from the stores");
+			}
 		}
 
 		// 7. The colonist's trade.
@@ -213,7 +238,8 @@ public class WorkGoal extends Goal {
 		if (work != null) return work;
 
 		// 8. The garden beside the house.
-		if (c.home != null && canBreak && FarmTask.hasWork(c, c.home, false)) return new FarmTask(c, c.home, false);
+		if (c.home != null && canBreak && city && BuildStructureTask.blueprintAt(f, c.home).garden
+				&& FarmTask.hasWork(c, c.home, false)) return new FarmTask(c, c.home, false);
 
 		// 9. Socialise every now and then (this is how friendships and marriages happen).
 		if (world.getTime() - c.lastSocialTime > 2000 && c.getRandom().nextInt(3) == 0) {
@@ -245,6 +271,99 @@ public class WorkGoal extends Goal {
 		return null;
 	}
 
+	private static int stone(SimpleInventory inv) {
+		return ColonistBrain.count(inv, Materials.STONE_ITEMS);
+	}
+
+	/** Fetches whatever a building job ran short of: from the city stores if possible, otherwise from the land. */
+	@Nullable
+	private static Task supply(ColonistEntity c, Faction f, boolean canBreak, @Nullable Blueprint bp) {
+		SimpleInventory inv = c.getInventory();
+		boolean needWood = "wood".equals(c.needs) || (bp != null && ColonistBrain.woodValue(inv) < Math.min(bp.woodCost(), 48));
+		boolean needStone = "stone".equals(c.needs) || (bp != null && bp.stoneCost() > 0 && stone(inv) < Math.min(bp.stoneCost(), 12));
+		c.needs = "";
+		if (needWood) {
+			if (f.cityCenter != null && !c.onSearchCooldown("STOCK_WOOD")) {
+				c.searchCooldown("STOCK_WOOD", 1200);
+				if (Stockpile.count(Stockpile.chests((net.minecraft.server.world.ServerWorld) c.getWorld(), f),
+						s -> ColonistBrain.LOGS.test(s) || ColonistBrain.PLANKS.test(s)) > 0) {
+					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> ColonistBrain.LOGS.test(s) || ColonistBrain.PLANKS.test(s),
+							64, "Fetching timber from the city stores");
+				}
+			}
+			if (canBreak && !c.onSearchCooldown(HarvestTask.Kind.WOOD.name())) return new HarvestTask(c, HarvestTask.Kind.WOOD, 8);
+		}
+		if (needStone) {
+			if (f.cityCenter != null && !c.onSearchCooldown("STOCK_STONE")) {
+				c.searchCooldown("STOCK_STONE", 1200);
+				if (Stockpile.count(Stockpile.chests((net.minecraft.server.world.ServerWorld) c.getWorld(), f), Materials.STONE_ITEMS) > 0) {
+					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, Materials.STONE_ITEMS, 64, "Fetching stone from the city stores");
+				}
+			}
+			if (canBreak && ColonistBrain.tier(inv, ColonistBrain.PICKAXES) >= 0 && !c.onSearchCooldown(HarvestTask.Kind.STONE.name())) {
+				return new HarvestTask(c, HarvestTask.Kind.STONE, 16);
+			}
+		}
+		return null;
+	}
+
+	/** The city's next public building: finish one under construction, or claim a lot for the next one it needs. */
+	@Nullable
+	private static Task project(ColonistEntity c, Faction f, boolean canBreak) {
+		if (c.onSearchCooldown("PROJECT")) return null;
+		net.minecraft.server.world.ServerWorld world = (net.minecraft.server.world.ServerWorld) c.getWorld();
+		for (java.util.Map.Entry<BlockPos, String> e : f.buildingTypes.entrySet()) {
+			BlockPos o = e.getKey();
+			if (f.homes.containsKey(o) || !world.isChunkLoaded(o.getX() >> 4, o.getZ() >> 4)) continue;
+			Blueprint bp = Blueprints.get(e.getValue());
+			boolean unfinished = !f.built.contains(o);
+			if (!unfinished && !BuildStructureTask.hasWork(c, o, bp)) continue; // built and in good repair
+			if (ColonistBrain.woodValue(inv(c)) >= 8 && (bp.stoneCost() == 0 || stone(inv(c)) > 0) && c.needs.isEmpty()) {
+				return new BuildStructureTask(c, o, bp, false);
+			}
+			Task supply = supply(c, f, canBreak, bp);
+			if (supply != null) return supply;
+			c.searchCooldown("PROJECT", 600);
+			return null;
+		}
+		int pop = f.members.size();
+		for (int r = 0; r <= f.rank.ordinal(); r++) {
+			for (String id : Blueprints.PROJECTS[r]) {
+				if (!f.buildingsOf(id).isEmpty()) continue;
+				if ((id.equals("town_hall") && pop < 2) || (id.equals("lumber_camp") && pop < 3) || (id.equals("barn") && pop < 4)) continue;
+				Blueprint bp = Blueprints.get(id);
+				BlockPos site = BuildStructureTask.claimLot(c, f, bp);
+				if (site == null) {
+					c.searchCooldown("PROJECT", 2400);
+					return null;
+				}
+				c.say("The " + f.name + " need a " + bp.name.toLowerCase() + ". I'll start on it.");
+				return new BuildStructureTask(c, site, bp, false);
+			}
+		}
+		c.searchCooldown("PROJECT", 1200);
+		return null;
+	}
+
+	private static SimpleInventory inv(ColonistEntity c) {
+		return c.getInventory();
+	}
+
+	@Nullable
+	private static BlockPos nearestBuilt(ColonistEntity c, Faction f, String type) {
+		BlockPos best = null;
+		double bestD = Double.MAX_VALUE;
+		for (BlockPos p : f.buildingsOf(type)) {
+			if (!f.built.contains(p)) continue;
+			double d = c.getBlockPos().getSquaredDistance(p);
+			if (d < bestD) {
+				bestD = d;
+				best = p;
+			}
+		}
+		return best;
+	}
+
 	@Nullable
 	private static Task jobTask(ColonistEntity c, Faction f, boolean canBreak, boolean canBuild) {
 		SimpleInventory inv = c.getInventory();
@@ -261,6 +380,15 @@ public class WorkGoal extends Goal {
 					return new HarvestTask(c, HarvestTask.Kind.SEEDS, 8);
 				}
 			}
+			case RANCHER -> {
+				BlockPos pen = nearestBuilt(c, f, "animal_pen");
+				if (pen != null && !c.onSearchCooldown("RANCH")) return new RanchTask(c, pen);
+				if (pen != null && ColonistBrain.count(inv, s -> s.isOf(Items.WHEAT) || s.isOf(Items.CARROT)) < 4 && !c.onSearchCooldown("STOCK_FEED")) {
+					c.searchCooldown("STOCK_FEED", 2400);
+					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> s.isOf(Items.WHEAT) || s.isOf(Items.CARROT) || s.isOf(Items.WHEAT_SEEDS),
+							16, "Fetching animal feed");
+				}
+			}
 			case WOODCUTTER -> {
 				if (canBreak && ColonistBrain.woodValue(inv) < 96 && !c.onSearchCooldown(HarvestTask.Kind.WOOD.name())) {
 					return new HarvestTask(c, HarvestTask.Kind.WOOD, 10);
@@ -270,16 +398,31 @@ public class WorkGoal extends Goal {
 				if (!canBreak) return null;
 				int pick = ColonistBrain.tier(inv, ColonistBrain.PICKAXES);
 				if (pick < 0) return null; // the general gathering step makes a pickaxe first
-				int stone = ColonistBrain.count(inv, ColonistBrain.STONE_MATS);
-				if (pick >= ColonistBrain.STONE && c.getRandom().nextInt(2) == 0 && !c.onSearchCooldown(HarvestTask.Kind.ORE.name())) {
-					return new HarvestTask(c, HarvestTask.Kind.ORE, 6);
+				boolean mine = MineTask.hasWork(c, f);
+				boolean quarry = (f.quarry == null && !c.onSearchCooldown("QUARRY")) || QuarryTask.hasWork(c, f);
+				if (mine && (!quarry || c.getRandom().nextInt(2) == 0)) return new MineTask(c);
+				if (quarry) return new QuarryTask(c);
+				if (pick >= ColonistBrain.STONE && !c.onSearchCooldown(HarvestTask.Kind.ORE.name())) return new HarvestTask(c, HarvestTask.Kind.ORE, 6);
+				if (ColonistBrain.count(inv, ColonistBrain.STONE_MATS) < 64 && !c.onSearchCooldown(HarvestTask.Kind.STONE.name())) {
+					return new HarvestTask(c, HarvestTask.Kind.STONE, 12);
 				}
-				if (stone < 64 && !c.onSearchCooldown(HarvestTask.Kind.STONE.name())) {
-					return new HarvestTask(c, HarvestTask.Kind.STONE, f.wallPlanned && !f.wallBuilt ? 24 : 12);
+			}
+			case BLACKSMITH -> {
+				BlockPos smithy = nearestBuilt(c, f, "smithy");
+				if (smithy != null && WorkshopTask.worthDoing(c, f, WorkshopTask.Trade.SMITH)) {
+					return new WorkshopTask(c, WorkshopTask.Trade.SMITH, smithy, Blueprints.SMITHY);
+				}
+			}
+			case COOK -> {
+				BlockPos bakery = nearestBuilt(c, f, "bakery");
+				if (bakery != null && WorkshopTask.worthDoing(c, f, WorkshopTask.Trade.COOK)) {
+					return new WorkshopTask(c, WorkshopTask.Trade.COOK, bakery, Blueprints.BAKERY);
 				}
 			}
 			case BUILDER -> {
 				if (!canBuild) return null;
+				Task build = project(c, f, canBreak);
+				if (build != null) return build;
 				boolean walling = f.wallPlanned && !f.wallBuilt;
 				int stone = ColonistBrain.count(inv, ColonistBrain.STONE_MATS);
 				if (stone < (walling ? 32 : 16) && !c.onSearchCooldown("STOCK_STONE")) {
@@ -307,6 +450,11 @@ public class WorkGoal extends Goal {
 			}
 			case NONE -> {
 			}
+		}
+		// Small villages without a builder: everyone pitches in on public buildings.
+		if (canBuild && c.home != null && f.countJob("BUILDER") == 0) {
+			Task build = project(c, f, canBreak);
+			if (build != null) return build;
 		}
 		if (haul) {
 			c.searchCooldown("DEPOSIT", 1200);

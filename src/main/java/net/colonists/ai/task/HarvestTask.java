@@ -159,6 +159,7 @@ public class HarvestTask extends Task {
 			world.setBlockBreakingInfo(this.colonist.getId(), this.target, -1);
 			world.breakBlock(this.target, false, this.colonist);
 			for (ItemStack drop : drops) ColonistBrain.give(this.colonist, drop);
+			if (this.kind == Kind.WOOD) this.fellRestOfTree(world, this.target);
 			// Woodcutters replant: a sapling goes where the trunk stood.
 			if (this.kind == Kind.WOOD && world.getBlockState(this.target.down()).isIn(BlockTags.DIRT) && world.getBlockState(this.target).isAir()) {
 				ItemStack sapling = ColonistBrain.takeOne(this.colonist.getInventory(), s -> s.isIn(net.minecraft.registry.tag.ItemTags.SAPLINGS));
@@ -174,6 +175,34 @@ public class HarvestTask extends Task {
 			this.searchDelay = 0;
 			if (this.collected >= this.wanted) this.done = true;
 		}
+	}
+
+	/** Timber! Once the trunk is cut, every log connected to it comes down too; the leaves decay on their own. */
+	private void fellRestOfTree(ServerWorld world, BlockPos base) {
+		java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+		java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+		queue.add(base);
+		seen.add(base);
+		int felled = 0;
+		while (!queue.isEmpty() && felled < 96) {
+			BlockPos p = queue.poll();
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dy = 0; dy <= 1; dy++) {
+					for (int dz = -1; dz <= 1; dz++) {
+						BlockPos n = p.add(dx, dy, dz);
+						if (!seen.add(n) || Math.abs(n.getX() - base.getX()) > 8 || Math.abs(n.getZ() - base.getZ()) > 8) continue;
+						if (!world.getBlockState(n).isIn(BlockTags.LOGS)) continue;
+						FactionManager fm = this.colonist.factions();
+						if (fm != null && fm.isNearAnyHome(n)) continue; // never someone's log pillar
+						net.colonists.ai.Digger.breakNow(this.colonist, n);
+						felled++;
+						queue.add(n);
+					}
+				}
+			}
+		}
+		if (felled > 3) world.playSound(null, base, net.minecraft.sound.SoundEvents.BLOCK_WOOD_BREAK, SoundCategory.BLOCKS, 1.0f, 0.6f);
+		this.collected += felled / 4; // a whole tree counts for more than one log
 	}
 
 	@Override

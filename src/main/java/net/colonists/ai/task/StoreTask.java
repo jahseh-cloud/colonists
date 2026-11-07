@@ -52,7 +52,12 @@ public class StoreTask extends Task {
 			this.done = true;
 			return;
 		}
-		BlockPos spot = this.colonist.chest != null ? this.colonist.chest : BuildHouseTask.chestPos(this.colonist.home);
+		net.colonists.build.Blueprint bp = BuildStructureTask.blueprintFor(this.colonist, this.colonist.home);
+		BlockPos spot = this.colonist.chest != null ? this.colonist.chest : (bp.chest != null ? this.colonist.home.add(bp.chest) : null);
+		if (spot == null) {
+			this.done = true;
+			return;
+		}
 		if (!this.approach(spot, 3.0, 1.0)) {
 			if (this.stuck()) this.done = true;
 			return;

@@ -94,6 +94,10 @@ public class Faction {
 	public final Map<UUID, Integer> playerRep = new HashMap<>();
 	/** House lots, mapped to the owning colonist (null = vacant). */
 	public final Map<BlockPos, UUID> homes = new LinkedHashMap<>();
+	/** Blueprint id for every claimed building lot (homes and public buildings). */
+	public final Map<BlockPos, String> buildingTypes = new LinkedHashMap<>();
+	/** Lots whose building has been completed at least once. */
+	public final Set<BlockPos> built = new HashSet<>();
 	/** Communal field lots. */
 	public final Set<BlockPos> farms = new LinkedHashSet<>();
 	/** Lots that turned out to be unbuildable (steep, flooded, or someone else's building). Stored with y = 0. */
@@ -103,6 +107,11 @@ public class Faction {
 
 	// City
 	@Nullable public BlockPos cityCenter;
+	/** North-west corner of the city quarry, at the height of its rim; null until a miner picks a spot. */
+	@Nullable public BlockPos quarry;
+	public int quarrySize;
+	/** Floor height where the mine tunnel starts (fixed once digging begins), or Integer.MIN_VALUE. */
+	public int mineY = Integer.MIN_VALUE;
 	public int foodInStock;
 
 	// Politics
@@ -155,6 +164,20 @@ public class Faction {
 		return n;
 	}
 
+	/** Lots holding a public building of this type (built or under construction). */
+	public java.util.List<BlockPos> buildingsOf(String type) {
+		java.util.List<BlockPos> list = new java.util.ArrayList<>();
+		this.buildingTypes.forEach((pos, t) -> {
+			if (t.equals(type)) list.add(pos);
+		});
+		return list;
+	}
+
+	public boolean hasBuilt(String type) {
+		for (BlockPos p : buildingsOf(type)) if (this.built.contains(p)) return true;
+		return false;
+	}
+
 	public int countJob(String job) {
 		int n = 0;
 		for (Citizen c : this.citizens.values()) if (!c.child && c.job.equals(job)) n++;
@@ -197,10 +220,17 @@ public class Faction {
 		}
 		nbt.put("Homes", homeList);
 		nbt.putLongArray("Farms", this.farms.stream().mapToLong(BlockPos::asLong).toArray());
+		NbtCompound types = new NbtCompound();
+		this.buildingTypes.forEach((pos, type) -> types.putString(Long.toString(pos.asLong()), type));
+		nbt.put("Buildings", types);
+		nbt.putLongArray("Built", this.built.stream().mapToLong(BlockPos::asLong).toArray());
 		nbt.putLongArray("Blocked", this.blockedLots.stream().mapToLong(BlockPos::asLong).toArray());
 		if (this.founderPlayer != null) nbt.putUuid("Founder", this.founderPlayer);
 		if (this.cityCenter != null) nbt.putLong("Center", this.cityCenter.asLong());
 		nbt.putInt("Food", this.foodInStock);
+		if (this.quarry != null) nbt.putLong("Quarry", this.quarry.asLong());
+		nbt.putInt("QuarrySize", this.quarrySize);
+		nbt.putInt("MineY", this.mineY);
 		nbt.putString("Gov", this.government.name());
 		if (this.ruler != null) nbt.putUuid("Ruler", this.ruler);
 		nbt.putString("RulerName", this.rulerName);
@@ -242,9 +272,20 @@ public class Faction {
 		}
 		for (long l : nbt.getLongArray("Farms")) f.farms.add(BlockPos.fromLong(l));
 		for (long l : nbt.getLongArray("Blocked")) f.blockedLots.add(BlockPos.fromLong(l));
+		NbtCompound types = nbt.getCompound("Buildings");
+		for (String k : types.getKeys()) {
+			try {
+				f.buildingTypes.put(BlockPos.fromLong(Long.parseLong(k)), types.getString(k));
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		for (long l : nbt.getLongArray("Built")) f.built.add(BlockPos.fromLong(l));
 		if (nbt.containsUuid("Founder")) f.founderPlayer = nbt.getUuid("Founder");
 		if (nbt.contains("Center")) f.cityCenter = BlockPos.fromLong(nbt.getLong("Center"));
 		f.foodInStock = nbt.getInt("Food");
+		if (nbt.contains("Quarry")) f.quarry = BlockPos.fromLong(nbt.getLong("Quarry"));
+		f.quarrySize = nbt.getInt("QuarrySize");
+		f.mineY = nbt.contains("MineY") ? nbt.getInt("MineY") : Integer.MIN_VALUE;
 		try {
 			f.government = Government.valueOf(nbt.getString("Gov"));
 		} catch (IllegalArgumentException e) {

@@ -34,7 +34,7 @@ public class ShelterTask extends Task {
 			this.done = true;
 			return;
 		}
-		BlockPos spot = BuildHouseTask.center(this.house);
+		BlockPos spot = BuildStructureTask.inside(this.colonist, this.house);
 		if (this.approach(spot, 1.8, 0.9)) {
 			// Potter about inside: look around now and then.
 			if (++this.idle % 80 == 0) {

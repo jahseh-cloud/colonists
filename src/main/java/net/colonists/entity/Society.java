@@ -25,6 +25,14 @@ final class Society {
 		boolean grow = world.getGameRules().getBoolean(ColonistsMod.GROW);
 		int cap = world.getGameRules().getInt(ColonistsMod.MAX_PER_FACTION);
 
+		// A newly opened workplace pulls someone out of a crowded trade.
+		ColonistEntity.Job switchTo = net.colonists.faction.Politics.reconsiderJob(faction, c.getUuid(), c.job);
+		if (switchTo != null && c.getRandom().nextInt(2) == 0) {
+			c.job = switchTo;
+			c.syncCitizen();
+			c.say("I'm going to work as a " + switchTo.label.toLowerCase() + " from now on.");
+		}
+
 		// Widowed: free to remarry.
 		if (c.partner != null && !faction.citizens.containsKey(c.partner)) {
 			c.partner = null;
@@ -38,7 +46,7 @@ final class Society {
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),
 					o -> o.getUuid().equals(c.partner)).stream().findFirst().orElse(null);
 			if (spouse != null) {
-				BlockPos door = c.home.add(2, 0, -1);
+				BlockPos door = net.colonists.ai.task.BuildStructureTask.doorstep(c, c.home);
 				ColonistEntity baby = ColonistsMod.COLONIST.create(world);
 				if (baby != null) {
 					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, 4);
@@ -61,7 +69,7 @@ final class Society {
 				&& ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4) {
 			List<ColonistEntity> nearby = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(64), e -> true);
 			if (nearby.size() < 24) {
-				BlockPos door = c.home.add(2, 0, -1);
+				BlockPos door = net.colonists.ai.task.BuildStructureTask.doorstep(c, c.home);
 				ColonistEntity newcomer = ColonistsMod.COLONIST.create(world);
 				if (newcomer != null) {
 					ColonistBrain.take(c.getInventory(), ColonistBrain.FOOD, 4);

@@ -30,11 +30,20 @@ public final class Politics {
 	public static final long ELECTION_INTERVAL = 72000; // three Minecraft days
 
 	private static final Map<ColonistEntity.Job, Double> JOB_SHARE = Map.of(
-			ColonistEntity.Job.FARMER, 0.30,
-			ColonistEntity.Job.WOODCUTTER, 0.20,
+			ColonistEntity.Job.FARMER, 0.22,
+			ColonistEntity.Job.WOODCUTTER, 0.16,
 			ColonistEntity.Job.MINER, 0.15,
 			ColonistEntity.Job.BUILDER, 0.15,
-			ColonistEntity.Job.GUARD, 0.20);
+			ColonistEntity.Job.GUARD, 0.14,
+			ColonistEntity.Job.RANCHER, 0.07,
+			ColonistEntity.Job.BLACKSMITH, 0.06,
+			ColonistEntity.Job.COOK, 0.06);
+
+	/** Jobs that need their workplace built first. */
+	private static final Map<ColonistEntity.Job, String> WORKPLACE = Map.of(
+			ColonistEntity.Job.RANCHER, "animal_pen",
+			ColonistEntity.Job.BLACKSMITH, "smithy",
+			ColonistEntity.Job.COOK, "bakery");
 
 	/** The job the city most needs filled. */
 	public static ColonistEntity.Job chooseJob(@Nullable Faction f, UUID self) {
@@ -46,11 +55,16 @@ public final class Politics {
 			adults++;
 			counts.merge(e.getValue().job, 1, Integer::sum);
 		}
-		// A lone founder starts out cutting wood; a city of two gets a builder next, and so on.
+		// A lone founder starts out cutting wood; the second settler becomes the builder.
 		if (adults == 0) return ColonistEntity.Job.WOODCUTTER;
+		if (counts.getOrDefault("BUILDER", 0) == 0) return ColonistEntity.Job.BUILDER;
 		ColonistEntity.Job best = ColonistEntity.Job.FARMER;
 		double bestGap = -Double.MAX_VALUE;
 		for (Map.Entry<ColonistEntity.Job, Double> e : JOB_SHARE.entrySet()) {
+			String workplace = WORKPLACE.get(e.getKey());
+			if (workplace != null && !f.hasBuilt(workplace)) continue;
+			// Specialists: one per workplace is plenty.
+			if (workplace != null && counts.getOrDefault(e.getKey().name(), 0) >= f.buildingsOf(workplace).size()) continue;
 			double gap = e.getValue() * (adults + 1) - counts.getOrDefault(e.getKey().name(), 0);
 			if (gap > bestGap) {
 				bestGap = gap;
@@ -58,6 +72,17 @@ public final class Politics {
 			}
 		}
 		return best;
+	}
+
+	/** When a new workplace opens and nobody works there, someone from a crowded trade takes it. */
+	@Nullable
+	public static ColonistEntity.Job reconsiderJob(@Nullable Faction f, UUID self, ColonistEntity.Job current) {
+		if (f == null || current == ColonistEntity.Job.NONE || WORKPLACE.containsKey(current)) return null;
+		if (f.countJob(current.name()) <= 1) return null;
+		for (Map.Entry<ColonistEntity.Job, String> e : WORKPLACE.entrySet()) {
+			if (f.hasBuilt(e.getValue()) && f.countJob(e.getKey().name()) == 0) return e.getKey();
+		}
+		return null;
 	}
 
 	public static void tick(MinecraftServer server, FactionManager fm) {

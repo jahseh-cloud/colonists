@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tends a farm: either the small 3x4 plot beside a colonist's house, or a communal 9x5 field lot
- * (four rows of crops around a water channel).
+ * Tends a farm: either the small 3x4 plot beside a colonist's house, or a communal 9x9 field lot
+ * (eight rows of crops around a water channel).
  */
 public class FarmTask extends Task {
 	private static final Map<Item, Block> CROPS = Map.of(
@@ -65,7 +65,7 @@ public class FarmTask extends Task {
 		List<BlockPos> cells = new ArrayList<>();
 		if (field) {
 			for (int x = 0; x <= 8; x++) {
-				for (int z = 0; z <= 4; z++) cells.add(origin.add(x, 0, z));
+				for (int z = 0; z <= 8; z++) cells.add(origin.add(x, 0, z));
 			}
 		} else {
 			for (int x = 6; x <= 8; x++) {
@@ -76,7 +76,7 @@ public class FarmTask extends Task {
 	}
 
 	private static boolean isChannel(BlockPos origin, BlockPos cell, boolean field) {
-		return field && cell.getZ() == origin.getZ() + 2;
+		return field && cell.getZ() == origin.getZ() + 4;
 	}
 
 	private static boolean hasSeeds(ColonistEntity c) {
@@ -133,10 +133,10 @@ public class FarmTask extends Task {
 		c.searchCooldown("FIELD", 1200);
 		int checked = 0;
 		for (City.Lot lot : City.lots(f.cityCenter)) {
-			if (!lot.farm() || f.blockedLots.contains(lot.origin()) || BuildHouseTask.isTaken(f, lot.origin())) continue;
+			if (!lot.farm() || f.blockedLots.contains(lot.origin()) || BuildStructureTask.isTaken(f, lot.origin())) continue;
 			if (++checked > 6) break;
 			BlockPos o = lot.origin();
-			Integer floor = City.floorFor((ServerWorld) c.getWorld(), o.getX(), o.getZ(), o.getX() + 8, o.getZ() + 4, 1);
+			Integer floor = City.floorFor((ServerWorld) c.getWorld(), o.getX(), o.getZ(), o.getX() + 8, o.getZ() + 8, 1);
 			if (floor == null) {
 				if (c.getWorld().isChunkLoaded(o.getX() >> 4, o.getZ() >> 4)) f.blockedLots.add(o);
 				continue;
