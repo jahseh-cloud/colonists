@@ -757,7 +757,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner {
 			mine.warWeariness += 3;
 			fm.markDirty();
 		}
-		ItemScatterer.spawn(sw, this.getX(), this.getY(), this.getZ(), this.inventory);
+		for (int i = 0; i < this.inventory.size(); i++) {
+			ItemStack stack = this.inventory.removeStack(i);
+			if (!stack.isEmpty()) ItemScatterer.spawn(sw, this.getX(), this.getY(), this.getZ(), stack);
+		}
 		fm.removeMember(sw.getServer(), this.factionId, this.getUuid());
 	}
 
