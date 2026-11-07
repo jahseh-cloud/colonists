@@ -98,6 +98,7 @@ public final class Economy {
 		for (Map.Entry<UUID, Faction.Citizen> e : f.citizens.entrySet()) {
 			if (e.getValue().settlement == s.id && !e.getValue().child) people.add(e.getValue());
 		}
+		if (s.village) s.treasury += s.freemen; // the free men's trade and harvests (or their dues, once subjects)
 		if (people.isEmpty()) return;
 		// Production: the town's farms, workshops and market turn out goods worth this much.
 		s.treasury += people.size() * 2 + (s.hasBuilt("market") ? people.size() / 2 : 0);

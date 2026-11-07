@@ -132,7 +132,8 @@ public class WorkGoal extends Goal {
 		Settlement f = c.settlement();
 		boolean canBreak = world.getGameRules().getBoolean(ColonistsMod.BREAK_BLOCKS);
 		boolean canBuild = world.getGameRules().getBoolean(ColonistsMod.BUILD);
-		boolean city = f != null && f.cityCenter != null;
+		// In a village of free men, colonists are guests: they don't build, pave or dig up the villagers' homes.
+		boolean city = f != null && f.cityCenter != null && !f.village;
 
 		// Convicts serve their sentence; slaves stay on their master's estate.
 		net.colonists.law.Justice justice = net.colonists.law.Justice.get(world.getServer());

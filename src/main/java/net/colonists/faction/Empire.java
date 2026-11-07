@@ -59,7 +59,7 @@ public final class Empire {
 				loyalty(server, fm, f, s, random);
 			}
 			if (f.orderedColony != null) orderedColony(server, fm, f, random);
-			else if (f.rulerPlayer == null) colonize(server, fm, f, day, random);
+			else if (f.rulerPlayer == null && !f.freeVillage) colonize(server, fm, f, day, random);
 		}
 	}
 
@@ -194,7 +194,7 @@ public final class Empire {
 		Settlement goal = fm.settlement(f.warGoal);
 		if (goal != null && atWarWith(fm, f, goal.faction)) return;
 		f.warGoal = -1;
-		if (!f.atWar) return;
+		if (!f.atWar || f.freeVillage) return;
 		BlockPos home = f.center();
 		if (home == null) return;
 		Settlement best = null;

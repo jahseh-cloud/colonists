@@ -102,6 +102,12 @@ public final class Politics {
 		long now = server.getOverworld().getTime();
 		List<Faction> all = fm.all();
 		for (Faction f : all) {
+			if (f.freeVillage) {
+				// Free villages are governed by their elders: no throne to fight over, no laws to rewrite.
+				f.rulerName = "the Elders";
+				if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
+				continue;
+			}
 			Statecraft.tickOpinions(server, fm, f);
 			if (f.rulerPlayer != null) {
 				Statecraft.playerRule(server, fm, f, now, random);
@@ -126,6 +132,7 @@ public final class Politics {
 			if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
 		}
 		Empire.tick(server, fm, random);
+		Villages.tick(server, fm, random);
 		net.colonists.economy.Economy.tick(server, fm);
 		foreignPolicy(server, fm, fm.all(), random);
 		if (now % 12000 < 1200) tribute(server, fm, all);

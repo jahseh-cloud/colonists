@@ -39,8 +39,20 @@ public class RaidTask extends Task {
 	@Nullable
 	public static VillagerEntity findTarget(ColonistEntity c) {
 		return c.getWorld().getEntitiesByClass(VillagerEntity.class, c.getBoundingBox().expand(80, 24, 80),
-						v -> v.isAlive() && !v.isBaby() && !v.hasCustomName())
+						v -> v.isAlive() && !v.isBaby() && (!v.hasCustomName() || freeName(v)) && !ownSubject(c, v))
 				.stream().min(Comparator.comparingDouble(c::squaredDistanceTo)).orElse(null);
+	}
+
+	private static boolean freeName(VillagerEntity v) {
+		String n = v.getCustomName() == null ? "" : v.getCustomName().getString();
+		return n.startsWith("Free ") || n.startsWith("Subject ");
+	}
+
+	/** Villages of one's own realm are not raided. */
+	private static boolean ownSubject(ColonistEntity c, VillagerEntity v) {
+		FactionManager fm = c.factions();
+		Settlement s = fm == null ? null : net.colonists.faction.Villages.villageOf(fm, v);
+		return s != null && s.faction != null && s.faction.id.equals(c.getFactionId());
 	}
 
 	@Override
@@ -70,6 +82,10 @@ public class RaidTask extends Task {
 			world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, this.target.getX(), this.target.getEyeY() + 0.3, this.target.getZ(), 2, 0.3, 0.2, 0.3, 0.0);
 		}
 		if (++this.subdue >= 40) {
+			Settlement village = net.colonists.faction.Villages.villageOf(fm, this.target);
+			if (village != null && village.faction != null && village.faction != f.faction) {
+				fm.changeRelation(world.getServer(), f.faction.id, village.faction.id, -20);
+			}
 			CaptiveEntity.capture(world, this.target, this.colonist, f.faction);
 			FactionManager.broadcastNear(world, this.colonist.getBlockPos(), 96, Text.literal("⛓ The ").formatted(Formatting.DARK_RED)
 					.append(f.faction.displayName()).append(Text.literal(" have taken a villager captive.").formatted(Formatting.DARK_RED)));

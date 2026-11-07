@@ -930,6 +930,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 			ItemStack stack = this.inventory.removeStack(i);
 			if (!stack.isEmpty()) ItemScatterer.spawn(sw, this.getX(), this.getY(), this.getZ(), stack);
 		}
+		net.colonists.faction.Villages.onGuestDeath(fm, this);
 		BlockPos house = this.home;
 		net.colonists.faction.Settlement mySettlement = this.settlement();
 		fm.removeMember(sw.getServer(), this.factionId, this.getUuid());

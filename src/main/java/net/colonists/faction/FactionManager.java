@@ -107,7 +107,7 @@ public class FactionManager extends PersistentState {
 			}
 		}
 		markDirty();
-		if (memberCount(id) == 0) {
+		if (memberCount(id) == 0 && !f.freeVillage) {
 			factions.remove(id);
 			relations.keySet().removeIf(k -> k.startsWith(id + "|") || k.endsWith("|" + id));
 			broadcast(server, Text.literal("The ").append(f.displayName()).append(" have fallen. Their last member is gone.").formatted(Formatting.GRAY));
@@ -424,7 +424,8 @@ public class FactionManager extends PersistentState {
 		if (world.getGameRules().getBoolean(net.colonists.ColonistsMod.KEEP_LOADED)) {
 			for (Settlement f : allSettlements()) {
 				if (f.cityCenter == null) continue;
-				int r = switch (f.rank) {
+				if (f.village && f.colonists() == 0) continue; // a village with no colonists lives its vanilla life
+				int r = f.village ? 1 : switch (f.rank) {
 					case VILLAGE -> 1;
 					case TOWN -> 2;
 					case CITY -> 3;

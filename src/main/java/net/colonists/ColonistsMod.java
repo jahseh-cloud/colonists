@@ -111,6 +111,7 @@ public class ColonistsMod implements ModInitializer {
 			if (server.getTicks() % 1200 == 0) {
 				FactionManager.get(server).tickDiplomacy(server);
 			}
+			if (server.getTicks() % 200 == 100) net.colonists.faction.Villages.survey(server);
 			if (server.getTicks() % 200 == 0) {
 				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) sendCityMap(server, player);
 			}

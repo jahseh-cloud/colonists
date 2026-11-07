@@ -69,6 +69,13 @@ public class Settlement {
 	public int garrison = -1;
 	public boolean autonomy;
 	public String priority = "";
+	/** A vanilla village: its buildings are the villagers' own, so colonists do not build or dig here.
+	 *  freemen = villagers counted on the last survey; grievance = how restless its colonist guests are. */
+	public boolean village;
+	public int freemen;
+	public int grievance;
+	public long lastNewcomerDay = -1;
+	public int vMinX, vMinZ, vMaxX, vMaxZ;
 	private transient int[] boundsCache;
 	private transient long boundsTime = Long.MIN_VALUE;
 
@@ -98,6 +105,8 @@ public class Settlement {
 		int[] b;
 		if (c == null) {
 			b = new int[]{0, 0, -1, -1};
+		} else if (this.village) {
+			b = new int[]{this.vMinX, this.vMinZ, this.vMaxX, this.vMaxZ};
 		} else if (this.wallPlanned) {
 			b = new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ};
 		} else {
@@ -162,9 +171,17 @@ public class Settlement {
 	}
 
 	/** People who live here (from the faction's citizen records). */
-	public int population() {
+	/** Colonists who live here (see population() for everyone, free men included). */
+	public int colonists() {
 		if (this.faction == null) return 0;
 		int n = 0;
+		for (Faction.Citizen c : this.faction.citizens.values()) if (c.settlement == this.id) n++;
+		return n;
+	}
+
+	public int population() {
+		if (this.faction == null) return 0;
+		int n = this.village ? this.freemen : 0;
 		for (Faction.Citizen c : this.faction.citizens.values()) if (c.settlement == this.id) n++;
 		return n;
 	}
@@ -222,6 +239,11 @@ public class Settlement {
 		nbt.putInt("Garrison", this.garrison);
 		nbt.putBoolean("Autonomy", this.autonomy);
 		nbt.putString("Priority", this.priority);
+		nbt.putBoolean("Village", this.village);
+		nbt.putInt("Freemen", this.freemen);
+		nbt.putInt("Grievance", this.grievance);
+		nbt.putLong("NewcomerDay", this.lastNewcomerDay);
+		nbt.putIntArray("VBounds", new int[]{this.vMinX, this.vMinZ, this.vMaxX, this.vMaxZ});
 		nbt.putString("Rank", this.rank.name());
 		nbt.putBoolean("WallPlanned", this.wallPlanned);
 		nbt.putIntArray("Wall", new int[]{this.wallMinX, this.wallMinZ, this.wallMaxX, this.wallMaxZ});
@@ -244,6 +266,17 @@ public class Settlement {
 		s.garrison = nbt.contains("Garrison") ? nbt.getInt("Garrison") : -1;
 		s.autonomy = nbt.getBoolean("Autonomy");
 		s.priority = nbt.getString("Priority");
+		s.village = nbt.getBoolean("Village");
+		s.freemen = nbt.getInt("Freemen");
+		s.grievance = nbt.getInt("Grievance");
+		s.lastNewcomerDay = nbt.contains("NewcomerDay") ? nbt.getLong("NewcomerDay") : -1;
+		int[] vb = nbt.getIntArray("VBounds");
+		if (vb.length == 4) {
+			s.vMinX = vb[0];
+			s.vMinZ = vb[1];
+			s.vMaxX = vb[2];
+			s.vMaxZ = vb[3];
+		}
 		if (nbt.contains("Center")) s.cityCenter = BlockPos.fromLong(nbt.getLong("Center"));
 		NbtList homeList = nbt.getList("Homes", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < homeList.size(); i++) {

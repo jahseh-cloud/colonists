@@ -25,7 +25,8 @@ public class Faction {
 		CHIEFDOM("Chiefdom", "Chief"),
 		MONARCHY("Monarchy", "Monarch"),
 		REPUBLIC("Republic", "Consul"),
-		PLAYER("Player-led", "Founder");
+		PLAYER("Player-led", "Founder"),
+		FREE("Free village", "Elders");
 
 		public final String label, title;
 
@@ -138,6 +139,9 @@ public class Faction {
 	/** A colony the ruler has ordered: where, and which settlement sends the settlers. */
 	@Nullable public BlockPos orderedColony;
 	public int orderedColonyFrom = -1;
+
+	/** A vanilla village of free men, given a place in the politics of the world. */
+	public boolean freeVillage;
 
 	public boolean playerRuled() {
 		return this.rulerPlayer != null;
@@ -309,6 +313,7 @@ public class Faction {
 		nbt.putBoolean("Revolt", this.revolt);
 		nbt.putLong("LastColony", this.lastColonyDay);
 		nbt.putInt("WarGoal", this.warGoal);
+		nbt.putBoolean("FreeVillage", this.freeVillage);
 		if (this.rulerPlayer != null) nbt.putUuid("RulerPlayer", this.rulerPlayer);
 		if (this.heirPlayer != null) nbt.putUuid("HeirPlayer", this.heirPlayer);
 		nbt.putInt("ArmyOp", this.armyOpinion);
@@ -370,6 +375,7 @@ public class Faction {
 		f.revolt = nbt.getBoolean("Revolt");
 		f.lastColonyDay = nbt.contains("LastColony") ? nbt.getLong("LastColony") : Long.MIN_VALUE;
 		f.warGoal = nbt.contains("WarGoal") ? nbt.getInt("WarGoal") : -1;
+		f.freeVillage = nbt.getBoolean("FreeVillage");
 		if (nbt.containsUuid("RulerPlayer")) f.rulerPlayer = nbt.getUuid("RulerPlayer");
 		if (nbt.containsUuid("HeirPlayer")) f.heirPlayer = nbt.getUuid("HeirPlayer");
 		f.armyOpinion = nbt.contains("ArmyOp") ? nbt.getInt("ArmyOp") : 55;
