@@ -121,10 +121,10 @@ public final class Crises {
 			Faction realm = fm.get(c.faction);
 			if (realm == null || realm.settlements.isEmpty()) {
 				String how = switch (t) {
-					case PRETENDER -> "his claim crushed and his followers scattered";
-					case REVOLT -> "the commune put down by force";
-					case HERETIC -> "his followers dispersed";
-					default -> "and their realm is gone";
+					case PRETENDER -> "saw his claim crushed and his followers scattered";
+					case REVOLT -> "saw the commune put down by force";
+					case HERETIC -> "saw his followers dispersed and his sect undone";
+					default -> "lost all that was his";
 				};
 				finish(server, h, c, realm, how, day);
 				continue;
@@ -295,7 +295,7 @@ public final class Crises {
 		BlockPos bc = center(big);
 		Faction hero = null;
 		for (Faction f : fm.all()) {
-			if (f == big || f.freeVillage || f.rulerPlayer != null || f.settlements.isEmpty() || f.settlements.size() > 2) continue;
+			if (f == big || f.freeVillage || f.rulerPlayer != null || f.settlements.isEmpty() || f.settlements.size() > 2 || inCrisis(h, f)) continue;
 			Faction.Citizen r = f.rulerCitizen();
 			if (r == null || center(f) == null || bc == null || center(f).getSquaredDistance(bc) > 1100 * 1100) continue;
 			if (hero == null || r.ambition > hero.rulerCitizen().ambition) hero = f;

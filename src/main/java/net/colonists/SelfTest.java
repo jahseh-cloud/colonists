@@ -299,7 +299,8 @@ public final class SelfTest {
 		if (t == 76000) step("crises-new", () -> {
 			net.colonists.legend.History h = net.colonists.legend.History.get(server);
 			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
-			// Forge one bigger realm so the realm-sized crises have room to happen.
+			// Close the earlier crises and forge one bigger realm so the realm-sized crises have room to happen.
+			for (net.colonists.legend.History.Crisis c : h.crises) if (c.active()) c.ended = 1;
 			Faction big = fm.all().stream().filter(x -> !x.freeVillage && !x.settlements.isEmpty()).max(java.util.Comparator.comparingInt(x -> x.settlements.size())).orElseThrow();
 			for (Settlement o : new ArrayList<>(fm.allSettlements())) {
 				if (big.settlements.size() >= 3) break;
