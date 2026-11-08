@@ -384,7 +384,7 @@ public final class SelfTest {
 			double d = Math.hypot(fld.center().getX() - big.cityCenter.getX(), fld.center().getZ() - big.cityCenter.getZ());
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field: {} {}x{} ({} blocks) at {}, {} blocks from the plaza (reach {})", fld.crop, fld.width(), fld.depth(),
 					fld.area(), fld.center(), Math.round(d), net.colonists.faction.CityGrowth.reach(big));
-			if (fld.width() < 16 || fld.depth() < 16) throw new IllegalStateException("manor fields should be large");
+			if (fld.width() < 24 || fld.depth() < 24) throw new IllegalStateException("manor fields should be large");
 			if (d < net.colonists.faction.CityGrowth.reach(big)) throw new IllegalStateException("the field should lie beyond the town");
 			m.fields.add(fld);
 			big.manors.add(m);
@@ -413,6 +413,22 @@ public final class SelfTest {
 			}
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field worked: {} jobs, {}/{} crop spots sown, {} channel spots watered", worked, sown, crops, water);
 			if (sown * 2 < crops) throw new IllegalStateException("less than half the field was sown (" + sown + "/" + crops + ")");
+			// The family's arms over the fields; the great house and its outbuildings marked out.
+			m.banner = net.colonists.faction.Banners.random(w.getRandom());
+			net.colonists.farm.Manors.flyArms(w, big, m);
+			int arms = 0;
+			for (BlockPos p : BlockPos.iterate(new BlockPos(fld.x0 - 2, 0, fld.z0 - 2), new BlockPos(fld.x1 + 2, 0, fld.z1 + 2))) {
+				if (p.getX() > fld.x0 && p.getX() < fld.x1 && p.getZ() > fld.z0 && p.getZ() < fld.z1) continue;
+				int y = net.colonists.faction.City.surfaceY(w, p.getX(), p.getZ());
+				for (int dy = -2; dy <= 0; dy++) if (w.getBlockEntity(p.withY(y + dy)) instanceof net.minecraft.block.entity.BannerBlockEntity) arms++;
+			}
+			boolean seat = net.colonists.farm.Manors.placeSeat(w, fm, big, m, w.getRandom());
+			boolean barn = seat && net.colonists.farm.Manors.placeOutbuilding(w, fm, big, m, w.getRandom());
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor arms flying: {}; manor house lot: {} ({}x{}); outbuildings: {}", arms,
+					m.seat, net.colonists.build.Blueprints.MANOR_HOUSE.width, net.colonists.build.Blueprints.MANOR_HOUSE.depth,
+					m.outbuildings.stream().map(o -> big.buildingTypes.get(o)).toList());
+			if (arms == 0) throw new IllegalStateException("the lord's banner should fly over his field");
+			if (fld.width() < 24 || fld.depth() < 24) throw new IllegalStateException("manor fields should now be at least 24 blocks a side");
 			// The estate grows: a second field beside the first.
 			net.colonists.farm.Manor.Field next = null;
 			for (int i = 0; i < 6 && next == null; i++) next = net.colonists.farm.Manors.claimField(w, fm, big, m, w.getRandom());
@@ -453,6 +469,7 @@ public final class SelfTest {
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST atlas manors: {}", data.manors().stream().map(m -> m.name() + " (" + m.allegiance() + ")").toList());
 			if (data.manors().isEmpty()) throw new IllegalStateException("no manors on the atlas");
 			if (data.manors().stream().noneMatch(m -> m.name().endsWith(" Manor") && m.allegiance().contains(" of "))) throw new IllegalStateException("manor label format");
+			if (data.manors().stream().anyMatch(m -> m.banner().isEmpty())) throw new IllegalStateException("every manor should have its family's arms");
 			// Angry barons may rise.
 			net.colonists.farm.Manor angry = net.colonists.farm.Manors.ofRealm(big.faction).stream().findFirst().orElse(null);
 			if (angry != null) ColonistsMod.LOGGER.info("COLONISTS SELFTEST barons' revolt: {}", net.colonists.legend.Crises.baronsRevolt(server, big.faction, angry.lord, angry.title()));

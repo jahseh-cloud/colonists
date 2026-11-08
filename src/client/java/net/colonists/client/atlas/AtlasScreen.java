@@ -466,12 +466,28 @@ public class AtlasScreen extends Screen {
 				}
 			}
 			boolean chosen = this.selectedManor != null && this.selectedManor.name().equals(m.name()) && this.selectedManor.town() == m.town();
+			// The manor house: a small hall mark (hollow while it is still going up).
+			int hx = this.sx(m.seatX()), hy = this.sy(m.seatZ());
+			int hr = zoom <= 1 ? 3 : 2;
+			ctx.fill(hx - hr - 1, hy - hr - 1, hx + hr + 1, hy + hr + 1, INK);
+			ctx.fill(hx - hr, hy - hr, hx + hr, hy + hr, m.hall() ? 0xFF000000 | lerp(realm, 0xFFFFFF, 0.2) : PARCHMENT);
 			if (zoom <= 2 || chosen || mode == Mode.FARMS && zoom <= 3) {
 				String label = m.name() + " (" + m.allegiance() + ")";
 				int w = this.textRenderer.getWidth(label);
 				int ly = labelY - 11;
-				ctx.fill(labelX - w / 2 - 2, ly - 1, labelX + w / 2 + 2, ly + 9, chosen ? 0xEEF4E9C8 : 0xBBE9DCB5);
-				ctx.drawText(this.textRenderer, label, labelX - w / 2, ly, chosen ? RUBRIC : INK_SOFT, false);
+				// The family's arms beside the name, when close enough to see.
+				net.minecraft.item.ItemStack arms = zoom <= 1 ? this.bannerItem(m.banner(), m.name()) : null;
+				int armsW = arms != null ? 14 : 0;
+				int left = labelX - (w + armsW) / 2;
+				ctx.fill(left - 2, ly - 1, left + w + armsW + 2, ly + 9, chosen ? 0xEEF4E9C8 : 0xBBE9DCB5);
+				if (arms != null) {
+					ctx.getMatrices().push();
+					ctx.getMatrices().translate(left - 1, ly - 3, 0);
+					ctx.getMatrices().scale(0.8f, 0.8f, 1f);
+					ctx.drawItem(arms, 0, 0);
+					ctx.getMatrices().pop();
+				}
+				ctx.drawText(this.textRenderer, label, left + armsW, ly, chosen ? RUBRIC : INK_SOFT, false);
 			}
 		}
 	}
@@ -636,6 +652,20 @@ public class AtlasScreen extends Screen {
 		}
 	}
 
+	private final Map<String, net.minecraft.item.ItemStack> bannerCache = new HashMap<>();
+
+	@Nullable
+	private net.minecraft.item.ItemStack bannerItem(String banner, String name) {
+		if (banner.isEmpty() || this.client == null || this.client.world == null) return null;
+		return this.bannerCache.computeIfAbsent(banner + "|" + name, k -> {
+			try {
+				return net.colonists.faction.Banners.item(this.client.world.getRegistryManager(), banner, name);
+			} catch (RuntimeException e) {
+				return net.minecraft.item.ItemStack.EMPTY;
+			}
+		});
+	}
+
 	@Nullable
 	private net.minecraft.item.ItemStack bannerOf(@Nullable FactionInfo f) {
 		if (f == null || f.banner().isEmpty() || this.client == null || this.client.world == null) return null;
@@ -795,6 +825,7 @@ public class AtlasScreen extends Screen {
 			rows.add(new Row(Row.TITLE, Text.literal(m.name()), 0, f == null ? 0x888888 : f.color()));
 			rows.add(text(m.allegiance(), INK));
 			rows.add(text("Estate of " + (m.lord().isEmpty() ? "no one (lying fallow)" : m.lord()) + ", feeding " + m.townName(), INK_SOFT));
+			rows.add(text(m.hall() ? "The manor house stands at " + m.seatX() + ", " + m.seatZ() : "The manor house is still being raised", INK_SOFT));
 			rows.add(GAP_ROW);
 			rows.add(barRow("Favour", m.favour(), m.favour() >= 50 ? 0x3E9E4A : m.favour() >= 25 ? 0xC06A30 : 0xB03030));
 			rows.add(text(m.laborers() + " laborers · " + m.harvested() + " crops brought in", INK));
@@ -888,6 +919,8 @@ public class AtlasScreen extends Screen {
 		// The nation's banner sits by the title.
 		FactionInfo shown = this.selected != null && this.panel == Panel.NONE ? this.factionById.get(this.selected.faction()) : this.mine();
 		net.minecraft.item.ItemStack banner = this.panel == Panel.NONE || this.panel == Panel.REALM ? this.bannerOf(shown) : null;
+		if (this.panel == Panel.NONE && this.selectedManor != null) banner = this.bannerItem(this.selectedManor.banner(), this.selectedManor.name());
+		if (banner != null && banner.isEmpty()) banner = null;
 		ctx.enableScissor(this.mapRight() + 1, top - 2, this.width, bottom);
 		int y = top - this.scroll;
 		for (Row r : rows) {

@@ -229,6 +229,7 @@ public final class Manors {
 		m.lord = lord;
 		m.lordName = c.fullName();
 		m.name = c.surname + " Manor";
+		m.banner = net.colonists.faction.Banners.random(random);
 		m.founded = world.getTimeOfDay() / 24000L;
 		Field first = claimField(world, fm, s, m, random);
 		if (first == null) return false;
@@ -280,9 +281,15 @@ public final class Manors {
 					heir = u;
 				}
 			}
+			String oldFamily = m.lordName.isEmpty() ? "" : m.title();
 			m.lord = heir;
 			m.lordName = heir == null ? "" : f.citizens.get(heir).fullName();
+			if (heir != null && !m.title().equals(oldFamily)) m.banner = net.colonists.faction.Banners.random(random);
 			if (heir != null) m.laborers.remove(heir);
+			changed = true;
+		}
+		if (m.banner.isEmpty()) {
+			m.banner = net.colonists.faction.Banners.random(random);
 			changed = true;
 		}
 		Faction.Citizen lord = m.lord == null ? null : f.citizens.get(m.lord);
@@ -307,14 +314,34 @@ public final class Manors {
 		}
 		// The manor house.
 		if (m.seat == null && !m.fields.isEmpty() && random.nextInt(2) == 0) changed |= placeSeat(world, fm, s, m, random);
-		if (m.seat != null && m.lord != null && world.getEntity(m.lord) instanceof ColonistEntity lordEntity
-				&& !m.seat.equals(lordEntity.home) && lordEntity.buildSite == null) {
-			lordEntity.buildSite = m.seat;
-			fm.claimHome(s, m.seat, m.lord);
-			lordEntity.say("Time I lived on my own land. I'm building " + m.name + ".");
+		if (m.seat != null && m.lord != null && world.getEntity(m.lord) instanceof ColonistEntity lordEntity && !m.seat.equals(lordEntity.home)) {
+			if (s.built.contains(m.seat)) {
+				// The hall stands (raised by the laborers, perhaps): the lord moves in, and his old house goes to someone in need.
+				if (lordEntity.home != null) s.homes.put(lordEntity.home, null);
+				lordEntity.home = m.seat;
+				lordEntity.bed = null;
+				lordEntity.chest = null;
+				if (m.seat.equals(lordEntity.buildSite)) lordEntity.buildSite = null;
+				fm.claimHome(s, m.seat, m.lord);
+				lordEntity.say("At last, " + m.title() + " is finished. Welcome to my hall!");
+				changed = true;
+			} else if (lordEntity.buildSite == null) {
+				lordEntity.buildSite = m.seat;
+				fm.claimHome(s, m.seat, m.lord);
+				lordEntity.say("Time I lived on my own land. I'm building " + m.title() + ".");
+			}
 		}
+		// A barn and laborers' cottages beside the house; the family's arms over the house and every field.
+		if (m.seat != null && m.outbuildings.size() < 3 && random.nextInt(2) == 0) changed |= placeOutbuilding(world, fm, s, m, random);
+		for (BlockPos ob : m.outbuildings) {
+			if (s.built.contains(ob) && !"barn".equals(s.buildingTypes.get(ob)) && !s.homes.containsKey(ob)) {
+				s.homes.put(ob, null); // a cottage for a laborer
+				changed = true;
+			}
+		}
+		if (!m.banner.isEmpty()) flyArms(world, s, m);
 		// The land grows when the fields are worked.
-		int cap = Math.min(8, 2 + m.laborers.size());
+		int cap = Math.min(10, 3 + m.laborers.size());
 		if (m.fields.size() < cap && !m.laborers.isEmpty() && planted(world, m.fields.get(m.fields.size() - 1), random) >= 0.6) {
 			Field next = claimField(world, fm, s, m, random);
 			if (next != null) {
@@ -458,7 +485,7 @@ public final class Manors {
 	public static Field claimField(ServerWorld world, FactionManager fm, Settlement s, Manor m, Random random) {
 		int reach = CityGrowth.reach(s);
 		for (int attempt = 0; attempt < 16; attempt++) {
-			int w = 16 + random.nextInt(9), d = 16 + random.nextInt(9);
+			int w = 24 + random.nextInt(13), d = 24 + random.nextInt(13);
 			int x0, z0;
 			if (m.fields.isEmpty()) {
 				double ang = random.nextDouble() * Math.PI * 2;
@@ -531,8 +558,8 @@ public final class Manors {
 	}
 
 	/** The manor house goes beside the first field, on the side toward town. */
-	static boolean placeSeat(ServerWorld world, FactionManager fm, Settlement s, Manor m, Random random) {
-		Blueprint bp = Blueprints.MANOR;
+	public static boolean placeSeat(ServerWorld world, FactionManager fm, Settlement s, Manor m, Random random) {
+		Blueprint bp = Blueprints.MANOR_HOUSE;
 		Field f = m.fields.get(0);
 		int w = bp.width, d = bp.depth;
 		List<int[]> spots = new ArrayList<>();
@@ -544,18 +571,8 @@ public final class Manors {
 		// Nearest to town first.
 		spots.sort((a, b) -> Double.compare(Math.hypot(a[0] - s.cityCenter.getX(), a[1] - s.cityCenter.getZ()), Math.hypot(b[0] - s.cityCenter.getX(), b[1] - s.cityCenter.getZ())));
 		for (int[] spot : spots) {
-			Site site = new Site(new BlockPos(spot[0], 0, spot[1]), BlockRotation.NONE);
-			int[] rect = site.rect(0, -1, bp.lotWidth() - 1, d - 1);
-			if (!world.isChunkLoaded(rect[0] >> 4, rect[1] >> 4) || !world.isChunkLoaded(rect[2] >> 4, rect[3] >> 4)) continue;
-			if (!WorldEdge.playable(rect[0], rect[1], 8) || !WorldEdge.playable(rect[2], rect[3], 8)) continue;
-			if (CityGrowth.occupied(fm, rect[0], rect[1], 1) || CityGrowth.occupied(fm, rect[2], rect[3], 1)
-					|| CityGrowth.occupied(fm, (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2, 1)) continue;
-			boolean onField = false;
-			for (Manor o : s.manors) for (Field fld : o.fields) if (fld.overlaps(rect[0], rect[1], rect[2], rect[3], 1)) onField = true;
-			if (onField) continue;
-			Integer floor = City.floorFor(world, rect[0], rect[1], rect[2], rect[3], 2);
-			if (floor == null) continue;
-			BlockPos origin = site.origin().withY(floor);
+			BlockPos origin = lot(world, fm, s, bp, spot[0], spot[1]);
+			if (origin == null) continue;
 			s.rotations.put(origin, BlockRotation.NONE);
 			s.buildingTypes.put(origin, bp.id);
 			m.seat = origin;
@@ -564,6 +581,58 @@ public final class Manors {
 			return true;
 		}
 		return false;
+	}
+
+	/** The family's banner: two before the manor house, and one at the corner of each field nearest town. */
+	public static void flyArms(ServerWorld world, Settlement s, Manor m) {
+		String who = m.title();
+		if (m.seat != null && s.built.contains(m.seat)) {
+			Site seat = new Site(m.seat, s.rotations.getOrDefault(m.seat, BlockRotation.NONE));
+			net.colonists.faction.Banners.fly(world, new BlockPos[]{seat.at(-1, 0, -2), seat.at(-1, 0, -3)}, m.banner, who);
+			net.colonists.faction.Banners.fly(world, new BlockPos[]{seat.at(Blueprints.MANOR_HOUSE.width, 0, -2), seat.at(Blueprints.MANOR_HOUSE.width, 0, -3)}, m.banner, who);
+		}
+		for (Field f : m.fields) {
+			int cx = Math.abs(f.x0 - s.cityCenter.getX()) < Math.abs(f.x1 - s.cityCenter.getX()) ? f.x0 - 1 : f.x1 + 1;
+			int cz = Math.abs(f.z0 - s.cityCenter.getZ()) < Math.abs(f.z1 - s.cityCenter.getZ()) ? f.z0 - 1 : f.z1 + 1;
+			net.colonists.faction.Banners.fly(world, new BlockPos[]{new BlockPos(cx, 64, cz), new BlockPos(cx, 64, cz + (cz < f.z0 ? -1 : 1))}, m.banner, who);
+		}
+	}
+
+	/** A barn, then two laborers' cottages, beside the manor house. */
+	public static boolean placeOutbuilding(ServerWorld world, FactionManager fm, Settlement s, Manor m, Random random) {
+		Blueprint bp = m.outbuildings.isEmpty() ? Blueprints.BARN : Blueprints.CABIN;
+		Blueprint house = Blueprints.MANOR_HOUSE;
+		int sx = m.seat.getX(), sz = m.seat.getZ();
+		List<int[]> spots = new ArrayList<>();
+		spots.add(new int[]{sx - 3 - bp.width, sz});
+		spots.add(new int[]{sx + house.width + 3, sz});
+		spots.add(new int[]{sx - 3 - bp.width, sz + house.depth - bp.depth});
+		spots.add(new int[]{sx + house.width + 3, sz + house.depth - bp.depth});
+		spots.add(new int[]{sx - 3 - bp.width - 8, sz});
+		spots.add(new int[]{sx + house.width + 3 + 8, sz});
+		for (int[] spot : spots) {
+			BlockPos origin = lot(world, fm, s, bp, spot[0], spot[1]);
+			if (origin == null) continue;
+			s.rotations.put(origin, BlockRotation.NONE);
+			s.buildingTypes.put(origin, bp.id);
+			m.outbuildings.add(origin);
+			return true;
+		}
+		return false;
+	}
+
+	/** A free lot for a blueprint at a spot on the estate (not on anyone's lot, street or field), or null. */
+	@Nullable
+	static BlockPos lot(ServerWorld world, FactionManager fm, Settlement s, Blueprint bp, int x, int z) {
+		Site site = new Site(new BlockPos(x, 0, z), BlockRotation.NONE);
+		int[] rect = site.rect(0, -1, bp.lotWidth() - 1, bp.depth - 1);
+		if (!world.isChunkLoaded(rect[0] >> 4, rect[1] >> 4) || !world.isChunkLoaded(rect[2] >> 4, rect[3] >> 4)) return null;
+		if (!WorldEdge.playable(rect[0], rect[1], 8) || !WorldEdge.playable(rect[2], rect[3], 8)) return null;
+		for (int px = rect[0]; px <= rect[2]; px += 4) for (int pz = rect[1]; pz <= rect[3]; pz += 4) if (CityGrowth.occupied(fm, px, pz, 1)) return null;
+		if (CityGrowth.occupied(fm, rect[2], rect[3], 1)) return null;
+		for (Settlement o : fm.allSettlements()) for (Manor om : o.manors) for (Field fld : om.fields) if (fld.overlaps(rect[0], rect[1], rect[2], rect[3], 1)) return null;
+		Integer floor = City.floorFor(world, rect[0], rect[1], rect[2], rect[3], 2);
+		return floor == null ? null : site.origin().withY(floor);
 	}
 
 	/** A shim so this package can use the town planner's water survey. */

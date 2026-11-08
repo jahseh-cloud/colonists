@@ -127,6 +127,37 @@ public final class Banners {
 	}
 
 	@Nullable
+	/**
+	 * Flies a banner at the first suitable spot of a few (on the ground, open to the sky). Does nothing if one of the
+	 * spots already flies it. Returns true if a banner was put up.
+	 */
+	public static boolean fly(ServerWorld world, BlockPos[] spots, String banner, String name) {
+		if (banner.isEmpty()) return false;
+		DyeColor base = base(banner);
+		BannerPatternsComponent patterns = patterns(world.getRegistryManager(), banner);
+		for (BlockPos p : spots) {
+			if (!world.isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return false;
+			int y = City.surfaceYOr(world, p.getX(), p.getZ(), p.getY());
+			for (int dy = -2; dy <= 1; dy++) {
+				BlockPos at = p.withY(y + dy);
+				if (world.getBlockEntity(at) instanceof BannerBlockEntity be && be.getColorForState() == base && Objects.equals(be.getPatterns(), patterns)) return false;
+			}
+		}
+		for (BlockPos p : spots) {
+			BlockPos top = p.withY(City.surfaceYOr(world, p.getX(), p.getZ(), p.getY()));
+			if (!world.getBlockState(top).isAir() || !world.getBlockState(top.down()).isSolidBlock(world, top.down())) continue;
+			BlockState state = BannerBlock.getForColor(base).getDefaultState().with(Properties.ROTATION, world.getRandom().nextInt(16));
+			world.setBlockState(top, state);
+			if (world.getBlockEntity(top) instanceof BannerBlockEntity be) {
+				be.readFrom(item(world.getRegistryManager(), banner, name), base);
+				be.markDirty();
+				world.updateListeners(top, state, state, 3);
+			}
+			return true;
+		}
+		return false;
+	}
+
 	public static String of(@Nullable Faction f) {
 		return f == null ? null : f.banner;
 	}

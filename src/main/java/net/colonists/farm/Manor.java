@@ -31,6 +31,10 @@ public class Manor {
 	public long founded, lastPayday = -1;
 	/** 0-100: what this lord thinks of the crown (the landed nobility's mood). */
 	public int favour = 60;
+	/** The lord's family's coat of arms (a banner, in the same form as a nation's). */
+	public String banner = "";
+	/** The estate's outbuildings: a barn and laborers' cottages (town lots of their own). */
+	public final List<BlockPos> outbuildings = new ArrayList<>();
 
 	/** One field: a rectangle of land given over to one crop. */
 	public static class Field {
@@ -123,6 +127,8 @@ public class Manor {
 		n.putLong("Founded", founded);
 		n.putLong("Payday", lastPayday);
 		n.putInt("Favour", favour);
+		n.putString("Banner", banner);
+		n.putLongArray("Outbuildings", outbuildings.stream().mapToLong(BlockPos::asLong).toArray());
 		return n;
 	}
 
@@ -145,6 +151,8 @@ public class Manor {
 		m.founded = n.getLong("Founded");
 		m.lastPayday = n.contains("Payday") ? n.getLong("Payday") : -1;
 		m.favour = n.contains("Favour") ? n.getInt("Favour") : 60;
+		m.banner = n.getString("Banner");
+		for (long l : n.getLongArray("Outbuildings")) m.outbuildings.add(BlockPos.fromLong(l));
 		return m;
 	}
 }

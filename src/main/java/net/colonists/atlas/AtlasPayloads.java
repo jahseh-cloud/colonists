@@ -95,7 +95,7 @@ public final class AtlasPayloads {
 
 	/** A manor: its name and allegiance, its lord, and its fields (x0, z0, x1, z1 per field) with one crop each. */
 	public record ManorInfo(String name, String allegiance, String faction, int town, String townName, String lord, int favour,
-							int laborers, int harvested, int[] fields, List<String> crops) {
+							int laborers, int harvested, int[] fields, List<String> crops, String banner, int seatX, int seatZ, boolean hall) {
 	}
 
 	public record TownInfo(int id, String faction, String name, String rank, int x, int z, int minX, int minZ, int maxX, int maxZ,
@@ -210,6 +210,10 @@ public final class AtlasPayloads {
 				buf.writeIntArray(m.fields());
 				buf.writeVarInt(m.crops().size());
 				for (String c : m.crops()) buf.writeString(c);
+				buf.writeString(m.banner());
+				buf.writeInt(m.seatX());
+				buf.writeInt(m.seatZ());
+				buf.writeBoolean(m.hall());
 			}
 		}
 
@@ -258,7 +262,10 @@ public final class AtlasPayloads {
 				int nc = buf.readVarInt();
 				List<String> crops = new ArrayList<>(nc);
 				for (int k = 0; k < nc; k++) crops.add(buf.readString());
-				ms.add(new ManorInfo(name, alleg, fac, town, townName, lord, favour, laborers, harvested, fields, crops));
+				String banner = buf.readString();
+				int seatX = buf.readInt(), seatZ = buf.readInt();
+				boolean hall = buf.readBoolean();
+				ms.add(new ManorInfo(name, alleg, fac, town, townName, lord, favour, laborers, harvested, fields, crops, banner, seatX, seatZ, hall));
 			}
 			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls, age, ws, ms);
 		}

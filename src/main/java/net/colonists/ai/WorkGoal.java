@@ -492,6 +492,22 @@ public class WorkGoal extends Goal {
 				if (!canBreak) return null;
 				// A laborer (or lord) of a manor works its fields: the nearest one with work.
 				net.colonists.farm.Manor manor = net.colonists.farm.Manors.of(f, c.getUuid());
+				// Half the laborers help raise the estate's buildings (the manor house, the barn, the cottages) until they stand.
+				if (manor != null && canBuild && (c.getUuid().getLeastSignificantBits() & 1) == 0) {
+					java.util.List<BlockPos> lots = new java.util.ArrayList<>();
+					if (manor.seat != null) lots.add(manor.seat);
+					lots.addAll(manor.outbuildings);
+					for (BlockPos lot : lots) {
+						if (f.built.contains(lot) || !f.buildingTypes.containsKey(lot)) continue;
+						Blueprint plan = BuildStructureTask.blueprintAt(f, lot);
+						if (c.needs.isEmpty() && ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
+							return new BuildStructureTask(c, f.site(lot), plan, false);
+						}
+						Task supply = supply(c, f, canBreak, plan);
+						if (supply != null) return supply;
+						break;
+					}
+				}
 				if (manor != null) {
 					net.colonists.farm.Manor.Field best = null;
 					double bestD = Double.MAX_VALUE;
@@ -620,6 +636,7 @@ public class WorkGoal extends Goal {
 	}
 
 	private static int homeTier(Blueprint bp) {
+		if (bp == Blueprints.MANOR_HOUSE) return 6;
 		if (bp == Blueprints.ESTATE) return 5;
 		if (bp == Blueprints.MANOR) return 4;
 		if (bp == Blueprints.STONE_HOUSE || bp == Blueprints.TOWNHOUSE) return 3;
@@ -634,6 +651,7 @@ public class WorkGoal extends Goal {
 
 	private static boolean upgradeWanted(ColonistEntity c, Settlement f) {
 		if (c.home == null || c.onSearchCooldown("UPGRADE")) return false;
+		if (f.faction != null && net.colonists.farm.Manors.isLandowner(f.faction, c.getUuid())) return false; // a lord's home is his hall
 		Blueprint want = homeFor(c, f);
 		return homeTier(want) > homeTier(BuildStructureTask.blueprintAt(f, c.home)) + (want == Blueprints.ESTATE ? 0 : 1)
 				&& net.colonists.economy.Economy.wealth(c) >= upgradeFee(want);

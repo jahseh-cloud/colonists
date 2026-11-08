@@ -123,6 +123,31 @@ public final class Blueprints {
 		return b;
 	}));
 
+	/**
+	 * A lord's manor house out on the estate: a great two-storey hall, stone below and timber above, under a steep stone
+	 * roof, with rooms for the family and their servants.
+	 */
+	public static final Blueprint MANOR_HOUSE = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("manor_house", "Manor house", 15, 11)
+				.walls(0, 3, Mat.STONE, true)
+				.walls(4, 7, Mat.PLANKS, true)
+				.box(1, 4, 1, 13, 4, 9, Mat.PLANKS)
+				.gableRoof(8, Mat.STONE_STAIRS, Mat.STONE, Mat.PLANKS)
+				.floor(Mat.PLANKS);
+		for (int x : new int[]{2, 4, 10, 12}) b.window(x, 1, 0).window(x, 2, 0).window(x, 1, 10).window(x, 2, 10);
+		for (int x : new int[]{2, 4, 6, 8, 10, 12}) b.window(x, 5, 0).window(x, 6, 0).window(x, 5, 10).window(x, 6, 10);
+		for (int z : new int[]{3, 7}) b.window(0, 1, z).window(14, 1, z).window(0, 5, z).window(14, 5, z);
+		b.door(7).bed(2, 3).bed(12, 3).bed(2, 7).bed(12, 7);
+		chestAt(b, 5, 1);
+		chestAt(b, 9, 1);
+		craftingTable(b, 5, 9);
+		furnace(b, 9, 9, Direction.NORTH);
+		torch(b, 4, 5);
+		torch(b, 10, 5);
+		torch(b, 7, 8);
+		return b;
+	}));
+
 	/** Town home where land is short: narrow, two storeys, built shoulder to shoulder with its neighbours. */
 	public static final Blueprint ROW_HOUSE = register(build(() -> {
 		Blueprint.Builder b = Blueprint.builder("row_house", "Row house", 5, 6)

@@ -59,8 +59,14 @@ Promotions (and setbacks, if houses or the wall are lost) are announced in chat.
 
 Farming happens on **manors**: lords' estates beyond the edge of town.
 
-- **Founding.** A town of 5 or more people supports one manor, and one more for every 10 people (up to 5). The richest farmer (or another wealthy citizen) becomes its lord, claims a first large field well beyond the houses, and builds a manor house beside it.
-- **Land that grows.** The estate spreads the way a town does. Once its newest field is mostly sown, it clears another one beside it, with a cart track between. Fields are 16–24 blocks on a side, and an estate holds up to 2 fields plus one per laborer (8 at most). The land must be fairly level, dry and clear of trees, and streets go round the fields.
+- **Founding.** A town of 5 or more people supports one manor, and one more for every 10 people (up to 5). The richest farmer (or another wealthy citizen) becomes its lord and claims a first large field well beyond the houses.
+- **The manor house.** Beside the first field the lord raises a great hall (15×11): two storeys, stone below and timber above, under a steep stone roof, with four bedrooms, chests, a kitchen and a road to town.
+  - Beside it go a **barn** and two **laborers' cottages**, which become homes for the estate's workers.
+  - Half the laborers help with the building until it all stands. The lord moves in when the hall is finished, and his old house in town goes to someone who needs it.
+- **The family's arms.** Every lord's family has its own random coat of arms. Its banner flies before the manor house and at the corner of every field, marking out the family's land.
+  - The arms also appear beside the manor's name on the atlas and on its page.
+  - If the estate passes to another family, they raise their own arms.
+- **Land that grows.** The estate spreads the way a town does. Once its newest field is mostly sown, it clears another one beside it, with a cart track between. Fields are big, 24–36 blocks on a side, and an estate holds up to 3 fields plus one per laborer (10 at most): up to about 13,000 blocks of farmland. The land must be fairly level, dry and clear of trees, and streets go round the fields.
 - **Crops for the land:**
   - **Plains and forests:** wheat, carrots, potatoes, beetroot and pumpkins.
   - **Jungle:** melons, plus sugar cane by water.

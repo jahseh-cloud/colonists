@@ -215,8 +215,9 @@ public final class AtlasServer {
 					crops.add(fl.crop);
 				}
 				String allegiance = s.faction.realmTitle() + " of " + s.faction.name;
+				BlockPos seat = m.seat == null ? m.fields.get(0).center() : m.seat;
 				manors.add(new AtlasPayloads.ManorInfo(m.title(), allegiance, s.faction.id, s.id, s.name, m.lordName, m.favour, m.laborers.size(),
-						m.harvestedTotal, rects, crops));
+						m.harvestedTotal, rects, crops, m.banner, seat.getX(), seat.getZ(), m.seat != null && s.built.contains(m.seat)));
 			}
 		}
 		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns, religions, legends,
