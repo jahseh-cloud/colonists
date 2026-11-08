@@ -75,6 +75,9 @@ public class Settlement {
 	public int freemen;
 	public int grievance;
 	public long lastNewcomerDay = -1;
+	/** How far this village's chroniclers have written (event index) and how many volumes. */
+	public long chronicled = -1;
+	public int volumes;
 	public int vMinX, vMinZ, vMaxX, vMaxZ;
 	private transient int[] boundsCache;
 	private transient long boundsTime = Long.MIN_VALUE;
@@ -243,6 +246,8 @@ public class Settlement {
 		nbt.putInt("Freemen", this.freemen);
 		nbt.putInt("Grievance", this.grievance);
 		nbt.putLong("NewcomerDay", this.lastNewcomerDay);
+		nbt.putLong("Chronicled", this.chronicled);
+		nbt.putInt("Volumes", this.volumes);
 		nbt.putIntArray("VBounds", new int[]{this.vMinX, this.vMinZ, this.vMaxX, this.vMaxZ});
 		nbt.putString("Rank", this.rank.name());
 		nbt.putBoolean("WallPlanned", this.wallPlanned);
@@ -270,6 +275,8 @@ public class Settlement {
 		s.freemen = nbt.getInt("Freemen");
 		s.grievance = nbt.getInt("Grievance");
 		s.lastNewcomerDay = nbt.contains("NewcomerDay") ? nbt.getLong("NewcomerDay") : -1;
+		s.chronicled = nbt.contains("Chronicled") ? nbt.getLong("Chronicled") : -1;
+		s.volumes = nbt.getInt("Volumes");
 		int[] vb = nbt.getIntArray("VBounds");
 		if (vb.length == 4) {
 			s.vMinX = vb[0];

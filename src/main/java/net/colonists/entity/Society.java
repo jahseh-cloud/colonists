@@ -56,7 +56,7 @@ final class Society {
 
 		// Births: a married couple with a house and food to spare.
 		if (grow && c.partner != null && c.home != null && room
-				&& world.getTime() - c.lastBirthTime > BIRTH_INTERVAL
+				&& world.getTime() - c.lastBirthTime > BIRTH_INTERVAL * net.colonists.legend.Faith.birthInterval(net.colonists.legend.History.get(world.getServer()), faction)
 				&& (ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 || (town != null && town.foodInStock >= 8)) && c.getRandom().nextInt(2) == 0) {
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),
 					o -> o.getUuid().equals(c.partner)).stream().findFirst().orElse(null);

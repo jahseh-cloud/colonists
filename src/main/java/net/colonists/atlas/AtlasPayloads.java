@@ -81,7 +81,13 @@ public final class AtlasPayloads {
 
 	public record FactionInfo(String id, String name, int color, String title, String government, String ruler, boolean playerRuler,
 							  int relation, boolean atWar, int approval, int army, int court, int warGoal, int laws, boolean slavery,
-							  int treasury, int people, String overlord, boolean mine) {
+							  int treasury, int people, String overlord, boolean mine, String religion) {
+	}
+
+	public record ReligionInfo(String id, String name, int color, String tenets, String prophet, String parent, int realms) {
+	}
+
+	public record LegendInfo(String name, String kind, String faction, boolean alive, String religion) {
 	}
 
 	public record TownInfo(int id, String faction, String name, String rank, int x, int z, int minX, int minZ, int maxX, int maxZ,
@@ -91,7 +97,8 @@ public final class AtlasPayloads {
 
 	/** Server → client: the whole political picture, as this player may see it. */
 	public record Data(String myFaction, boolean ruler, boolean member, int coupChance, boolean canStand, boolean heir,
-					   int armySupportWar, List<FactionInfo> factions, List<TownInfo> towns) implements CustomPayload {
+					   int armySupportWar, List<FactionInfo> factions, List<TownInfo> towns,
+					   List<ReligionInfo> religions, List<LegendInfo> legends) implements CustomPayload {
 		public static final Id<Data> ID = new Id<>(ColonistsMod.id("atlas_data"));
 		public static final PacketCodec<RegistryByteBuf, Data> CODEC = PacketCodec.of(Data::write, Data::read);
 
@@ -124,6 +131,7 @@ public final class AtlasPayloads {
 				buf.writeVarInt(f.people());
 				buf.writeString(f.overlord());
 				buf.writeBoolean(f.mine());
+				buf.writeString(f.religion());
 			}
 			buf.writeVarInt(this.towns.size());
 			for (TownInfo t : this.towns) {
@@ -148,6 +156,24 @@ public final class AtlasPayloads {
 				buf.writeBoolean(t.autonomy());
 				buf.writeString(t.priority());
 			}
+			buf.writeVarInt(this.religions.size());
+			for (ReligionInfo r : this.religions) {
+				buf.writeString(r.id());
+				buf.writeString(r.name());
+				buf.writeInt(r.color());
+				buf.writeString(r.tenets());
+				buf.writeString(r.prophet());
+				buf.writeString(r.parent());
+				buf.writeVarInt(r.realms());
+			}
+			buf.writeVarInt(this.legends.size());
+			for (LegendInfo l : this.legends) {
+				buf.writeString(l.name());
+				buf.writeString(l.kind());
+				buf.writeString(l.faction());
+				buf.writeBoolean(l.alive());
+				buf.writeString(l.religion());
+			}
 		}
 
 		private static Data read(RegistryByteBuf buf) {
@@ -161,7 +187,7 @@ public final class AtlasPayloads {
 			for (int i = 0; i < nf; i++) {
 				fs.add(new FactionInfo(buf.readString(), buf.readString(), buf.readInt(), buf.readString(), buf.readString(), buf.readString(),
 						buf.readBoolean(), buf.readInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readInt(),
-						buf.readVarInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readString(), buf.readBoolean()));
+						buf.readVarInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readString(), buf.readBoolean(), buf.readString()));
 			}
 			int nt = buf.readVarInt();
 			List<TownInfo> ts = new ArrayList<>(nt);
@@ -170,7 +196,15 @@ public final class AtlasPayloads {
 						buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
 						buf.readVarInt(), buf.readBoolean(), buf.readBoolean(), buf.readInt(), buf.readInt(), buf.readBoolean(), buf.readString()));
 			}
-			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts);
+			int nr = buf.readVarInt();
+			List<ReligionInfo> rs = new ArrayList<>(nr);
+			for (int i = 0; i < nr; i++) {
+				rs.add(new ReligionInfo(buf.readString(), buf.readString(), buf.readInt(), buf.readString(), buf.readString(), buf.readString(), buf.readVarInt()));
+			}
+			int nl = buf.readVarInt();
+			List<LegendInfo> ls = new ArrayList<>(nl);
+			for (int i = 0; i < nl; i++) ls.add(new LegendInfo(buf.readString(), buf.readString(), buf.readString(), buf.readBoolean(), buf.readString()));
+			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls);
 		}
 
 		@Override

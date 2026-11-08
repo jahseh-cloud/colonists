@@ -566,6 +566,10 @@ public class WorkGoal extends Goal {
 
 	private static Blueprint homeFor(ColonistEntity c, Settlement f) {
 		boolean slaver = net.colonists.law.Justice.get(c.server()).slavesOwnedBy(c.getUuid()) > 0;
+		// A faith of poverty: no grand houses, however rich.
+		if (net.colonists.legend.Faith.has(net.colonists.legend.History.get(c.server()), f.faction, net.colonists.legend.Tenet.ASCETIC)) {
+			return Blueprints.homeFor(f.rank, c.isRuler());
+		}
 		return Blueprints.homeFor(f.rank, c.isRuler(), net.colonists.economy.Economy.wealth(c), slaver);
 	}
 

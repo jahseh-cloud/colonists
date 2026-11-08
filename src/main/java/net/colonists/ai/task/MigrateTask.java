@@ -36,11 +36,32 @@ public class MigrateTask extends Task {
 		return 6000;
 	}
 
+	private BlockPos origin;
+
+	@Override
+	public void start() {
+		this.origin = this.colonist.getBlockPos();
+	}
+
+	/** A long road travelled is a story worth telling. */
+	private void arrived() {
+		if (this.origin == null || !(this.colonist.getWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
+		double d = Math.hypot(this.origin.getX() - this.destination.getX(), this.origin.getZ() - this.destination.getZ());
+		if (d > 60) net.colonists.legend.Legends.earn(sw.getServer(), this.colonist.getUuid(), net.colonists.legend.History.ADVENTURE, (int) Math.min(15, d / 25));
+		net.colonists.legend.History.Legend l = net.colonists.legend.Legends.living(sw.getServer(), this.colonist.getUuid());
+		if (l != null && l.kind == net.colonists.legend.History.Kind.ADVENTURER && d > 60) {
+			// Adventurers come home with treasure.
+			net.colonists.economy.Economy.earn(this.colonist, 5 + this.colonist.getRandom().nextInt(11));
+			this.colonist.say("You wouldn't believe what I found out there!");
+		}
+	}
+
 	@Override
 	public void tick() {
 		Vec3d here = this.colonist.getPos();
 		Vec3d there = Vec3d.ofCenter(this.destination);
 		if (here.squaredDistanceTo(there.x, here.y, there.z) < 12 * 12) {
+			this.arrived();
 			this.done = true;
 			return;
 		}
@@ -50,6 +71,7 @@ public class MigrateTask extends Task {
 			int y = City.surfaceYOr(this.colonist.getWorld(), x, z, this.destination.getY());
 			this.colonist.refreshPositionAndAngles(x + 0.5, y, z + 0.5, this.colonist.getYaw(), 0f);
 			this.colonist.getNavigation().stop();
+			this.arrived();
 			this.done = true;
 			return;
 		}

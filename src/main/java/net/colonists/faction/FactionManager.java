@@ -182,6 +182,7 @@ public class FactionManager extends PersistentState {
 		f.addSettlement(s);
 		this.settlementOwners.put(s.id, f.id);
 		markDirty();
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.FOUNDED, f, null, s);
 		if (announce) {
 			broadcast(server, Text.literal("🏙 The ").formatted(Formatting.YELLOW).append(f.displayName())
 					.append(Text.literal(" have founded " + (f.settlements.size() == 1 ? "" : "a new settlement, ")).formatted(Formatting.YELLOW))

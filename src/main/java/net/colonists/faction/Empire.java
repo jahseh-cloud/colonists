@@ -50,6 +50,8 @@ public final class Empire {
 		}
 
 		for (Faction f : all) {
+			// Holy warriors do not tire; a great holy war knows no weariness at all.
+			if (!f.holyWar.isEmpty()) f.warWeariness = f.greatHolyWar ? 0 : Math.max(0, f.warWeariness - 1);
 			chooseWarGoal(server, fm, f, all);
 			for (Settlement s : new ArrayList<>(f.settlements.values())) {
 				if (now - s.lastSiegeTick > 400) {
@@ -66,7 +68,8 @@ public final class Empire {
 	// ---------------------------------------------------------------- colonies
 
 	private static void colonize(MinecraftServer server, FactionManager fm, Faction f, long day, Random random) {
-		if (f.atWar || f.revolt || day - f.lastColonyDay < COLONY_COOLDOWN_DAYS || f.settlements.size() >= 16) return;
+		int cooldown = net.colonists.legend.Faith.colonyCooldown(net.colonists.legend.History.get(server), f, COLONY_COOLDOWN_DAYS);
+		if (f.atWar || f.revolt || day - f.lastColonyDay < cooldown || f.settlements.size() >= 16) return;
 		if (!server.getOverworld().getGameRules().getBoolean(net.colonists.ColonistsMod.GROW)) return;
 		Settlement mother = null;
 		for (Settlement s : f.settlements.values()) {
@@ -118,6 +121,7 @@ public final class Empire {
 			c.joinSettlement(colony);
 			c.getInventory().addStack(new ItemStack(Items.BREAD, 4));
 			c.say("We're off to found " + colony.name + "!");
+			net.colonists.legend.Legends.earn(server, c.getUuid(), net.colonists.legend.History.ADVENTURE, 10);
 		}
 		fm.markDirty();
 		FactionManager.broadcast(server, Text.literal("⛺ Settlers from ").formatted(Formatting.YELLOW).append(mother.displayName())
@@ -223,6 +227,10 @@ public final class Empire {
 
 	/** Called by besieging soldiers each second they hold the plaza unopposed. */
 	public static void besiege(ServerWorld world, FactionManager fm, Settlement s, Faction attacker) {
+		besiege(world, fm, s, attacker, 1);
+	}
+
+	public static void besiege(ServerWorld world, FactionManager fm, Settlement s, Faction attacker, int points) {
 		long now = world.getTime();
 		if (!attacker.id.equals(s.occupier)) {
 			s.occupier = attacker.id;
@@ -232,7 +240,8 @@ public final class Empire {
 					.append(Text.literal("!").formatted(Formatting.GOLD)));
 		}
 		s.lastSiegeTick = now;
-		if (++s.occupation >= SIEGE_POINTS) conquer(world.getServer(), fm, s, attacker, false);
+		s.occupation += points;
+		if (s.occupation >= SIEGE_POINTS) conquer(world.getServer(), fm, s, attacker, false);
 	}
 
 	/** The settlement changes hands with its houses, fields and people intact. */
@@ -242,6 +251,15 @@ public final class Empire {
 		boolean wasCapital = s.isCapital();
 		fm.transferSettlement(s, winner);
 		s.loyalty = treaty ? 40 : 20;
+		// A holy war brings the faith with it: the conquered convert, and zealous towns hold.
+		if (winner.holyWar.equals(loser.id) && !winner.religion.isEmpty()) {
+			for (Faction.Citizen c : winner.citizens.values()) if (c.settlement == s.id) c.religion = winner.religion;
+			s.loyalty = 55;
+		}
+		UUID conqueror = winner.rulerPlayer != null ? winner.rulerPlayer : winner.ruler;
+		if (conqueror != null) net.colonists.legend.Legends.earn(server, conqueror, net.colonists.legend.History.RULE, 15);
+		net.colonists.legend.Legends.event(server, treaty ? net.colonists.legend.History.EventType.CEDED : net.colonists.legend.History.EventType.CONQUERED,
+				winner, loser, s);
 		s.occupation = 0;
 		s.occupier = "";
 		loser.warWeariness += 4;
@@ -253,7 +271,9 @@ public final class Empire {
 				.append(s.displayName()).append(Text.literal(treaty ? " is ceded to the " : " has been conquered by the ").formatted(Formatting.GOLD))
 				.append(winner.displayName()).append(Text.literal(wasCapital ? " — the capital of the " : "").formatted(Formatting.GOLD))
 				.append(wasCapital ? loser.displayName() : Text.empty()).append(Text.literal(wasCapital ? " has fallen!" : "!").formatted(Formatting.GOLD)));
-		if (!fm.dissolveIfEmpty(server, loser) && wasCapital && !loser.settlements.isEmpty()) {
+		boolean fell = fm.dissolveIfEmpty(server, loser);
+		if (fell) net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.FALL, loser, winner, null);
+		if (!fell && wasCapital && !loser.settlements.isEmpty()) {
 			Settlement newCap = loser.settlements.values().stream().max(Comparator.comparingInt(Settlement::population)).orElse(null);
 			if (newCap != null) {
 				loser.capital = newCap.id;
@@ -301,6 +321,7 @@ public final class Empire {
 			to = fm.createFaction(random, null);
 		}
 		fm.transferSettlement(s, to);
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.REBELLION, to, f, s);
 		s.loyalty = 70;
 		s.formerOwner = f.id;
 		fm.setRelation(server, f.id, to.id, -60);

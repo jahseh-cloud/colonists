@@ -743,6 +743,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 			net.colonists.economy.Economy.earn(this, n);
 			if (!player.getAbilities().creativeMode) held.decrement(n);
 			fm.changeRep(this.server(), player, this.factionId, Math.min(25, n));
+			net.colonists.legend.Legends.earn(this.server(), player.getUuid(), net.colonists.legend.History.PIETY, Math.max(1, n / 4));
 			this.tell(sp, n >= 10 ? "So much! I won't forget this." : "Thank you kindly.");
 			return ActionResult.SUCCESS;
 		}

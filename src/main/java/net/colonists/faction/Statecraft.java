@@ -135,6 +135,7 @@ public final class Statecraft {
 		f.rulerName = p.getName().getString();
 		f.heirPlayer = null;
 		f.playerCandidates.remove(p.getUuid());
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.CROWNED, f, null, null).person = f.rulerName;
 		f.armyOpinion = Math.max(f.armyOpinion, 50);
 		f.courtOpinion = Math.max(f.courtOpinion, 50);
 		FactionManager.broadcast(server, Text.literal("👑 " + f.rulerName + " " + how + " and now rules the ").formatted(Formatting.GOLD)
@@ -352,6 +353,10 @@ public final class Statecraft {
 				fm.setRelation(server, f.id, other.id, -70);
 				f.warGoal = target.id;
 				f.atWar = true;
+				boolean holy = !f.religion.isEmpty() && !f.religion.equals(other.religion)
+						&& net.colonists.legend.Faith.has(net.colonists.legend.History.get(server), f, net.colonists.legend.Tenet.SWORD);
+				if (holy) net.colonists.legend.Legends.holyWar(server, fm, f, other, world.getTimeOfDay() / 24000L);
+				else net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.WAR, f, other, target);
 				f.armyOpinion += avgGuardAggression(f) > 55 ? 4 : -2;
 				FactionManager.broadcast(server, Text.literal("⚔ " + f.rulerName + " of the ").formatted(Formatting.RED).append(f.displayName())
 						.append(Text.literal(" declares war on the ").formatted(Formatting.RED)).append(other.displayName())
@@ -377,6 +382,7 @@ public final class Statecraft {
 				if (!accept) return err("The " + other.name + " reject your terms.");
 				fm.setRelation(server, f.id, other.id, -15);
 				f.warGoal = -1;
+				net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.PEACE, f, other, null);
 				if (order == Order.PEACE_CEDE_THEIRS) {
 					Empire.conquer(server, fm, target, f, true);
 				} else if (order == Order.PEACE_VASSAL) {
@@ -415,12 +421,16 @@ public final class Statecraft {
 				if (b < 0 || b >= laws.length) return err("No such law.");
 				Law law = laws[b];
 				boolean on = !f.laws.contains(law);
+				String objection = net.colonists.legend.Faith.objection(net.colonists.legend.History.get(server), f, law, on);
+				if (objection != null) return err("Your faith forbids it: " + objection);
 				if (on) f.laws.add(law);
 				else f.laws.remove(law);
 				if (law == Law.DEATH_PENALTY) f.approval += on ? (50 - avgKindness(f)) / 5 : (avgKindness(f) - 50) / 5;
 				return ok((on ? "Decreed: " : "Repealed: ") + law.label + ".");
 			}
 			case CAPTIVITY -> {
+				String objection = net.colonists.legend.Faith.objection(net.colonists.legend.History.get(server), f, null, !f.slavery);
+				if (objection != null) return err("Your faith forbids it: " + objection);
 				f.slavery = !f.slavery;
 				f.approval += f.slavery ? -(avgKindness(f) - 40) / 4 : (avgKindness(f) - 40) / 4;
 				return ok(f.slavery ? "Captivity is now practised." : "Captivity is abolished; all slaves will go free.");

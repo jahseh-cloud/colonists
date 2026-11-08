@@ -133,6 +133,8 @@ public final class Politics {
 		}
 		Empire.tick(server, fm, random);
 		Villages.tick(server, fm, random);
+		net.colonists.legend.Legends.tick(server, fm, random);
+		if (now % 6000 < 1200) net.colonists.legend.Chronicles.tick(server, fm);
 		net.colonists.economy.Economy.tick(server, fm);
 		foreignPolicy(server, fm, fm.all(), random);
 		if (now % 12000 < 1200) tribute(server, fm, all);
@@ -164,6 +166,7 @@ public final class Politics {
 		}
 		if (heir == null) return;
 		setRuler(f, heir);
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.CROWNED, f, null, null).person = f.rulerName;
 		if (hadRuler || f.citizens.size() > 1) {
 			MutableText msg = Text.literal("👑 ").append(Text.literal(f.rulerName).formatted(Formatting.BOLD))
 					.append(Text.literal(hadRuler ? " succeeds " + oldName + " as " : " becomes ").formatted(Formatting.YELLOW))
@@ -299,11 +302,12 @@ public final class Politics {
 		Faction.Citizen ruler = f.rulerCitizen();
 		if (ruler == null) return;
 		lawBook(server, f, ruler);
-		if (!f.slavery && ruler.kindness < 35 && ruler.aggression > 50) {
+		Boolean faithSays = net.colonists.legend.Faith.captivity(net.colonists.legend.History.get(server), f);
+		if (!f.slavery && ((ruler.kindness < 35 && ruler.aggression > 50) || (Boolean.TRUE.equals(faithSays) && ruler.kindness < 55)) && !Boolean.FALSE.equals(faithSays)) {
 			f.slavery = true;
 			FactionManager.broadcast(server, Text.literal("⛓ " + f.rulerName + " has decreed that the ").formatted(Formatting.DARK_RED)
 					.append(f.displayName()).append(Text.literal(" will take captives from villager settlements.").formatted(Formatting.DARK_RED)));
-		} else if (f.slavery && (ruler.kindness > 65 || f.approval < 20)) {
+		} else if (f.slavery && (ruler.kindness > 65 || f.approval < 20 || Boolean.FALSE.equals(faithSays))) {
 			f.slavery = false;
 			FactionManager.broadcast(server, Text.literal("🕊 The ").formatted(Formatting.GREEN).append(f.displayName())
 					.append(Text.literal(" have abolished captivity. All captives are to be released.").formatted(Formatting.GREEN)));
@@ -320,6 +324,7 @@ public final class Politics {
 		boolean hadDeath = f.laws.contains(net.colonists.law.Law.DEATH_PENALTY);
 		// The death penalty sticks around until a kind ruler abolishes it.
 		if ((ruler.aggression > 65 && ruler.kindness < 45) || (hadDeath && ruler.kindness <= 65)) want.add(net.colonists.law.Law.DEATH_PENALTY);
+		net.colonists.legend.Faith.constrain(net.colonists.legend.History.get(server), f, want);
 		if (want.equals(f.laws)) return;
 		for (net.colonists.law.Law l : net.colonists.law.Law.values()) {
 			boolean before = f.laws.contains(l), after = want.contains(l);
@@ -379,12 +384,20 @@ public final class Politics {
 				if (b.slavery && ra.kindness > 65 && random.nextInt(3) == 0) fm.changeRelation(server, a.id, b.id, -1);
 
 				// Aggressive (or ambitious) rulers pick fights with weaker neighbours to take their land.
-				if (a.overlord.isEmpty() && neighbours && (ra.aggression > 70 || ra.ambition > 80) && !a.atWar && rel > FactionManager.WAR && rel < 10
-						&& b.members.size() < a.members.size() && !b.id.equals(a.overlord) && !a.id.equals(b.overlord)
-						&& random.nextInt(25) == 0) {
+				// Faith matters: a religion of the sword makes for warlike rulers (above all against unbelievers); one of peace, for gentle ones.
+				net.colonists.legend.History hist = net.colonists.legend.History.get(server);
+				int zeal = net.colonists.legend.Faith.warlike(hist, a);
+				boolean infidel = !a.religion.isEmpty() && !a.religion.equals(b.religion);
+				boolean holy = infidel && net.colonists.legend.Faith.has(hist, a, net.colonists.legend.Tenet.SWORD);
+				if (holy) zeal += 15;
+				if (a.overlord.isEmpty() && neighbours && (ra.aggression + zeal > 70 || ra.ambition + zeal > 80) && !a.atWar && rel > FactionManager.WAR && rel < 10 + zeal / 2
+						&& (b.members.size() < a.members.size() || holy) && !b.id.equals(a.overlord) && !a.id.equals(b.overlord)
+						&& random.nextInt(zeal >= 0 ? 25 : 120) == 0) {
 					fm.setRelation(server, a.id, b.id, -70);
+					if (holy) net.colonists.legend.Legends.holyWar(server, fm, a, b, server.getOverworld().getTimeOfDay() / 24000L);
+					else net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.WAR, a, b, null);
 					FactionManager.broadcast(server, Text.literal("⚔ " + a.rulerName + " of the ").formatted(Formatting.RED)
-							.append(a.displayName()).append(Text.literal(" declares war on the ").formatted(Formatting.RED))
+							.append(a.displayName()).append(Text.literal(holy ? " declares a HOLY WAR on the " : " declares war on the ").formatted(Formatting.RED))
 							.append(b.displayName()).append(Text.literal("!").formatted(Formatting.RED)));
 					continue;
 				}

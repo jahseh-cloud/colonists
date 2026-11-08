@@ -137,7 +137,7 @@ public final class AtlasServer {
 			int relation = my == null ? fm.standing(p, f.id) : my == f ? 100 : fm.relation(my.id, f.id);
 			factions.add(new AtlasPayloads.FactionInfo(f.id, f.name, rgb == null ? 0xFFFFFF : rgb, f.realmTitle(), f.government.label,
 					f.rulerName, f.rulerPlayer != null, relation, f.atWar, f.approval, f.armyOpinion, f.courtOpinion, f.warGoal, laws,
-					f.slavery, treasury, fm.memberCount(f.id), f.overlord, f == my));
+					f.slavery, treasury, fm.memberCount(f.id), f.overlord, f == my, f.religion));
 			for (Settlement s : f.settlements.values()) {
 				if (s.cityCenter == null) continue;
 				int[] b = s.bounds(now);
@@ -151,6 +151,23 @@ public final class AtlasServer {
 		boolean stand = my != null && !ruler && my.government == Faction.Government.REPUBLIC;
 		boolean heir = my != null && p.getUuid().equals(my.heirPlayer);
 		int sup = my == null ? 0 : Statecraft.support(fm, my, Statecraft.Order.WAR, null);
-		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns);
+		net.colonists.legend.History h = net.colonists.legend.History.get(p.getServer());
+		List<AtlasPayloads.ReligionInfo> religions = new ArrayList<>();
+		for (net.colonists.legend.History.Religion r : h.religions.values()) {
+			List<String> t = new ArrayList<>();
+			for (net.colonists.legend.Tenet x : r.tenets) t.add(x.label);
+			net.colonists.legend.History.Legend prophet = r.prophet == null ? null : h.legends.get(r.prophet);
+			int realms = (int) fm.all().stream().filter(f -> f.religion.equals(r.id)).count();
+			net.colonists.legend.History.Religion parent = h.religion(r.parent);
+			religions.add(new AtlasPayloads.ReligionInfo(r.id, r.name, r.color, String.join(", ", t), prophet == null ? "" : prophet.styled(),
+					parent == null ? "" : parent.name, realms));
+		}
+		List<AtlasPayloads.LegendInfo> legends = new ArrayList<>();
+		List<net.colonists.legend.History.Legend> all = new ArrayList<>(h.legends.values());
+		all.sort((a, b) -> Boolean.compare(b.alive, a.alive) != 0 ? Boolean.compare(b.alive, a.alive) : b.kind.rank - a.kind.rank);
+		for (net.colonists.legend.History.Legend l : all.subList(0, Math.min(40, all.size()))) {
+			legends.add(new AtlasPayloads.LegendInfo(l.styled(), l.kind.label, l.factionName, l.alive, l.religion));
+		}
+		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns, religions, legends);
 	}
 }

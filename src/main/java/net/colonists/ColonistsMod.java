@@ -98,6 +98,7 @@ public class ColonistsMod implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			ColonyCommand.register(dispatcher);
 			net.colonists.command.LawCommand.register(dispatcher);
+			net.colonists.command.LegendCommand.register(dispatcher);
 		});
 
 		// Map mods (JourneyMap, Xaero's) on the client get city data from here.
@@ -112,6 +113,7 @@ public class ColonistsMod implements ModInitializer {
 				FactionManager.get(server).tickDiplomacy(server);
 			}
 			if (server.getTicks() % 200 == 100) net.colonists.faction.Villages.survey(server);
+			if (server.getTicks() % 100 == 50) net.colonists.legend.Legends.aura(server);
 			if (server.getTicks() % 200 == 0) {
 				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) sendCityMap(server, player);
 			}

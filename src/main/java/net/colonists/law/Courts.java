@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.mob.MobEntity;
@@ -449,6 +450,7 @@ public final class Courts {
 				.append(s.displayName()).append(Text.literal(" for their crimes.").formatted(Formatting.DARK_RED)));
 		if (s.faction != null) s.faction.approval = Math.max(0, s.faction.approval - 2);
 		if (e instanceof ColonistEntity c) c.forcedDeathCause = "execution";
+		net.colonists.legend.Legends.event(world.getServer(), net.colonists.legend.History.EventType.EXECUTION, s.faction, null, s).person = p.name;
 		e.damage(world.getDamageSources().genericKill(), Float.MAX_VALUE);
 	}
 
@@ -527,6 +529,13 @@ public final class Courts {
 		Justice j = Justice.get(world.getServer());
 		if (entity instanceof ColonistEntity victim) {
 			if (j.prisoners.remove(victim.getUuid()) != null) j.markDirty();
+			net.colonists.legend.Legends.onDeath(world, victim, source.getAttacker());
+			// Valour: a soldier who fells an enemy soldier in war.
+			Entity slayer = source.getAttacker();
+			if (slayer != null && victim.isSoldier()) {
+				String kf = slayer instanceof ColonistEntity kc ? kc.getFactionId() : slayer instanceof PlayerEntity kp ? fm.playerFaction(kp.getUuid()) : null;
+				if (kf != null && fm.relation(kf, victim.getFactionId()) <= FactionManager.WAR) net.colonists.legend.Legends.onKill(world.getServer(), slayer, victim);
+			}
 			Slavery.onDeath(world, j, fm, victim);
 			if ("execution".equals(victim.forcedDeathCause)) return;
 			Faction f = fm.get(victim.getFactionId());

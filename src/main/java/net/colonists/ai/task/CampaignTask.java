@@ -123,7 +123,7 @@ public class CampaignTask extends Task {
 		if (this.ticks % 20 == 0) {
 			boolean defended = !world.getEntitiesByClass(ColonistEntity.class, this.colonist.getBoundingBox().expand(40, 12, 40),
 					o -> o.isAlive() && o.isSoldier() && o.getFactionId().equals(goal.faction.id)).isEmpty();
-			if (!defended) Empire.besiege(world, fm, goal, realm);
+			if (!defended) Empire.besiege(world, fm, goal, realm, net.colonists.legend.Legends.siegePower(world.getServer(), this.colonist, realm));
 			if (this.ticks % 400 == 0) this.colonist.say("Lay down your arms, " + goal.name + "!");
 		}
 	}

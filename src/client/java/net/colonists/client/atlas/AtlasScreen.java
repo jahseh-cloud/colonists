@@ -25,9 +25,9 @@ import java.util.Map;
  * taxes, garrisons, colonies, war and peace, alliances, laws and the form of government.
  */
 public class AtlasScreen extends Screen {
-	private enum Mode {POLITICAL, DIPLOMATIC, WEALTH, LOYALTY}
+	private enum Mode {POLITICAL, DIPLOMATIC, WEALTH, LOYALTY, FAITH}
 
-	private enum Panel {NONE, REALM, LAWS, DIPLOMACY}
+	private enum Panel {NONE, REALM, LAWS, DIPLOMACY, LEGENDS}
 
 	private static final int[] ZOOMS = {1, 2, 4, 8, 16, 32};
 	private static final int SIDEBAR = 160, TOPBAR = 22;
@@ -90,23 +90,26 @@ public class AtlasScreen extends Screen {
 	private void rebuild() {
 		this.clearChildren();
 		int x = 4;
+		int modeW = Math.max(34, Math.min(56, (this.mapRight() - 8) / Mode.values().length - 2));
 		for (Mode m : Mode.values()) {
 			String label = switch (m) {
 				case POLITICAL -> "Realms";
 				case DIPLOMATIC -> "Relations";
 				case WEALTH -> "Wealth";
 				case LOYALTY -> "Loyalty";
+				case FAITH -> "Faith";
 			};
 			this.addDrawableChild(ButtonWidget.builder(Text.literal((mode == m ? "▶ " : "") + label), b -> {
 				mode = m;
 				this.rebuild();
-			}).dimensions(x, 2, 62, 18).build());
-			x += 64;
+			}).dimensions(x, 2, modeW, 18).build());
+			x += modeW + 2;
 		}
 		int sx = this.mapRight() + 4, w = SIDEBAR - 8;
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Realm"), b -> this.toggle(Panel.REALM)).dimensions(sx, 2, 48, 18).build());
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Laws"), b -> this.toggle(Panel.LAWS)).dimensions(sx + 50, 2, 44, 18).build());
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Nations"), b -> this.toggle(Panel.DIPLOMACY)).dimensions(sx + 96, 2, w - 96, 18).build());
+		this.addDrawableChild(ButtonWidget.builder(Text.literal("Realm"), b -> this.toggle(Panel.REALM)).dimensions(sx, 2, 36, 18).build());
+		this.addDrawableChild(ButtonWidget.builder(Text.literal("Laws"), b -> this.toggle(Panel.LAWS)).dimensions(sx + 37, 2, 32, 18).build());
+		this.addDrawableChild(ButtonWidget.builder(Text.literal("Nations"), b -> this.toggle(Panel.DIPLOMACY)).dimensions(sx + 70, 2, 42, 18).build());
+		this.addDrawableChild(ButtonWidget.builder(Text.literal("Lore"), b -> this.toggle(Panel.LEGENDS)).dimensions(sx + 113, 2, w - 113, 18).build());
 
 		AtlasPayloads.Data d = AtlasClient.data;
 		if (d == null) return;
@@ -341,7 +344,21 @@ public class AtlasScreen extends Screen {
 					: lerp(0xC06A30, 0x9AA040, (f.relation() + 50) / 100.0);
 			case WEALTH -> lerp(0x8A6A4A, 0xE0B020, MathHelper.clamp(t.treasury() / 200.0, 0, 1));
 			case LOYALTY -> lerp(0xB03030, 0x3E9E4A, t.loyalty() / 100.0);
+			case FAITH -> this.faithColour(f.religion());
 		};
+	}
+
+	private int faithColour(String religion) {
+		if (AtlasClient.data == null) return 0x888888;
+		for (AtlasPayloads.ReligionInfo r : AtlasClient.data.religions()) if (r.id().equals(religion)) return r.color();
+		return 0x888888;
+	}
+
+	@Nullable
+	private AtlasPayloads.ReligionInfo faith(String id) {
+		if (AtlasClient.data == null) return null;
+		for (AtlasPayloads.ReligionInfo r : AtlasClient.data.religions()) if (r.id().equals(id)) return r;
+		return null;
 	}
 
 	private static int lerp(int a, int b, double t) {
@@ -456,6 +473,20 @@ public class AtlasScreen extends Screen {
 		List<Text> lines = new ArrayList<>();
 		if (d == null) {
 			lines.add(Text.literal("Unrolling the map...").formatted(Formatting.ITALIC));
+		} else if (this.panel == Panel.LEGENDS) {
+			lines.add(Text.literal("Faiths of the world").formatted(Formatting.BOLD));
+			for (AtlasPayloads.ReligionInfo r : d.religions()) {
+				lines.add(Text.literal("☩ ").withColor(r.color()).append(Text.literal(r.name()).withColor(0x3B2A1A)));
+				lines.add(Text.literal("  " + r.tenets() + (r.parent().isEmpty() ? "" : " (from " + r.parent() + ")")).withColor(0x6B5638));
+				lines.add(Text.literal("  " + r.realms() + " realms" + (r.prophet().isEmpty() ? "" : " · prophet: " + r.prophet())).withColor(0x6B5638));
+			}
+			lines.add(Text.literal(""));
+			lines.add(Text.literal("Legends").formatted(Formatting.BOLD));
+			if (d.legends().isEmpty()) lines.add(Text.literal("None yet. Deeds and fortune make legends.").withColor(0x6B5638));
+			for (AtlasPayloads.LegendInfo l : d.legends()) {
+				lines.add(Text.literal((l.alive() ? "✦ " : "† ") + l.name()).withColor(l.alive() ? 0x3B2A1A : 0x8A7A60));
+				lines.add(Text.literal("  " + l.kind() + " of the " + l.faction()).withColor(0x6B5638));
+			}
 		} else if (this.panel == Panel.DIPLOMACY) {
 			lines.add(Text.literal("Nations of the world").formatted(Formatting.BOLD));
 			for (FactionInfo f : d.factions()) {
@@ -481,6 +512,8 @@ public class AtlasScreen extends Screen {
 			} else {
 				lines.add(Text.literal(f.title() + " of the " + f.name()).formatted(Formatting.BOLD));
 				lines.add(Text.literal(f.government() + (f.ruler().isEmpty() ? "" : " — " + f.ruler())));
+				AtlasPayloads.ReligionInfo faith = this.faith(f.religion());
+				if (faith != null) lines.add(Text.literal("☩ " + faith.name()).withColor(faith.color()));
 				lines.add(Text.literal(d.ruler() ? "You rule this realm." : d.heir() ? "You are heir to the throne." : "You are a member.").formatted(Formatting.ITALIC));
 				lines.add(Text.literal("People  " + bar(f.approval())));
 				lines.add(Text.literal("Army    " + bar(f.army())));
@@ -497,6 +530,8 @@ public class AtlasScreen extends Screen {
 			FactionInfo f = this.factionById.get(t.faction());
 			lines.add(Text.literal((t.capital() ? "★ " : "") + t.name()).formatted(Formatting.BOLD));
 			lines.add(Text.literal(t.rank() + " of the " + (f == null ? "?" : f.name())));
+			AtlasPayloads.ReligionInfo faith = f == null ? null : this.faith(f.religion());
+			if (faith != null) lines.add(Text.literal("☩ " + faith.name()).withColor(faith.color()));
 			lines.add(Text.literal("Population " + t.population()));
 			lines.add(Text.literal("Loyalty " + bar(t.loyalty())));
 			lines.add(Text.literal("Treasury " + t.treasury() + "   Guards " + t.guards()));

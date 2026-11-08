@@ -89,6 +89,8 @@ public final class Villages {
 		s.vMinZ = bell.getZ() - 24;
 		s.vMaxZ = bell.getZ() + 24;
 		fm.markDirty();
+		ServerPlayerEntity finder = world.getClosestPlayer(bell.getX(), bell.getY(), bell.getZ(), 160, false) instanceof ServerPlayerEntity sp ? sp : null;
+		if (finder != null) net.colonists.legend.Legends.earn(server, finder.getUuid(), net.colonists.legend.History.ADVENTURE, 8);
 		FactionManager.broadcastNear(world, bell, 160, Text.literal("🏡 You have come upon the free village of ").formatted(Formatting.GREEN)
 				.append(s.displayName()).append(Text.literal(".").formatted(Formatting.GREEN)));
 		// A few colonists already live among the villagers.
@@ -229,6 +231,7 @@ public final class Villages {
 				.formatted(Formatting.GOLD).append(s.displayName()).append(Text.literal(" and proclaim the ").formatted(Formatting.GOLD))
 				.append(rebels.displayName()).append(Text.literal(cruel ? "! " + taken + " villagers are put in chains." : "! The villagers become their subjects.")
 						.formatted(Formatting.GOLD)));
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.VILLAGE_SEIZED, rebels, old, s).person = leader.fullName();
 		fm.dissolveIfEmpty(server, old);
 		fm.markDirty();
 	}
@@ -242,6 +245,7 @@ public final class Villages {
 		leader.setFaction(pioneers.id);
 		leader.say("There's a whole world out there. Who's with me?");
 		for (int i = 0; i < n; i++) party.get(i).setFaction(pioneers.id);
+		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.EXODUS, pioneers, s.faction, s).person = leader.fullName();
 		FactionManager.broadcast(server, Text.literal("🧭 " + leader.fullName() + " leaves the free village of ").formatted(Formatting.YELLOW)
 				.append(s.displayName()).append(Text.literal(" with " + n + " companions to found the ").formatted(Formatting.YELLOW))
 				.append(pioneers.displayName()).append(Text.literal(".").formatted(Formatting.YELLOW)));

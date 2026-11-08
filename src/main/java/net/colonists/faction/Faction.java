@@ -26,7 +26,8 @@ public class Faction {
 		MONARCHY("Monarchy", "Monarch"),
 		REPUBLIC("Republic", "Consul"),
 		PLAYER("Player-led", "Founder"),
-		FREE("Free village", "Elders");
+		FREE("Free village", "Elders"),
+		THEOCRACY("Theocracy", "Prophet King");
 
 		public final String label, title;
 
@@ -60,6 +61,8 @@ public class Faction {
 		public int wealth;
 		/** Bonded: owned by someone (no wages, no office). */
 		public boolean bonded;
+		/** The faith this person holds ("" = none yet). */
+		public String religion = "";
 
 		public String fullName() {
 			return this.surname.isEmpty() ? this.name : this.name + " " + this.surname;
@@ -78,6 +81,7 @@ public class Faction {
 			n.putInt("Settlement", this.settlement);
 			n.putInt("Wealth", this.wealth);
 			n.putBoolean("Bonded", this.bonded);
+			n.putString("Religion", this.religion);
 			return n;
 		}
 
@@ -94,6 +98,7 @@ public class Faction {
 			c.settlement = n.contains("Settlement") ? n.getInt("Settlement") : -1;
 			c.wealth = n.getInt("Wealth");
 			c.bonded = n.getBoolean("Bonded");
+			c.religion = n.getString("Religion");
 			return c;
 		}
 	}
@@ -142,6 +147,11 @@ public class Faction {
 
 	/** A vanilla village of free men, given a place in the politics of the world. */
 	public boolean freeVillage;
+	/** The state religion ("" = none yet) and the faction a holy war is being waged against ("" = none). */
+	public String religion = "";
+	public String holyWar = "";
+	/** A great holy war, proclaimed by a Prophet Conqueror. */
+	public boolean greatHolyWar;
 
 	public boolean playerRuled() {
 		return this.rulerPlayer != null;
@@ -314,6 +324,9 @@ public class Faction {
 		nbt.putLong("LastColony", this.lastColonyDay);
 		nbt.putInt("WarGoal", this.warGoal);
 		nbt.putBoolean("FreeVillage", this.freeVillage);
+		nbt.putString("Religion", this.religion);
+		nbt.putString("HolyWar", this.holyWar);
+		nbt.putBoolean("GreatHolyWar", this.greatHolyWar);
 		if (this.rulerPlayer != null) nbt.putUuid("RulerPlayer", this.rulerPlayer);
 		if (this.heirPlayer != null) nbt.putUuid("HeirPlayer", this.heirPlayer);
 		nbt.putInt("ArmyOp", this.armyOpinion);
@@ -376,6 +389,9 @@ public class Faction {
 		f.lastColonyDay = nbt.contains("LastColony") ? nbt.getLong("LastColony") : Long.MIN_VALUE;
 		f.warGoal = nbt.contains("WarGoal") ? nbt.getInt("WarGoal") : -1;
 		f.freeVillage = nbt.getBoolean("FreeVillage");
+		f.religion = nbt.getString("Religion");
+		f.holyWar = nbt.getString("HolyWar");
+		f.greatHolyWar = nbt.getBoolean("GreatHolyWar");
 		if (nbt.containsUuid("RulerPlayer")) f.rulerPlayer = nbt.getUuid("RulerPlayer");
 		if (nbt.containsUuid("HeirPlayer")) f.heirPlayer = nbt.getUuid("HeirPlayer");
 		f.armyOpinion = nbt.contains("ArmyOp") ? nbt.getInt("ArmyOp") : 55;
