@@ -218,6 +218,13 @@ public class WorkGoal extends Goal {
 				return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, ColonistBrain.FOOD, 8, "Getting food from the city stores");
 			}
 			if (c.home != null && city && FarmTask.matureCrops(c, f.site(c.home), false) > 0) return new FarmTask(c, f.site(c.home), false);
+			// Guests of a free village: the villagers share what they have.
+			if (f != null && f.village && !c.onSearchCooldown("HOSPITALITY")) {
+				c.searchCooldown("HOSPITALITY", 2400);
+				inv.addStack(new net.minecraft.item.ItemStack(Items.BREAD, 3));
+				c.say("The villagers shared some bread with me.");
+				return null;
+			}
 			if (ForageTask.available(c)) return new ForageTask(c);
 			if (FishTask.available(c)) return new FishTask(c);
 			if (city && net.colonists.economy.Economy.wealth(c) < 8 && c.kindness < 45 && !c.onSearchCooldown("STEAL") && c.getRandom().nextInt(3) == 0) {

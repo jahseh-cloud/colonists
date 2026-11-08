@@ -106,6 +106,7 @@ public class ColonistsMod implements ModInitializer {
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> sendCityMap(server, handler.getPlayer())));
 
 		net.colonists.law.Courts.register();
+		SelfTest.register();
 		net.colonists.law.Slavery.register();
 
 		ServerTickEvents.END_SERVER_TICK.register(server -> {

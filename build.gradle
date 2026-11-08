@@ -22,6 +22,16 @@ repositories {
 loom {
 	splitEnvironmentSourceSets()
 
+	runs {
+		// ./gradlew runSelftest: a headless server that fast-forwards three days and reports (see SelfTest).
+		selftest {
+			server()
+			name "Self test"
+			vmArg "-Dcolonists.selftest=true"
+			runDir "run"
+		}
+	}
+
 	mods {
 		"colonists" {
 			sourceSet sourceSets.main

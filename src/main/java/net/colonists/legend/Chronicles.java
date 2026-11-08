@@ -55,6 +55,8 @@ public final class Chronicles {
 				if (relevant(s, e)) news.add(e);
 			}
 			if (news.size() < 3 && news.stream().noneMatch(e -> e.legend != null)) continue;
+			// A volume holds at most the latest forty events (a book has a hundred pages at most).
+			if (news.size() > 40) news = new ArrayList<>(news.subList(news.size() - 40, news.size()));
 			if (LAST_DAY.getOrDefault(s.id, -1L) == day) continue;
 			VillagerEntity scribe = world.getEntitiesByClass(VillagerEntity.class, new Box(s.cityCenter).expand(80, 32, 80),
 					v -> v.isAlive() && v.getVillagerData().getProfession() == VillagerProfession.LIBRARIAN).stream().findFirst().orElse(null);
@@ -111,6 +113,7 @@ public final class Chronicles {
 		}
 		page.append(closing(random));
 		pages.add(page.toString());
+		while (pages.size() > 100) pages.remove(pages.size() - 2);
 		List<RawFilteredPair<Text>> content = new ArrayList<>();
 		for (String p : pages) content.add(RawFilteredPair.of(Text.literal(p)));
 		ItemStack book = new ItemStack(Items.WRITTEN_BOOK);

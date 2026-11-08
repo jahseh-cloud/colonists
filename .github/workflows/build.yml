@@ -47,3 +47,32 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           gh release delete latest -y --cleanup-tag || true
           gh release create latest "$JAR" --title "Colonists (latest build)" --notes "Drop this jar and Fabric API into your mods folder (Minecraft 1.21.1, Fabric Loader)." --target "$GITHUB_SHA"
+
+  selftest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: prepare server
+        run: |
+          chmod +x ./gradlew
+          mkdir -p run
+          echo "eula=true" > run/eula.txt
+          printf "online-mode=false\nlevel-seed=20261107\nview-distance=4\nsimulation-distance=4\nspawn-protection=0\nsync-chunk-writes=false\n" > run/server.properties
+      - name: run self-test server (three in-game days, fast-forwarded)
+        run: timeout 30m ./gradlew runSelftest --no-daemon < /dev/null || true
+      - name: report
+        if: always()
+        run: |
+          LOG=run/logs/latest.log
+          grep -E "COLONISTS SELFTEST|COLONISTS HISTORY" "$LOG" | tail -n 200 || true
+          echo "---- errors and exceptions ----"
+          grep -nE "ERROR|Exception|Caused by|at net\.colonists" "$LOG" | head -n 150 || true
+          ls run/crash-reports 2>/dev/null && cat run/crash-reports/* | head -n 120 || true
+          grep -q "COLONISTS SELFTEST PASSED" "$LOG"

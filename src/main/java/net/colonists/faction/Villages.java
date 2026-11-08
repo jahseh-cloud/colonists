@@ -41,9 +41,14 @@ public final class Villages {
 		ServerWorld world = server.getOverworld();
 		FactionManager fm = FactionManager.get(server);
 		Map<BlockPos, List<VillagerEntity>> byBell = new HashMap<>();
-		for (ServerPlayerEntity p : world.getPlayers()) {
-			for (VillagerEntity v : world.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(128, 48, 128), VillagerEntity::isAlive)) {
-				Optional<GlobalPos> meet = v.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MEETING_POINT);
+		List<net.minecraft.util.math.Box> areas = new ArrayList<>();
+		for (ServerPlayerEntity p : world.getPlayers()) areas.add(p.getBoundingBox().expand(128, 48, 128));
+		for (BlockPos extra : EXTRA_SURVEY) areas.add(new net.minecraft.util.math.Box(extra).expand(128, 48, 128));
+		java.util.Set<UUID> seen = new java.util.HashSet<>();
+		for (net.minecraft.util.math.Box area : areas) {
+			for (VillagerEntity v : world.getEntitiesByClass(VillagerEntity.class, area, VillagerEntity::isAlive)) {
+				if (!seen.add(v.getUuid())) continue;
+				Optional<GlobalPos> meet = meetingPoint(v);
 				if (meet.isEmpty() || !meet.get().dimension().equals(world.getRegistryKey())) continue;
 				byBell.computeIfAbsent(meet.get().pos().toImmutable(), k -> new ArrayList<>()).add(v);
 			}
@@ -57,6 +62,25 @@ public final class Villages {
 				s = discover(server, world, fm, bell);
 			}
 			update(world, s, bell, villagers);
+		}
+	}
+
+	/** Extra places to survey even with no player near (used by the self-test). */
+	public static final List<BlockPos> EXTRA_SURVEY = new ArrayList<>();
+
+	static Optional<GlobalPos> meetingPoint(VillagerEntity v) {
+		try {
+			return v.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MEETING_POINT);
+		} catch (RuntimeException e) {
+			return Optional.empty();
+		}
+	}
+
+	static Optional<GlobalPos> homeOf(VillagerEntity v) {
+		try {
+			return v.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
+		} catch (RuntimeException e) {
+			return Optional.empty();
 		}
 	}
 
@@ -106,7 +130,7 @@ public final class Villages {
 		int minX = bell.getX() - 16, maxX = bell.getX() + 16, minZ = bell.getZ() - 16, maxZ = bell.getZ() + 16;
 		for (VillagerEntity v : villagers) {
 			BlockPos p = v.getBlockPos();
-			Optional<GlobalPos> home = v.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
+			Optional<GlobalPos> home = homeOf(v);
 			if (home.isPresent()) p = home.get().pos();
 			if (Math.abs(p.getX() - bell.getX()) > 72 || Math.abs(p.getZ() - bell.getZ()) > 72) continue;
 			minX = Math.min(minX, p.getX() - 6);
@@ -255,7 +279,7 @@ public final class Villages {
 	/** Who a villager belongs to, for raids: villages of one's own realm are not raided. */
 	@Nullable
 	public static Settlement villageOf(FactionManager fm, VillagerEntity v) {
-		Optional<GlobalPos> meet = v.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MEETING_POINT);
+		Optional<GlobalPos> meet = meetingPoint(v);
 		return villageAt(fm, meet.map(GlobalPos::pos).orElse(v.getBlockPos()));
 	}
 }
