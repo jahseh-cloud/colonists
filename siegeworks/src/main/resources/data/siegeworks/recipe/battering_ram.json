@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","pattern":["WWW","LLB","P P"],"key":{"W":{"tag":"minecraft:wool"},"L":{"tag":"minecraft:logs"},"B":{"item":"minecraft:iron_block"},"P":{"tag":"minecraft:planks"}},"result":{"id":"siegeworks:battering_ram","count":1}}

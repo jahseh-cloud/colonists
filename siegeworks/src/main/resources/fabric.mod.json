@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "siegeworks",
+	"version": "${version}",
+	"name": "Siegeworks",
+	"description": "Medieval siege engines and vehicles: ballistae, catapults, battering rams, siege towers, carts and Naphtha. Crew them by hand: load, crank, aim, fire.",
+	"authors": ["jahseh-cloud"],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["net.siegeworks.Siegeworks"],
+		"client": ["net.siegeworks.client.SiegeworksClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"colonists": "*"
+	}
+}

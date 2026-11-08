@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","pattern":["PLP","PLP","WCW"],"key":{"P":{"tag":"minecraft:planks"},"L":{"item":"minecraft:ladder"},"W":{"tag":"minecraft:logs"},"C":{"item":"minecraft:chain"}},"result":{"id":"siegeworks:siege_tower","count":1}}

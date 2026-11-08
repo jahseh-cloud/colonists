@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"transportation","pattern":["P P","PCP","L L"],"key":{"P":{"tag":"minecraft:planks"},"C":{"item":"minecraft:chest"},"L":{"tag":"minecraft:logs"}},"result":{"id":"siegeworks:cart","count":1}}

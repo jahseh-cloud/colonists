@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","pattern":[" C ","PIP","L L"],"key":{"C":{"item":"minecraft:crossbow"},"P":{"tag":"minecraft:planks"},"I":{"item":"minecraft:iron_ingot"},"L":{"tag":"minecraft:logs"}},"result":{"id":"siegeworks:ballista","count":1}}

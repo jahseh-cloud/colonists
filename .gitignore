@@ -38,3 +38,11 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# stray javac argument files
+javac.*.args
+
+# siegeworks
+/siegeworks/build/
+/siegeworks/.gradle/
+/siegeworks/run/
