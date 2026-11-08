@@ -435,9 +435,12 @@ public final class SelfTest {
 			// Twenty days pass unseen.
 			big.lastGrowthDay = day - 20;
 			big.foodInStock = Math.max(big.foodInStock, 100);
+			int citizensBefore = big.faction.citizens.size();
 			net.colonists.faction.Growth.tick(server);
-			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: {} at {}%/day, pop {} -> {} counted ({} waiting at the gate)", big.name,
-					Math.round(rate * 1000) / 10.0, growthBefore, big.population(), big.pendingNewcomers);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: {} at {}%/day, pop {} -> {} counted ({} waiting at the gate); day {} counted to {}, carry {}, realm citizens {} -> {}, loaded {}",
+					big.name, Math.round(rate * 1000) / 10.0, growthBefore, big.population(), big.pendingNewcomers, day, big.lastGrowthDay,
+					Math.round(big.growthCarry * 100) / 100.0, citizensBefore, big.faction.citizens.size(),
+					w.isChunkLoaded(big.cityCenter.getX() >> 4, big.cityCenter.getZ() >> 4));
 			// The lords.
 			for (net.colonists.farm.Manor m : net.colonists.farm.Manors.ofRealm(big.faction)) m.favour = 8;
 			int favour = net.colonists.farm.Manors.lordsFavour(big.faction);
