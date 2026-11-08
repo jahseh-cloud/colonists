@@ -221,12 +221,12 @@ public final class Crises {
 		BlockPos camp = null;
 		List<Settlement> towns = fm.allSettlements().stream().filter(x -> x.cityCenter != null).toList();
 		int r = WorldEdge.radius > 0 ? WorldEdge.radius - 150 : 1200;
-		for (int i = 0; i < 10 && camp == null; i++) {
+		for (int i = 0; i < 24 && camp == null; i++) {
 			BlockPos near;
 			if (!towns.isEmpty()) {
 				// Out of the wilds beyond the known world: some way off from a town, in any direction.
 				BlockPos from = towns.get(random.nextInt(towns.size())).cityCenter;
-				double ang = random.nextDouble() * Math.PI * 2, dist = 260 + random.nextInt(340);
+				double ang = random.nextDouble() * Math.PI * 2, dist = 200 + random.nextInt(300);
 				near = new BlockPos(WorldEdge.clamp(from.getX() + (int) (Math.cos(ang) * dist)), 64, WorldEdge.clamp(from.getZ() + (int) (Math.sin(ang) * dist)));
 			} else near = new BlockPos(random.nextInt(2 * r) - r, 64, random.nextInt(2 * r) - r);
 			if (!WorldEdge.playable(near.getX(), near.getZ(), 60)) continue;
@@ -234,7 +234,7 @@ public final class Crises {
 			BlockPos c = CityGrowth.bestCenter(world, near, random);
 			if (c == null) continue;
 			Settlement other = fm.nearestSettlement(c, null);
-			if (other != null && other.cityCenter != null && other.cityCenter.getSquaredDistance(c) < 180 * 180) continue;
+			if (other != null && other.cityCenter != null && other.cityCenter.getSquaredDistance(c) < 150 * 150) continue;
 			camp = c;
 		}
 		if (camp == null) return "No open land for a horde.";
