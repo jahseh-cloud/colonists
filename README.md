@@ -115,6 +115,67 @@ Once a minute, every city-state's politics updates:
 - **Laws.** A cruel, aggressive ruler may decree that the city takes **captives**. A kind ruler, or a deeply unpopular regime, abolishes it.
 - The ruler's name tag shows a crown (♔). `/colony politics <faction>` shows everything.
 
+## The edge of the world
+
+- **Size.** The world is **3072 × 3072 blocks**, from −1536 to +1536 on both axes. Change it in `config/colonists.json` with `"worldSize": 3072`; 0 makes it endless.
+- **The edge.** Past the edge there is nothing: open **void**, like skyblock, with no wall. In the last 70 blocks or so the land **crumbles**: ground gives way to floating fragments of crust hanging over the void.
+- **Other dimensions.** The Nether ends at an eighth of the distance (±192), and the End at the same distance as the overworld.
+- **Colonists keep away.** They don't found towns, claim lots or march near the edge. The atlas shows the void beyond it.
+
+## Ages and eras
+
+**World ages.** The world moves through **milestone ages** in order: Founding, Kingdoms, Faith, Empires, Wonders. **Cycles** also swing back and forth on their own:
+
+| Cycle | Swings toward one side when… | …or the other when… |
+|---|---|---|
+| **Golden ↔ Dark** | Peace, approval and full treasuries bring a Golden Age: more production, more children, more legends, better loyalty | Wars, conquests and fallen legends bring a Dark Age: the reverse, and prophets come sooner |
+| **Faith ↔ Reason** | Prophets and holy wars bring an Age of Faith: zeal, and prophets sooner | Long years without prophets bring an Age of Reason: calmer rulers, and prophets later |
+| **Strife ↔ Peace** | Many wars bring an Age of Strife | Few wars bring an Age of Peace |
+
+- **Naming.** The world is called after all three, e.g. *"the Golden Age of Empires"* or *"the Dark Age of Strife"*.
+- **Holding.** A cycle must hold for at least four days before it can turn again.
+- **Where it shows.** Each age is announced and opens a new chapter in the chronicles. `/colony ages` shows the current age.
+
+**Realm eras.** Each realm climbs through **Timber → Stone → Iron → Grand**:
+- **Stone:** a Town.
+- **Iron:** a City with a smithy.
+- **Grand:** a City-State with a full treasury or a wonder.
+
+Each era adds 5% production. Grand-era realms build in stone even for ordinary folk, and greater wonders need higher eras.
+
+## Wonders
+
+**Fourteen wonders, one of each per world.**
+
+| Wonder | Effect |
+|---|---|
+| Great Cathedral | Faith spreads faster, prophets come sooner |
+| Great Library | Legends come easier |
+| Imperial Palace | Loyalty everywhere, court content |
+| Great Forge | Soldiers shrug off blows |
+| Mausoleum | Kin inherit legends' renown |
+| Pantheon | No holy wars against it; faiths coexist |
+| Grand Bazaar | Trade and newcomers |
+| Observatory | Adventurers thrive |
+| Colossus | Trade and production soar |
+| Hanging Gardens | Children and happiness |
+| Arena | Approval, heroes made faster |
+| Great Wall | Its city takes three times longer to besiege |
+| Grand Harbor | Colonies and caravans reach farther |
+| Shrine of the Prophet | Pilgrimage, piety and conversion |
+
+- **Who builds them.** Great realms (Cities in the Stone era or later) choose one that suits their character and faith, and race to build it.
+- **How they're built.** Builders raise them **block by block**: 15–31 blocks across, up to 35 high, and over 3000 blocks for the Cathedral. It takes many days.
+- **Who holds them.** Whoever holds the city holds the wonder.
+- **Losing them.** A wonder that loses 40% of its blocks (to TNT, say) **falls into ruin** until it's repaired. A conqueror may **raze** it: Prophet Conquerors and holy warriors raze the temples of other faiths, and brutal rulers raze anything.
+- **Finding them.** `/colony wonders` lists them. The atlas marks them and lists them under Lore.
+
+## Banners
+
+- **A banner of its own.** Every nation gets a random banner when it's founded: a field colour and two to four charges.
+- **Where it flies.** It flies on every plaza (and beside every village bell) and is swapped when a town changes hands. Soldiers without a helmet wear it into battle.
+- **Getting one.** Members can take one with `/colony banner`. The atlas shows each realm's banner.
+
 ## Faiths, legends and chronicles
 
 **Religions**
