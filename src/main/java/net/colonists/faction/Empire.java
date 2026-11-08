@@ -246,6 +246,8 @@ public final class Empire {
 					.append(Text.literal("!").formatted(Formatting.GOLD)));
 		}
 		s.lastSiegeTick = now;
+		// Siege engines at work speed the end.
+		if (net.colonists.compat.SiegeworksCompat.PRESENT && points > 0 && !net.colonists.compat.SiegeworksCompat.enginesAt(world, s).isEmpty()) points += 1;
 		s.occupation += points;
 		if (s.occupation >= SIEGE_POINTS) conquer(world.getServer(), fm, s, attacker, false);
 	}
@@ -267,6 +269,7 @@ public final class Empire {
 		net.colonists.legend.Legends.event(server, treaty ? net.colonists.legend.History.EventType.CEDED : net.colonists.legend.History.EventType.CONQUERED,
 				winner, loser, s);
 		if (!treaty) net.colonists.legend.Wonders.onConquest(server, s, winner, loser);
+		if (net.colonists.compat.SiegeworksCompat.PRESENT) net.colonists.compat.SiegeworksCompat.standDown(server.getOverworld(), s);
 		s.occupation = 0;
 		s.occupier = "";
 		loser.warWeariness += 4;

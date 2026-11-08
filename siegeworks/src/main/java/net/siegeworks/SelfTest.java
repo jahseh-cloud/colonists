@@ -164,9 +164,14 @@ public final class SelfTest {
 			check(!tower.bridgeDown(), "the tower's drawbridge starts up");
 			tower.crank(crew);
 			check(tower.bridgeDown(), "the crank lowers the drawbridge");
-			check(crew.startRiding(tower, true), "a crew member climbs aboard");
-			tower.fireKey(crew);
-			check(!crew.hasVehicle() && crew.getY() > by + 5, "and leaps across the drawbridge (y=" + Math.round(crew.getY() - by) + ")");
+			// (Fabric's fake players never ride, so a zombie volunteers.)
+			net.minecraft.entity.mob.ZombieEntity z = EntityType.ZOMBIE.create(w);
+			z.refreshPositionAndAngles(tower.getX(), tower.getY(), tower.getZ() - 2, 0, 0);
+			w.spawnEntity(z);
+			check(z.startRiding(tower, true) && tower.getPassengerList().size() == 1, "a crew member climbs aboard");
+			tower.tick();
+			tower.cross(z);
+			check(!z.hasVehicle() && z.getY() > by + 5, "and leaps across the drawbridge (y=" + Math.round(z.getY() - by) + ")");
 		});
 		if (tick == 290) step("cart-and-naphtha", () -> {
 			cart.cargo.setStack(0, new ItemStack(Items.WHEAT, 32));

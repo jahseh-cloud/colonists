@@ -105,6 +105,11 @@ public class SiegeTowerEntity extends SiegeEngineEntity {
 		crank(who);
 	}
 
+	/** Sends a rider across the drawbridge. */
+	public void cross(LivingEntity rider) {
+		release(rider);
+	}
+
 	/** Across the drawbridge! (The rider leaps onto the wall at its end.) */
 	@Override
 	protected void release(@Nullable LivingEntity by) {

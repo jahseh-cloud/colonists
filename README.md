@@ -474,3 +474,8 @@ It finishes by checking the world for inconsistencies. Any exception fails the r
 - `ai/task/*`: Harvest, BuildHouse, Farm, PublicWorks, Stockpile, Raid, Patrol, Child, Migrate, Sleep, Shelter, Store, Socialize, CollectItems
 - `faction/*`: factions, relations and player standing (saved with the world)
 - `client/*`: colonists use the player model with the nine default skins; captives use the villager model
+
+## Siegeworks (companion mod)
+
+[Siegeworks](siegeworks/README.md) is a separate mod built from this repo: ballistae, catapults, battering rams, siege towers, carts and Naphtha, all crewed by hand. It works on its own. With both installed, Colonists armies bring up and crew siege engines in their sieges.
+Download: https://github.com/jahseh-cloud/colonists/releases/download/siegeworks-latest/siegeworks-1.0.0.jar

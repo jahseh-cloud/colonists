@@ -22,6 +22,11 @@ public class CampaignTask extends Task {
 	private boolean besieging;
 	private String townName = "the enemy";
 
+	/** A Siegeworks engine this soldier is crewing (if that mod is installed). */
+	@org.jetbrains.annotations.Nullable
+	private net.minecraft.entity.Entity engine;
+	private int crewTicks;
+
 	public CampaignTask(ColonistEntity colonist, int goalId) {
 		super(colonist);
 		this.goalId = goalId;
@@ -96,6 +101,25 @@ public class CampaignTask extends Task {
 			if (defender != null) {
 				this.colonist.setTarget(defender);
 				this.done = true; // the combat goal takes over; we come back to the campaign afterwards
+				return;
+			}
+		}
+
+		// With Siegeworks: crew a siege engine, or bring one up.
+		if (net.colonists.compat.SiegeworksCompat.PRESENT && dist > 10 && dist < 60) {
+			if (this.engine != null && (!this.engine.isAlive() || this.crewTicks > 2400)) this.engine = null;
+			if (this.engine == null && this.ticks % 40 == 0) {
+				this.engine = net.colonists.compat.SiegeworksCompat.idleEngine(world, goal, this.colonist);
+				if (this.engine == null && this.colonist.getRandom().nextInt(10) == 0)
+					this.engine = net.colonists.compat.SiegeworksCompat.bringEngine(world, goal, realm, this.colonist);
+				this.crewTicks = 0;
+			}
+			if (this.engine != null) {
+				this.crewTicks++;
+				this.besieging = false;
+				if (this.colonist.squaredDistanceTo(this.engine) > 2.5 * 2.5) this.approach(this.engine.getBlockPos(), 1.5, 1.0);
+				else this.colonist.getNavigation().stop();
+				if (this.ticks % 600 == 0) this.colonist.say("Heave!");
 				return;
 			}
 		}
