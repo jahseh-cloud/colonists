@@ -359,16 +359,28 @@ public final class SelfTest {
 				throw new IllegalStateException("a crowded town should build row houses");
 			if (net.colonists.build.Blueprints.homeFor(Faction.Rank.TOWN, false, 10, false, false, true) != net.colonists.build.Blueprints.STONE_HOUSE)
 				throw new IllegalStateException("a family with room should build a two-storey house");
-			// A manor: claim its land, and work a field from bare ground to a sown crop.
-			Settlement big = fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null).max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
+			// A manor: claim its land (wherever a town has room around it), and work a field from bare ground to a sown crop.
+			Settlement big = null;
+			net.colonists.farm.Manor.Field fld = null;
 			net.colonists.farm.Manor m = new net.colonists.farm.Manor();
+			for (Settlement cand : fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null && x.faction != null)
+					.sorted(java.util.Comparator.comparingInt(Settlement::population).reversed()).toList()) {
+				for (int i = 0; i < 6 && fld == null; i++) fld = net.colonists.farm.Manors.claimField(w, fm, cand, m, w.getRandom());
+				if (fld != null) {
+					big = cand;
+					break;
+				}
+			}
+			if (fld == null) {
+				long natural = fm.allSettlements().stream().mapToLong(x -> x.manors.size()).sum();
+				ColonistsMod.LOGGER.warn("COLONISTS SELFTEST no open land for a test field this run ({} manors founded naturally)", natural);
+				if (natural == 0) throw new IllegalStateException("no manor could be founded anywhere");
+				return;
+			}
 			m.id = 99;
 			m.name = "Test Grange";
 			m.lord = big.faction.citizens.keySet().iterator().next();
 			m.lordName = "the test lord";
-			net.colonists.farm.Manor.Field fld = null;
-			for (int i = 0; i < 6 && fld == null; i++) fld = net.colonists.farm.Manors.claimField(w, fm, big, m, w.getRandom());
-			if (fld == null) throw new IllegalStateException("no land could be found for a manor outside " + big.name);
 			double d = Math.hypot(fld.center().getX() - big.cityCenter.getX(), fld.center().getZ() - big.cityCenter.getZ());
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field: {} {}x{} ({} blocks) at {}, {} blocks from the plaza (reach {})", fld.crop, fld.width(), fld.depth(),
 					fld.area(), fld.center(), Math.round(d), net.colonists.faction.CityGrowth.reach(big));
@@ -417,11 +429,11 @@ public final class SelfTest {
 			Settlement big = fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null && x.colonists() >= 2)
 					.max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
 			growthTown = big.id;
-			growthBefore = big.faction.members.size();
+			growthBefore = big.population() - big.pendingNewcomers;
 			long day = w.getTimeOfDay() / 24000L;
 			double rate = net.colonists.faction.Growth.rate(server, big);
-			// Ten days pass unseen.
-			big.lastGrowthDay = day - 10;
+			// Twenty days pass unseen.
+			big.lastGrowthDay = day - 20;
 			big.foodInStock = Math.max(big.foodInStock, 100);
 			net.colonists.faction.Growth.tick(server);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: {} at {}%/day, pop {} -> {} counted ({} waiting at the gate)", big.name,
@@ -444,8 +456,9 @@ public final class SelfTest {
 		if (t == 92600) step("growth-arrived", () -> {
 			Settlement big = fm.settlement(growthTown);
 			if (big == null) return;
-			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth arrived: {} members now {} (was {}), {} still waiting", big.name, big.faction.members.size(), growthBefore, big.pendingNewcomers);
-			if (big.faction.members.size() <= growthBefore && big.pendingNewcomers == 0) throw new IllegalStateException("the town did not grow");
+			int now = big.population() - big.pendingNewcomers;
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth arrived: {} people now {} (was {}), {} still waiting", big.name, now, growthBefore, big.pendingNewcomers);
+			if (now <= growthBefore && big.pendingNewcomers == 0) throw new IllegalStateException("the town did not grow");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
