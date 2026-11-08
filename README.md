@@ -115,6 +115,44 @@ Once a minute, every city-state's politics updates:
 - **Laws.** A cruel, aggressive ruler may decree that the city takes **captives**. A kind ruler, or a deeply unpopular regime, abolishes it.
 - The ruler's name tag shows a crown (♔). `/colony politics <faction>` shows everything.
 
+## Faiths, legends and chronicles
+
+**Religions**
+- **Origins.** The world begins with a few old faiths. Every realm and every person holds one, and a realm converts when most of its people (and its ruler) have.
+- **Tenets.** Each faith holds two of these, and opposed tenets never share a faith:
+
+| Tenet | Effect |
+|---|---|
+| Expansion by the sword | Far more warlike, above all against unbelievers. Holy wars. |
+| The way of peace | Rarely starts wars. |
+| Poverty of spirit | No grand houses, less production, no slavery. |
+| Blessed are the industrious | +25% production. |
+| Mercy above judgement | No death penalty. |
+| The law is sacred | Curfew and treason laws are required. |
+| All are born free | No slavery. |
+| The chosen people | Slavery is encouraged. |
+| Be fruitful | Children come sooner. |
+| The road is the way | Colonies twice as often, and adventurers come easier. |
+
+- **Laws follow the faith.** AI rulers write their laws within it. A player ruler is refused any law the faith forbids.
+- **Holy wars.** Realms of the sword wage them on unbelievers. Holy warriors tire slowly, take towns faster, and convert what they conquer.
+
+**Legends** (player or colonist, built by deeds plus a roll of fortune)
+- **Adventurer.** Earned by long journeys, founding colonies and discovering villages. Comes home with treasure.
+- **Hero.** Earned by felling enemy soldiers and holding sieges. Nearby soldiers fight harder, and towns fall faster. Their death shakes their army.
+- **Emperor.** Earned by ruling a true Empire and conquering towns.
+- **Prophet.** The rarest. At most one per faith at a time, rising every 25–40 days. Players can be chosen too: piety from gifts and from freeing slaves improves the odds.
+  - **Reform.** About a third of prophets **reform or split** their faith into a new one. One teaching is dropped and another taken up.
+  - **Preaching.** Prophets spread their faith through every town within 400 blocks, utter **prophecies** that may come true, and work the occasional **miracle**.
+  - **Prophet King.** A prophet who takes a throne (the faithful may crown them) founds a **Theocracy**. Faithful towns abroad may come over to them peacefully.
+  - **Prophet Conqueror.** A warlike Prophet King proclaims a **Great Holy War**. Every realm of the faith joins in, their soldiers never tire, and sieges go much faster.
+
+**Chronicles**
+- **Writers.** Village librarians write **chronicles**: real written books, volume after volume.
+- **Contents.** Each covers the region's events and the world's legends, told from the village's point of view. Friends and fellow believers are "the Great"; enemies are "the Butcher" and "the False Prophet"; heretics are named as such.
+- **Getting them.** Buy them from the librarian, or read them on village lecterns.
+- **Commands.** `/colony religions`, `/colony legends` and `/colony history` show the plain record. The atlas has a **Faith** map mode and a **Lore** panel.
+
 ## Free villages
 
 - **Vanilla villages become small realms** of free men, discovered as players come near. Each gets a name ("the Free Men of Ashford"), borders drawn around its houses, and a population count on the maps. It has its own relations, and its trade adds to its treasury. Villagers are called *Free Man / Free Woman of …* when you look at them, and their trading and breeding are untouched.

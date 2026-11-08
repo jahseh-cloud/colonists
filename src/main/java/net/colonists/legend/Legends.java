@@ -126,7 +126,7 @@ public final class Legends {
 		Legend l = h.living(soldier.getUuid());
 		if (l != null && (l.kind == Kind.HERO || l.kind == Kind.EMPEROR)) p += 1;
 		if (l != null && l.kind == Kind.PROPHET_CONQUEROR) p += 3;
-		earn(server, soldier.getUuid(), History.VALOUR, 1);
+		if (soldier.getRandom().nextInt(3) == 0) earn(server, soldier.getUuid(), History.VALOUR, 1);
 		return p;
 	}
 
@@ -173,7 +173,7 @@ public final class Legends {
 			if (l != null && !l.alive) continue;
 			int have = l == null ? 0 : l.kind.rank;
 			Kind next = null;
-			if (r[History.RULE] >= RULE_NEEDED && have < Kind.EMPEROR.rank) next = Kind.EMPEROR;
+			if (r[History.RULE] >= RULE_NEEDED && have < Kind.EMPEROR.rank && rulesEmpire(fm, who)) next = Kind.EMPEROR;
 			else if (r[History.VALOUR] >= VALOUR_NEEDED && have < Kind.HERO.rank) next = Kind.HERO;
 			else if (r[History.ADVENTURE] >= (wanderer(fm, h, who) ? ADVENTURE_NEEDED / 2 : ADVENTURE_NEEDED) && have < Kind.ADVENTURER.rank) next = Kind.ADVENTURER;
 			if (next == null || random.nextInt(8) != 0) continue;
@@ -199,6 +199,14 @@ public final class Legends {
 		}
 		resolveProphecies(server, fm, h, day);
 		h.markDirty();
+	}
+
+	/** Only the ruler of a true Empire may be remembered as an Emperor. */
+	private static boolean rulesEmpire(FactionManager fm, UUID who) {
+		for (Faction f : fm.all()) {
+			if ((who.equals(f.ruler) || who.equals(f.rulerPlayer)) && f.realmTitle().equals("Empire")) return true;
+		}
+		return false;
 	}
 
 	private static boolean wanderer(FactionManager fm, History h, UUID who) {
