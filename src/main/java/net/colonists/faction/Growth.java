@@ -25,17 +25,19 @@ public final class Growth {
 	/** Today's growth rate for a town, with everything that speeds or slows it. */
 	public static double rate(MinecraftServer server, Settlement s) {
 		Faction f = s.faction;
-		double r = RATE[Math.max(0, Math.min(3, f.era))];
-		r /= Math.max(0.3, net.colonists.legend.Ages.births(net.colonists.legend.History.get(server)));
+		double base = RATE[Math.max(0, Math.min(3, f.era))];
+		double r = base;
+		// The age of the world: plenty speeds growth, a dark age slows it (within limits).
+		r *= Math.max(0.75, Math.min(1.5, 1.0 / Math.max(0.3, net.colonists.legend.Ages.births(net.colonists.legend.History.get(server)))));
 		if (net.colonists.legend.Crises.golden(server, f.id)) r *= 1.5;
 		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.GARDENS)) r *= 1.3;
-		if (f.atWar) r *= 0.5;
+		if (f.atWar) r *= 0.8;
 		int pop = Math.max(1, s.population());
-		if (s.foodInStock < pop / 4) r *= 0.5; // hungry towns grow slowly
-		// Nowhere to live: newcomers hold off until more houses go up.
+		if (s.foodInStock < pop / 4) r *= 0.7; // hungry towns grow slower
+		// Short of houses: some newcomers hold off until more go up.
 		int homeless = Math.max(0, s.colonists() - s.homes.size() * 2);
-		if (homeless * 10 > pop * 4) r *= 0.25;
-		return r;
+		if (homeless * 10 > pop * 4) r *= 0.6;
+		return Math.max(base * 0.4, r);
 	}
 
 	/** Once a minute: a new day's growth, and anyone waiting at the gate walks in if the town is loaded. */

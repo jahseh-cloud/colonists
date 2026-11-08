@@ -32,7 +32,7 @@ Settlements grow with the land, not on a grid:
 - **Passive growth.** Towns grow on their own every day, whether or not anyone is nearby: newcomers from the countryside, and children of the town.
   - **Rate by the realm's era:** 2% a day in the Timber era, 3% in Stone, 4% in Iron, and 5% in the Grand era. A town of 100 in the Stone era is 103 the next day.
   - **Faster:** an Age of plenty, a Golden Age, or the Hanging Gardens.
-  - **Slower:** war, hunger, or too few houses (newcomers wait until more are built).
+  - **Slower:** a dark age, war, hunger, or too few houses. However bad things get, a town keeps at least 40% of its era's rate.
   - **Off-screen:** a town no one has loaded counts its new people anyway. They wait at the gate and walk in when the town loads (counted in its population meanwhile).
   - The `colonistsMaxPerFaction` gamerule still caps everything.
 - **Evening gatherings.** At dusk, townsfolk down tools and gather at the tavern, or the plaza if there isn't one. Everyone there grows a little fonder of everyone else, so a close-knit town makes friends, couples and children faster.
