@@ -145,7 +145,8 @@ public final class Crises {
 				History.Fracture fr = h.fractures.stream().filter(x -> !x.claimed).reduce((a, b) -> b).orElse(null);
 				if (fr == null) {
 					// No broken empire yet: the largest realm's capital will do as the "old empire".
-					Faction big = largest(fm);
+					Faction big = fm.all().stream().filter(f -> !f.freeVillage && h.crises.stream().noneMatch(c -> c.active() && c.faction.equals(f.id)))
+							.max(Comparator.comparingInt((Faction f) -> f.settlements.size())).orElse(null);
 					if (big == null) yield null;
 					fr = new History.Fracture();
 					fr.name = big.name;
@@ -351,6 +352,8 @@ public final class Crises {
 		int held = -1;
 		for (Faction f : fm.all()) {
 			if (f.freeVillage || f.rulerPlayer != null || f.rulerCitizen() == null) continue;
+			Legend already = h.legends.get(f.ruler);
+			if (already != null && already.alive && already.kind.crisis()) continue; // one great destiny is enough
 			int n = 0;
 			for (int id : fr.settlements) {
 				Settlement s = fm.settlement(id);

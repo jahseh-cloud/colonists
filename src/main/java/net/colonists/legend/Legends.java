@@ -320,7 +320,7 @@ public final class Legends {
 	}
 
 	private static String article(Kind k) {
-		return k == Kind.ADVENTURER || k == Kind.EMPEROR ? "an" : "a";
+		return "AEIOU".indexOf(k.label.charAt(0)) >= 0 ? "an" : "a";
 	}
 
 	private static String pick(String[] a, Random r) {
