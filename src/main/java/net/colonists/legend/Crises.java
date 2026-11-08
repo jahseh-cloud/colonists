@@ -709,7 +709,7 @@ public final class Crises {
 		UUID claimant = bestCitizen(crown, first, (ci) -> ci.ambition * 2 - ci.kindness, random);
 		if (claimant == null) return "No one dares to make a claim.";
 		Faction.Citizen who = crown.citizens.get(claimant);
-		String house = crown.dynasty.isEmpty() ? crown.name : "House " + crown.dynasty;
+		String house = crown.dynasty.isEmpty() ? "the " + crown.name : "House " + crown.dynasty;
 		Faction rebels = fm.createFaction(random, "Claimants of " + who.surname);
 		rebels.government = crown.government == Faction.Government.PLAYER ? Faction.Government.MONARCHY : crown.government;
 		rebels.religion = crown.religion;
