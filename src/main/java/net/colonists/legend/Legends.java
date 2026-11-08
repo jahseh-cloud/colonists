@@ -276,6 +276,7 @@ public final class Legends {
 		l.alive = true;
 		l.since = day;
 		l.deeds.add("Day " + day + ": became " + article(kind) + " " + kind.label.toLowerCase());
+		if (kind.prophet()) return l; // prophets are announced (and recorded) by prophetRises
 		History.Event e = h.log(day, History.EventType.LEGEND_RISES);
 		e.person = l.styled();
 		e.legend = who;
@@ -361,7 +362,6 @@ public final class Legends {
 		faith.prophet = chosen;
 		Legend l = raise(server, fm, h, chosen, Kind.PROPHET, day, random);
 		l.religion = faith.id;
-		l.title = pick(PROPHET_TITLES, random);
 		History.Event e = h.log(day, History.EventType.PROPHET);
 		e.person = l.styled();
 		e.legend = chosen;
@@ -432,6 +432,7 @@ public final class Legends {
 				if (s.cityCenter == null || s.cityCenter.getSquaredDistance(at) > 400 * 400 || s.faction == null) continue;
 				Faith.preach(fm, h, s, rel.id, 20, random);
 				if (s.faction.freeVillage && !s.faction.religion.equals(rel.id) && random.nextInt(30) == 0) {
+					Faith.preach(fm, h, s, rel.id, 1, random); // the whole village, guests and all
 					Faith.convertRealm(server, fm, h, s.faction, rel.id, day);
 				}
 				// A Prophet King's faithful abroad may simply come over.

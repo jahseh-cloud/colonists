@@ -103,13 +103,17 @@ final class Society {
 		}
 
 		// Schism: in big, unhappy factions an ambitious homeless member breaks away to found a rival city-state.
-		int odds = faction.approval < 35 ? 8 : 40;
-		if (faction.founderPlayer == null && c.home == null && c.buildSite == null && !c.isRuler() && c.ambition > 55
+		// Only an established realm (six days or more) that has lost its people's trust splits.
+		int odds = faction.approval < 30 ? 25 : 150;
+		net.colonists.faction.Settlement capital = faction.capital();
+		long age = capital == null ? 0 : world.getTimeOfDay() / 24000L - capital.foundedDay;
+		if (faction.founderPlayer == null && faction.rulerPlayer == null && !faction.freeVillage && age >= 6 && faction.approval < 45
+				&& c.home == null && c.buildSite == null && !c.isRuler() && c.ambition > 55
 				&& fm.memberCount(faction.id) >= 8 && c.getRandom().nextInt(odds) == 0) {
 			Faction rebels = fm.createFaction(c.getRandom(), null);
 			String oldId = faction.id;
 			c.setFaction(rebels.id);
-			fm.setRelation(world.getServer(), oldId, rebels.id, -30);
+			fm.setRelation(world.getServer(), oldId, rebels.id, -15);
 			FactionManager.broadcast(world.getServer(), Text.literal(c.fullName() + " has broken away from the ")
 					.formatted(Formatting.GOLD).append(faction.displayName())
 					.append(Text.literal(" to found the ").formatted(Formatting.GOLD)).append(rebels.displayName())

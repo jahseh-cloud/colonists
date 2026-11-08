@@ -401,7 +401,10 @@ public class FactionManager extends PersistentState {
 				}
 				if (rel > 60) delta -= 1;  // alliances cool off without upkeep
 				if (rel < -60) delta += 1; // wars are exhausting
-				if (rel < -25 && random.nextInt(12) == 0) {
+				long today = server.getOverworld().getTimeOfDay() / 24000L;
+				boolean settled = a.capital() != null && b.capital() != null && today - a.capital().foundedDay >= 3 && today - b.capital().foundedDay >= 3;
+				if (!settled) delta = Math.max(delta, 0); // young realms are given time before grudges harden
+				if (settled && rel < -25 && random.nextInt(12) == 0) {
 					delta -= 20;
 					broadcast(server, Text.literal("A border skirmish breaks out between the ").formatted(Formatting.GOLD)
 							.append(a.displayName()).append(Text.literal(" and the ").formatted(Formatting.GOLD))
