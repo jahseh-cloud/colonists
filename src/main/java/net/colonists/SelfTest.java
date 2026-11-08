@@ -426,7 +426,7 @@ public final class SelfTest {
 			boolean barn = seat && net.colonists.farm.Manors.placeOutbuilding(w, fm, big, m, w.getRandom());
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor arms flying: {}; manor house lot: {} ({}x{}); outbuildings: {}", arms,
 					m.seat, net.colonists.build.Blueprints.MANOR_HOUSE.width, net.colonists.build.Blueprints.MANOR_HOUSE.depth,
-					m.outbuildings.stream().map(o -> big.buildingTypes.get(o)).toList());
+					m.outbuildings.size());
 			if (arms == 0) throw new IllegalStateException("the lord's banner should fly over his field");
 			if (fld.width() < 24 || fld.depth() < 24) throw new IllegalStateException("manor fields should now be at least 24 blocks a side");
 			// The estate grows: a second field beside the first.
