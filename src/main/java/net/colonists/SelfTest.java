@@ -299,24 +299,28 @@ public final class SelfTest {
 		if (t == 76000) step("crises-new", () -> {
 			net.colonists.legend.History h = net.colonists.legend.History.get(server);
 			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
-			// Close the earlier crises and forge one bigger realm so the realm-sized crises have room to happen.
-			for (net.colonists.legend.History.Crisis c : h.crises) if (c.active()) c.ended = 1;
-			Faction big = fm.all().stream().filter(x -> !x.freeVillage && !x.settlements.isEmpty()).max(java.util.Comparator.comparingInt(x -> x.settlements.size())).orElseThrow();
-			for (Settlement o : new ArrayList<>(fm.allSettlements())) {
-				if (big.settlements.size() >= 3) break;
-				if (o.faction != null && o.faction != big && !o.faction.freeVillage) fm.transferSettlement(o, big);
-			}
-			for (Settlement o : big.settlements.values()) if (!o.isCapital()) o.loyalty = 20;
-			big.approval = 30;
-			ColonistsMod.LOGGER.info("COLONISTS SELFTEST big realm {} has {} towns", big.name, big.settlements.size());
-			for (String type : new String[]{"PRETENDER", "REVOLT", "GOLDEN", "HERETIC"}) {
-				if (type.equals("GOLDEN")) for (Faction x : fm.all()) x.atWar = false;
-				if (h.crises.stream().noneMatch(c -> c.active() && c.type.equals(type))) {
-					String why = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.valueOf(type), null);
-					ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {}: {}", type, why == null ? "began" : why);
+			// For each crisis: close the earlier ones and forge one bigger realm so the realm-sized crises have room to happen.
+			String backed = null;
+			for (String type : new String[]{"REVOLT", "GOLDEN", "HERETIC", "PRETENDER"}) {
+				for (net.colonists.legend.History.Crisis c : h.crises) if (c.active()) c.ended = 1;
+				Faction big = fm.all().stream().filter(x -> !x.freeVillage && !x.settlements.isEmpty()).max(java.util.Comparator.comparingInt(x -> x.settlements.size())).orElseThrow();
+				for (Settlement o : new ArrayList<>(fm.allSettlements())) {
+					if (big.settlements.size() >= 3) break;
+					if (o.faction != null && o.faction != big && !o.faction.freeVillage) fm.transferSettlement(o, big);
+				}
+				for (Settlement o : big.settlements.values()) if (!o.isCapital()) o.loyalty = 20;
+				big.approval = type.equals("GOLDEN") ? 90 : 30;
+				for (Faction x : fm.all()) x.atWar = false;
+				String why = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.valueOf(type), null);
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {} in a realm of {} towns: {}", type, big.settlements.size(), why == null ? "began" : why);
+				if (why != null && !type.equals("HERETIC")) throw new IllegalStateException(type + " could not begin: " + why);
+				for (int k = 0; k < 3; k++) net.colonists.legend.Crises.tick(server, fm, h, w.getRandom());
+				if (type.equals("REVOLT")) {
+					backed = net.colonists.legend.Crises.back(fp, true);
+					if (backed != null) throw new IllegalStateException("could not back the revolt: " + backed);
 				}
 			}
-			String backed = net.colonists.legend.Crises.back(fp, true);
+			backed = net.colonists.legend.Crises.back(fp, false);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST back rebels: {}", backed == null ? "ok" : backed);
 			for (int i = 0; i < 5; i++) net.colonists.legend.Crises.tick(server, fm, h, w.getRandom());
 			for (net.colonists.legend.History.Crisis c : new ArrayList<>(h.crises)) {
