@@ -21,6 +21,14 @@ public class BallistaBoltEntity extends PersistentProjectileEntity {
 		super(Siegeworks.BALLISTA_BOLT, x, y, z, world, new ItemStack(Siegeworks.BOLT), null);
 	}
 
+	/** Piercing (vanilla only grants it through enchantments, so it goes in through the saved data). */
+	public void pierce(int level) {
+		net.minecraft.nbt.NbtCompound n = new net.minecraft.nbt.NbtCompound();
+		writeCustomDataToNbt(n);
+		n.putByte("PierceLevel", (byte) level);
+		readCustomDataFromNbt(n);
+	}
+
 	@Override
 	protected ItemStack getDefaultItemStack() {
 		return new ItemStack(Siegeworks.BOLT);

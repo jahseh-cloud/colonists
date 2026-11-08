@@ -78,7 +78,7 @@ public class BallistaEntity extends SiegeEngineEntity {
 		float speed = 1.6f + 3.0f * t;
 		bolt.setVelocity(dir.x, dir.y, dir.z, speed, 0.4f);
 		bolt.setDamage((5.0 + 11.0 * t) / speed);
-		bolt.setPierceLevel((byte) 4);
+		bolt.pierce(4);
 		bolt.setCritical(t >= 1f);
 		getWorld().spawnEntity(bolt);
 		getWorld().playSound(null, getBlockPos(), SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL, 1.5f, 0.45f);
