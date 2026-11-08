@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"combat","pattern":["CCC","LBF","P P"],"key":{"C":{"item":"minecraft:copper_ingot"},"L":{"item":"minecraft:leather"},"B":{"item":"minecraft:barrel"},"F":{"item":"minecraft:flint_and_steel"},"P":{"tag":"minecraft:planks"}},"result":{"id":"siegeworks:siphon","count":1}}

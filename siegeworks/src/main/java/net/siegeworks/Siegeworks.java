@@ -64,6 +64,7 @@ public class Siegeworks implements ModInitializer {
 	public static final EntityType<BatteringRamEntity> BATTERING_RAM = engine("battering_ram", BatteringRamEntity::new, 2.0f, 2.0f);
 	public static final EntityType<SiegeTowerEntity> SIEGE_TOWER = engine("siege_tower", SiegeTowerEntity::new, 2.8f, 7.9f);
 	public static final EntityType<CartEntity> CART = engine("cart", CartEntity::new, 1.6f, 1.1f);
+	public static final EntityType<net.siegeworks.entity.SiphonEntity> SIPHON = engine("siphon", net.siegeworks.entity.SiphonEntity::new, 1.3f, 1.4f);
 
 	public static final EntityType<BallistaBoltEntity> BALLISTA_BOLT = Registry.register(Registries.ENTITY_TYPE, id("ballista_bolt"),
 			EntityType.Builder.<BallistaBoltEntity>create(BallistaBoltEntity::new, SpawnGroup.MISC).dimensions(0.5f, 0.5f)
@@ -87,6 +88,8 @@ public class Siegeworks implements ModInitializer {
 	public static final Item BATTERING_RAM_ITEM = item("battering_ram", new EngineItem(BATTERING_RAM, new Item.Settings().maxCount(1)));
 	public static final Item SIEGE_TOWER_ITEM = item("siege_tower", new EngineItem(SIEGE_TOWER, new Item.Settings().maxCount(1)));
 	public static final Item CART_ITEM = item("cart", new EngineItem(CART, new Item.Settings().maxCount(1)));
+	public static final Item SIPHON_ITEM = item("siphon", new EngineItem(SIPHON, new Item.Settings().maxCount(1)));
+	public static final Item HAND_SIPHON = item("hand_siphon", new net.siegeworks.item.HandSiphonItem(new Item.Settings().maxDamage(250)));
 	public static final Item BOLT = item("ballista_bolt", new Item(new Item.Settings().maxCount(16)));
 	public static final Item STONE = item("catapult_stone", new Item(new Item.Settings().maxCount(16)));
 	public static final Item NAPHTHA_POT = item("naphtha_pot", new NaphthaPotItem(new Item.Settings().maxCount(16)));
@@ -99,7 +102,7 @@ public class Siegeworks implements ModInitializer {
 			.icon(() -> new ItemStack(CATAPULT_ITEM))
 			.displayName(Text.translatable("itemGroup.siegeworks"))
 			.entries((ctx, e) -> {
-				for (Item i : new Item[]{BALLISTA_ITEM, CATAPULT_ITEM, BATTERING_RAM_ITEM, SIEGE_TOWER_ITEM, CART_ITEM, BOLT, STONE, NAPHTHA_POT}) e.add(i);
+				for (Item i : new Item[]{BALLISTA_ITEM, CATAPULT_ITEM, BATTERING_RAM_ITEM, SIEGE_TOWER_ITEM, CART_ITEM, SIPHON_ITEM, HAND_SIPHON, BOLT, STONE, NAPHTHA_POT}) e.add(i);
 			}).build());
 
 	@Override

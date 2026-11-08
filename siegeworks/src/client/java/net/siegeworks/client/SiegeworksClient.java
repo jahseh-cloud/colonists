@@ -32,6 +32,7 @@ public class SiegeworksClient implements ClientModInitializer {
 		EntityRendererRegistry.register(Siegeworks.BATTERING_RAM, EngineRenderers.Ram::new);
 		EntityRendererRegistry.register(Siegeworks.SIEGE_TOWER, EngineRenderers.Tower::new);
 		EntityRendererRegistry.register(Siegeworks.CART, EngineRenderers.Cart::new);
+		EntityRendererRegistry.register(Siegeworks.SIPHON, EngineRenderers.Siphon::new);
 		EntityRendererRegistry.register(Siegeworks.BALLISTA_BOLT, BoltRenderer::new);
 		EntityRendererRegistry.register(Siegeworks.CATAPULT_STONE, ctx -> new FlyingItemEntityRenderer<>(ctx, 3.0f, false));
 		EntityRendererRegistry.register(Siegeworks.NAPHTHA_POT_ENTITY, ctx -> new FlyingItemEntityRenderer<>(ctx, 1.0f, false));
@@ -42,7 +43,10 @@ public class SiegeworksClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null) return;
 			boolean riding = client.player.getVehicle() instanceof SiegeEngineEntity;
-			while (FIRE.wasPressed()) if (riding) ClientPlayNetworking.send(new EnginePayloads.Fire());
+			// The siphon sprays for as long as the key is held; everything else fires once per press.
+			boolean hold = client.player.getVehicle() instanceof net.siegeworks.entity.SiphonEntity;
+			while (FIRE.wasPressed()) if (riding && !hold) ClientPlayNetworking.send(new EnginePayloads.Fire());
+			if (hold && FIRE.isPressed() && client.player.age % 2 == 0) ClientPlayNetworking.send(new EnginePayloads.Fire());
 			while (CRANK.wasPressed()) if (riding) ClientPlayNetworking.send(new EnginePayloads.Crank());
 			if (riding && client.player.age % 5 == 0) {
 				SiegeEngineEntity e = (SiegeEngineEntity) client.player.getVehicle();

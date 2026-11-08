@@ -198,6 +198,38 @@ public final class SelfTest {
 			for (int k = 0; k < 400 && auto.shots() == 0; k++) auto.tick();
 			check(auto.shots() > 0, "an AI crew loads, cranks and fires on its own");
 		});
+		if (tick == 295) step("siphons", () -> {
+			// The mounted siphon: pour, pump, spray at the floor ahead.
+			net.siegeworks.entity.SiphonEntity siphon = spawn(w, Siegeworks.SIPHON, bx + 0.5, by, bz + 30.5);
+			ItemStack pots = new ItemStack(Siegeworks.NAPHTHA_POT, 2);
+			siphon.work(crew, pots);
+			check(siphon.fuel() == net.siegeworks.entity.SiphonEntity.FUEL_PER_POT && pots.getCount() == 1, "a pot is poured into the siphon's tank");
+			for (int i = 0; i < 5; i++) {
+				siphon.crank(crew);
+				for (int k = 0; k < 7; k++) siphon.tick();
+			}
+			check(siphon.tension() >= 0.99f, "five strokes of the bellows pump it up (" + siphon.tension() + ")");
+			siphon.setAim(20f);
+			int before = count(w, base.add(-6, 1, 31), base.add(6, 2, 46), Siegeworks.NAPHTHA_FIRE);
+			for (int k = 0; k < 30; k++) {
+				siphon.fireKey(crew);
+				siphon.tick();
+			}
+			int after = count(w, base.add(-6, 1, 31), base.add(6, 2, 46), Siegeworks.NAPHTHA_FIRE);
+			check(siphon.fuel() < net.siegeworks.entity.SiphonEntity.FUEL_PER_POT && after > before, "the siphon sprays fire ahead (" + (after - before) + " fires, fuel " + siphon.fuel() + ")");
+			// The hand siphon.
+			crew.refreshPositionAndAngles(bx - 8.5, by, bz + 30.5, 0, 25);
+			crew.getInventory().setStack(5, new ItemStack(Siegeworks.NAPHTHA_POT, 1));
+			ItemStack hand = new ItemStack(Siegeworks.HAND_SIPHON);
+			net.siegeworks.item.HandSiphonItem item = (net.siegeworks.item.HandSiphonItem) Siegeworks.HAND_SIPHON;
+			int b2 = count(w, base.add(-12, 1, 30), base.add(-4, 2, 38), Siegeworks.NAPHTHA_FIRE);
+			boolean ok = true;
+			for (int k = 0; k < 29; k++) ok &= item.spray(w, crew, hand, k);
+			int a2 = count(w, base.add(-12, 1, 30), base.add(-4, 2, 38), Siegeworks.NAPHTHA_FIRE);
+			check(ok && crew.getInventory().getStack(5).isEmpty(), "the hand siphon burns through a pot");
+			check(a2 > b2, "and sets fire ahead of the sprayer (" + (a2 - b2) + ")");
+			check(!item.spray(w, crew, hand, 30), "and runs dry without more pots");
+		});
 		if (tick == 300) step("damage", () -> {
 			CartEntity c2 = spawn(w, Siegeworks.CART, bx + 26.5, by, bz - 5.5);
 			for (int i = 0; i < 6 && c2.isAlive(); i++) c2.damage(w.getDamageSources().generic(), 8f);

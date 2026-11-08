@@ -26,6 +26,11 @@ Winding takes work: each turn of the crank makes you a little hungrier. While yo
 - **Catapult:** load a catapult stone, plain cobblestone (weaker) or a Naphtha pot, and wind it six turns. Your look sets the angle: look level for a low, flat shot or up for a high lob (15–70°). The winding sets the force (range of about 70 blocks). Stones crater what they hit. Stronger blocks are less likely to break, and obsidian never does.
 - **Battering ram:** a covered ram on wheels. Drive it with WASD, crank it back two turns, then swing. Each hit wears down the blocks in front of the iron head. Gates, doors and wood give way first, stone takes longer, and obsidian never breaks. Up to three more crew can sit inside, and each adds weight to the blow. The roof shelters the crew from arrows.
 - **Siege tower:** taller than most walls. One driver at the bottom and five crew on the top floor, all safe from arrows (the crew can still shoot out). At the wall, crank the drawbridge down and press **R** to leap across onto the wall.
+- **Naphtha siphon:** a flamethrower on wheels: a bronze tube fed from a tank and driven by a bellows.
+  - Pour Naphtha pots into the tank (each pot is 2 seconds of fire, and the tank holds 4).
+  - Pump it up with five strokes of the bellows, then **hold R** to spray a jet of fire 6–13 blocks long (longer at higher pressure).
+  - The jet burns everyone in its path and leaves Naphtha fire where it lands, even on water.
+  - Pumping past full makes the tank groan, and pumping again may burst it in a fireball.
 - **Cart:** 27 slots of cargo and two seats. Pull it by hand or hitch it to a horse. Sneak and use it, or press **G** while riding, to open it.
 
 Engines are wooden. They break under axes, fire and catapult stones, and they drop themselves when destroyed.
@@ -33,6 +38,10 @@ Engines are wooden. They break under axes, fire and catapult stones, and they dr
 ## Naphtha
 
 A clay pot of fire that water can't put out. Throw it or fire it from a catapult. It burns on the ground, on roofs and on the surface of water. Water won't flow into it or wash it away, and a water bucket does nothing. It sets fire to everything flammable nearby and creeps across water. To put it out, use sand, red sand or dirt on it, place a block over it, or wait for it to burn out (about 30 seconds).
+
+## Hand siphon
+
+A short bronze tube with a squeeze-bag. **Hold right-click** to spray a 4–5 block jet of burning Naphtha. It feeds on the Naphtha pots in your inventory (one pot lasts a second and a half). It wears out after about 40 seconds of spraying, and has a short cooldown after each burst. Careless hands get splashed: spray at your own feet, or get unlucky, and you catch fire.
 
 ## Crafting
 
@@ -43,6 +52,8 @@ A clay pot of fire that water can't put out. Throw it or fire it from a catapult
 | Battering ram | 3 wool; log, log, iron block; planks at the bottom corners |
 | Siege tower | planks, ladder, planks (×2 rows); log, chain, log |
 | Cart | planks, _, planks; planks, chest, planks; logs at the bottom corners |
+| Naphtha siphon | 3 copper ingots; leather, barrel, flint and steel; planks at the bottom corners |
+| Hand siphon | copper ingots on the diagonal, leather and flint and steel at the bottom left |
 | Ballista bolt ×4 | iron ingot, stick, feather (stacked) |
 | Catapult stone ×2 | 4 cobblestone |
 | Naphtha pot ×2 | flower pot + coal + gunpowder + string |
@@ -58,4 +69,4 @@ Any mob tagged `siegeworks_crew` that stands next to an engine with an `AutoTarg
 - Rams roll forward and batter whatever stops them.
 - Towers roll up and lower the drawbridge.
 
-With **Colonists** installed, armies on campaign bring up rams, catapults, ballistae and siege towers (at most two per siege), crew them, and work them against the town. A crewed engine speeds up the siege. When the town falls, its engines stand down and stay on the field, ready for a player to take.
+With **Colonists** installed, armies on campaign bring up rams, catapults, ballistae, siege towers and siphons (at most two per siege), crew them, and work them against the town. A crewed engine speeds up the siege. When the town falls, its engines stand down and stay on the field, ready for a player to take.

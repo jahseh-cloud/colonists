@@ -20,5 +20,8 @@
 	"key.categories.siegeworks": "Siegeworks",
 	"key.siegeworks.fire": "Release siege engine",
 	"key.siegeworks.crank": "Load / crank siege engine",
-	"gamerule.siegeworksBlockDamage": "Siege weapons break blocks"
+	"gamerule.siegeworksBlockDamage": "Siege weapons break blocks",
+	"item.siegeworks.siphon": "Naphtha Siphon",
+	"item.siegeworks.hand_siphon": "Hand Siphon",
+	"entity.siegeworks.siphon": "Naphtha Siphon"
 }

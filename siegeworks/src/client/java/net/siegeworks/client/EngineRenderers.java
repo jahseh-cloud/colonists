@@ -270,6 +270,40 @@ public final class EngineRenderers {
 		}
 	}
 
+	// ---------------------------------------------------------------- siphon
+
+	public static class Siphon extends Base<net.siegeworks.entity.SiphonEntity> {
+		static final BlockState BRONZE = Blocks.CUT_COPPER.getDefaultState();
+
+		public Siphon(EntityRendererFactory.Context ctx) {
+			super(ctx, 0.8f);
+		}
+
+		@Override
+		protected void draw(net.siegeworks.entity.SiphonEntity e, float td) {
+			for (double x : new double[]{-0.6, 0.6}) for (double z : new double[]{-0.5, 0.5}) wheel(e, td, x, 0.25, z, 0.25, 0.12);
+			box(SPRUCE, -0.5, 0.22, -0.8, 1.0, 0.15, 1.6);
+			// The tank.
+			box(Blocks.TERRACOTTA.getDefaultState(), -0.28, 0.37, -0.75, 0.56, 0.6, 0.56);
+			box(IRON, -0.3, 0.55, -0.77, 0.6, 0.06, 0.6);
+			// The bellows: squashed as it is pumped.
+			float pumped = anim(e, td);
+			double h = 0.4 - 0.25 * pumped;
+			box(HIDE, -0.22, 0.37, 0.05, 0.44, h, 0.5);
+			box(OAK, -0.25, 0.37 + h, 0.02, 0.5, 0.05, 0.56);
+			box(LOG_Y, -0.1, 0.37, -0.12, 0.2, 0.55, 0.2);
+			// The bronze tube, aimed.
+			m.push();
+			m.translate(0, 1.05, 0);
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(e.aim()));
+			box(BRONZE, -0.1, -0.1, -0.4, 0.2, 0.2, 1.75);
+			box(BRONZE, -0.15, -0.15, 1.25, 0.3, 0.3, 0.12);
+			box(LOG_X, -0.25, -0.18, -0.35, 0.5, 0.08, 0.08); // handles
+			if (e.flag()) box(Blocks.MAGMA_BLOCK.getDefaultState(), -0.08, -0.08, 1.37, 0.16, 0.16, 0.06);
+			m.pop();
+		}
+	}
+
 	// ---------------------------------------------------------------- cart
 
 	public static class Cart extends Base<CartEntity> {

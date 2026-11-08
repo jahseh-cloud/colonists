@@ -28,7 +28,7 @@ public final class SiegeworksCompat {
 	private SiegeworksCompat() {}
 
 	public static final boolean PRESENT = FabricLoader.getInstance().isModLoaded("siegeworks");
-	private static final String[] ENGINES = {"battering_ram", "battering_ram", "catapult", "catapult", "ballista", "siege_tower"};
+	private static final String[] ENGINES = {"battering_ram", "battering_ram", "catapult", "catapult", "ballista", "siege_tower", "siphon"};
 
 	static boolean isEngine(Entity e) {
 		return Registries.ENTITY_TYPE.getId(e.getType()).getNamespace().equals("siegeworks") && e.getCommandTags().contains("colonists_siege");
