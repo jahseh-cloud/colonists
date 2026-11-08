@@ -77,7 +77,7 @@ public final class AtlasServer {
 
 	// ---------------------------------------------------------------- terrain
 
-	static byte[] tile(ServerWorld world, int tx, int tz, int cell) {
+	public static byte[] tile(ServerWorld world, int tx, int tz, int cell) {
 		long key = ((long) tx & 0xFFFFFL) | (((long) tz & 0xFFFFFL) << 20) | ((long) cell << 40);
 		byte[] cached = CACHE.get(key);
 		if (cached != null) return cached;
