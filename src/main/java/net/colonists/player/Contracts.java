@@ -104,9 +104,9 @@ public final class Contracts {
 		for (Economy.Good g : Economy.Good.values()) {
 			int stock = Stockpile.count(stores, g.is);
 			if (stock >= g.target || r.nextInt(3) != 0) continue;
-			int n = Math.min(64, Math.max(8, g.target - stock));
+			int n = Math.min(32, Math.max(8, g.target - stock));
 			out.add(make(Type.SUPPLY, s, net.minecraft.registry.Registries.ITEM.getId(g.usual).toString(), g.usual.getName().getString().toLowerCase(), n,
-					2 + (int) Math.ceil(n * 1.5 / Economy.perEmerald(s, g, stock)), day + 3));
+					Math.min(30, 2 + (int) Math.ceil(n * 1.3 / Economy.perEmerald(s, g, stock))), day + 3));
 			if (out.size() >= 2) break;
 		}
 		out.add(make(Type.CLEAR, s, "", "", 5 + r.nextInt(8), 6 + r.nextInt(8), day + 2));

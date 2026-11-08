@@ -385,6 +385,51 @@ To test in a development client without installing anything: `./gradlew runClien
 
 **No local setup?** Push this folder to a GitHub repo. The included workflow (`.github/workflows/build.yml`) builds the jar on every push; download it from the run's *Artifacts*.
 
+## Your own life
+
+**Renown and titles.** Your deeds earn titles, and the world calls you by your grandest. Examples:
+- **From fighting:** *the Soldier*, *Warlord*, *Bane of the Iron Badgers*.
+- **From getting around:** *the Explorer*, *Champion of the Realms*, *Sellsword*.
+- **From conscience (or the lack of it):** *the Oathbreaker*, *the Liberator*, *the Murderer*.
+- **From faith and land:** *the Pilgrim*, *Merchant Prince*, *Lord of a Retinue*.
+- **From power:** *Kingbreaker*, or your ruling title.
+
+Colonists greet you by name and title, warmly or coldly as you deserve. `/colony me` shows your renown card. `/colony deeds` gives you a **Book of Deeds** that writes itself as you live.
+
+**Contracts.** Every town keeps a notice board (`/colony contracts`, then `/colony contract accept <n>`). You can hold three at a time, and they pay from the town's treasury along with standing and renown:
+
+| Contract | What to do |
+|---|---|
+| Supply | Bring goods the town lacks to its plaza |
+| Clear the wilds | Slay monsters near the town |
+| Bounty | Bring down a wanted outlaw |
+| War service | Kill soldiers of the town's enemy |
+| Mercenary | Fight for a realm for three days. Desert, or turn on your employers, and you're an Oathbreaker. |
+| Courier | Carry a letter to a distant town |
+| Espionage | Watch a rival's plaza unseen for 30 seconds (sneak). A guard who spots you ends it and reports you. |
+| Assassination | Kill a rival realm's ruler |
+| Stone for the wonder | Bring building stone for a wonder |
+
+**Retinue.**
+- **Hiring:** `/colony hire` the colonist you're looking at, for 15 emeralds per 5 days. You need standing 30 with their people. You can lead 2 retainers, plus one for every 3 titles, up to 6.
+- **What they do:** retainers follow you, catch up if left behind, and fight whoever fights you. They gain levels (more health and damage) as they kill.
+- **Orders:** `/colony retinue follow|stay|dismiss`.
+
+**Property.**
+- **Buying:** stand on an empty house or a workshop (tavern, smithy, bakery, market, barn, pen, barracks) and `/colony property buy`. Houses cost 15–90 emeralds by size; workshops cost 60–90.
+- **Income:** workshops pay you a share of the town's takings every day. `/colony property rent` lets a house to a colonist tenant for rent. Collect with `/colony collect`.
+- **Your own stuff:** you can't be charged with theft or vandalism on your own property.
+- **Seizure:** a realm that goes to war with you seizes what you own there.
+
+**Marriage.**
+- **Proposing:** `/colony propose` to the colonist you're looking at. You need standing 50, and a little luck.
+- **Children:** when you're near your spouse, the two of you have children who carry your name. When they grow up, they swear to follow you for life.
+
+**Faith.**
+- **Choosing a faith:** `/colony faith join <faith>`. Fellow believers' realms warm to you every day.
+- **Prayer:** `/colony pray` once a day at a Great Cathedral, a Shrine of the Prophet, the Pantheon, or your prophet's town. It grants piety, regeneration and luck.
+- **Prophecy:** piety improves your chance of being chosen as your faith's next prophet.
+
 ## Self-test
 
 Every push also runs a headless server on CI (`./gradlew runSelftest`, which sets `-Dcolonists.selftest=true`). It builds two colonist peoples and a village, then fast-forwards five in-game days. Along the way it forces:
