@@ -55,14 +55,7 @@ public class Manor {
 			return z1 - z0 + 1;
 		}
 
-		/** "Smith Manor": named for the family that holds it. */
-	public String title() {
-		if (lordName.isEmpty()) return name.isEmpty() ? "A fallow manor" : name;
-		String[] parts = lordName.trim().split(" ");
-		return parts[parts.length - 1] + " Manor";
-	}
-
-	public int area() {
+		public int area() {
 			return width() * depth();
 		}
 
@@ -91,6 +84,13 @@ public class Manor {
 			if (f.crop.isEmpty()) f.crop = "wheat";
 			return f;
 		}
+	}
+
+	/** "Smith Manor": named for the family that holds it. */
+	public String title() {
+		if (lordName.isEmpty()) return name.isEmpty() ? "A fallow manor" : name;
+		String[] parts = lordName.trim().split(" ");
+		return parts[parts.length - 1] + " Manor";
 	}
 
 	public int area() {

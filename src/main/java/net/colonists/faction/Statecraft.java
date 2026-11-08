@@ -461,7 +461,7 @@ public final class Statecraft {
 				return ok("Your realm is now a " + g.label + ".");
 			}
 			case GIFT_LORDS -> {
-				List<net.colonists.farm.Manor> lords = net.colonists.farm.Manors.ofRealm(f);
+				java.util.List<net.colonists.farm.Manor> lords = net.colonists.farm.Manors.ofRealm(f);
 				if (lords.isEmpty()) return err("Your realm has no landed lords.");
 				Settlement cap = f.capital();
 				if (cap == null || cap.treasury < b || b <= 0) return err("The treasury cannot pay that.");
