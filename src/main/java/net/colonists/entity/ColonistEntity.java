@@ -558,6 +558,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		if (phase % 200 == 0) {
 			this.followConquest();
 			if (this.customer != null && (!this.customer.isAlive() || this.customer.squaredDistanceTo(this) > 16 * 16)) this.customer = null;
+			this.wearColours();
 		}
 		if (phase % 600 == 0) {
 			this.syncCitizen();
@@ -949,6 +950,20 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 				if (mySettlement != null) fm.claimHome(mySettlement, house, heir.getUuid());
 				heir.say("I'll look after the house now.");
 			}
+		}
+	}
+
+	/** Soldiers without a helmet march under their nation's banner (worn on the head, like a standard). */
+	private void wearColours() {
+		ItemStack head = this.getEquippedStack(EquipmentSlot.HEAD);
+		FactionManager fm = this.factions();
+		Faction f = fm == null ? null : fm.get(this.factionId);
+		boolean banner = net.colonists.faction.Banners.isBanner(head);
+		if (this.isSoldier() && f != null && !f.banner.isEmpty() && (head.isEmpty() || banner)) {
+			ItemStack want = net.colonists.faction.Banners.item(this.getWorld().getRegistryManager(), f);
+			if (!banner || !ItemStack.areItemsAndComponentsEqual(head, want)) this.equipStack(EquipmentSlot.HEAD, want);
+		} else if (banner && !this.isSoldier()) {
+			this.equipStack(EquipmentSlot.HEAD, ItemStack.EMPTY);
 		}
 	}
 

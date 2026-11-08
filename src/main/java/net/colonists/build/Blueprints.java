@@ -47,6 +47,10 @@ public final class Blueprints {
 		return b.fixed(x, 0, z, facing(Blocks.FURNACE, d), STONE, 8, true);
 	}
 
+	public static Blueprint registerWonder(Blueprint bp) {
+		return register(bp);
+	}
+
 	private static Blueprint register(Blueprint bp) {
 		ALL.put(bp.id, bp);
 		return bp;

@@ -321,7 +321,7 @@ public final class ColonistBrain {
 	private static void craftArmor(ColonistEntity c, EquipmentSlot slot, Item item, int cost) {
 		SimpleInventory inv = c.getInventory();
 		ItemStack worn = c.getEquippedStack(slot);
-		if (!worn.isEmpty() || count(inv, s -> s.getItem() instanceof ArmorItem a && a.getSlotType() == slot) > 0) return;
+		if ((!worn.isEmpty() && !net.colonists.faction.Banners.isBanner(worn)) || count(inv, s -> s.getItem() instanceof ArmorItem a && a.getSlotType() == slot) > 0) return;
 		if (count(inv, Items.IRON_INGOT) >= cost + 3 && take(inv, Items.IRON_INGOT, cost)) give(c, new ItemStack(item));
 	}
 
@@ -337,7 +337,7 @@ public final class ColonistBrain {
 			if (armor.getProtection() > wornProt) {
 				ItemStack wearing = s.copyWithCount(1);
 				s.decrement(1);
-				if (!worn.isEmpty()) give(c, worn.copy());
+				if (!worn.isEmpty() && !net.colonists.faction.Banners.isBanner(worn)) give(c, worn.copy()); // a banner is just set aside
 				c.equipStack(slot, wearing);
 			}
 		}

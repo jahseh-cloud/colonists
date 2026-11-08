@@ -221,11 +221,60 @@ public class History extends PersistentState {
 
 	public final List<Prophecy> prophecies = new ArrayList<>();
 
+	// ---------------------------------------------------------------- ages
+
+	/** Milestone age reached (0 Founding .. 4 Wonders) and the three cycles (-1, 0, +1) with their pressure meters. */
+	public int milestone;
+	public int prosperity, faith, strife;
+	public double prosperityMeter, faithMeter, strifeMeter;
+	public long prosperityDay, faithDay, strifeDay;
+	public long lastProphetSeenDay;
+
+	// ---------------------------------------------------------------- wonders
+
+	public static class Wonder {
+		public String type = "";
+		public int settlement = -1;
+		public long origin;
+		public String rotation = "NONE";
+		public long builtDay;
+		public boolean ruined;
+		public String builder = "";
+
+		NbtCompound toNbt() {
+			NbtCompound n = new NbtCompound();
+			n.putString("Type", this.type);
+			n.putInt("Settlement", this.settlement);
+			n.putLong("Origin", this.origin);
+			n.putString("Rotation", this.rotation);
+			n.putLong("Built", this.builtDay);
+			n.putBoolean("Ruined", this.ruined);
+			n.putString("Builder", this.builder);
+			return n;
+		}
+
+		static Wonder fromNbt(NbtCompound n) {
+			Wonder w = new Wonder();
+			w.type = n.getString("Type");
+			w.settlement = n.getInt("Settlement");
+			w.origin = n.getLong("Origin");
+			w.rotation = n.getString("Rotation");
+			w.builtDay = n.getLong("Built");
+			w.ruined = n.getBoolean("Ruined");
+			w.builder = n.getString("Builder");
+			return w;
+		}
+	}
+
+	/** The world's completed wonders, one per type. */
+	public final Map<String, Wonder> wonders = new LinkedHashMap<>();
+
 	// ---------------------------------------------------------------- events
 
 	public enum EventType {
 		FOUNDED, CONQUERED, CEDED, WAR, HOLY_WAR, PEACE, CROWNED, REBELLION, EXECUTION, LEGEND_RISES, LEGEND_DIES,
-		PROPHET, NEW_FAITH, CONVERSION, PROPHECY_FULFILLED, MIRACLE, VILLAGE_SEIZED, EXODUS, FALL
+		PROPHET, NEW_FAITH, CONVERSION, PROPHECY_FULFILLED, MIRACLE, VILLAGE_SEIZED, EXODUS, FALL,
+		AGE, ERA, WONDER_BEGUN, WONDER_BUILT, WONDER_RUINED, WONDER_RAZED
 	}
 
 	/** One thing that happened, with who did it (faction ids so chroniclers can take sides). */
@@ -336,6 +385,14 @@ public class History extends PersistentState {
 		for (Event e : this.events) ev.add(e.toNbt());
 		nbt.put("Events", ev);
 		nbt.putLong("EventCount", this.eventCount);
+		nbt.putIntArray("Ages", new int[]{this.milestone, this.prosperity, this.faith, this.strife});
+		nbt.putLongArray("AgeDays", new long[]{this.prosperityDay, this.faithDay, this.strifeDay, this.lastProphetSeenDay});
+		nbt.putDouble("ProsperityMeter", this.prosperityMeter);
+		nbt.putDouble("FaithMeter", this.faithMeter);
+		nbt.putDouble("StrifeMeter", this.strifeMeter);
+		NbtList won = new NbtList();
+		for (Wonder w : this.wonders.values()) won.add(w.toNbt());
+		nbt.put("Wonders", won);
 		return nbt;
 	}
 
@@ -362,6 +419,28 @@ public class History extends PersistentState {
 		NbtList ev = nbt.getList("Events", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < ev.size(); i++) h.events.add(Event.fromNbt(ev.getCompound(i)));
 		h.eventCount = nbt.contains("EventCount") ? nbt.getLong("EventCount") : h.events.size();
+		int[] ages = nbt.getIntArray("Ages");
+		if (ages.length == 4) {
+			h.milestone = ages[0];
+			h.prosperity = ages[1];
+			h.faith = ages[2];
+			h.strife = ages[3];
+		}
+		long[] days = nbt.getLongArray("AgeDays");
+		if (days.length == 4) {
+			h.prosperityDay = days[0];
+			h.faithDay = days[1];
+			h.strifeDay = days[2];
+			h.lastProphetSeenDay = days[3];
+		}
+		h.prosperityMeter = nbt.getDouble("ProsperityMeter");
+		h.faithMeter = nbt.getDouble("FaithMeter");
+		h.strifeMeter = nbt.getDouble("StrifeMeter");
+		NbtList won = nbt.getList("Wonders", NbtElement.COMPOUND_TYPE);
+		for (int i = 0; i < won.size(); i++) {
+			Wonder w = Wonder.fromNbt(won.getCompound(i));
+			h.wonders.put(w.type, w);
+		}
 		return h;
 	}
 }

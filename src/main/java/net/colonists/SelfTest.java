@@ -197,8 +197,45 @@ public final class SelfTest {
 			Statecraft.order(fp, Statecraft.Order.ABDICATE, 0, 0, 0, 0);
 			fm.setPlayerFaction(fp.getUuid(), null);
 		});
+		if (t == 60000) step("wonders", () -> {
+			Settlement cap = fm.all().stream().filter(x -> !x.freeVillage && x.capital() != null).map(Faction::capital).findFirst().orElseThrow();
+			BlockPos origin = cap.cityCenter.add(40, 0, 40);
+			net.colonists.legend.Wonders.onBuilt(server, cap, origin, net.colonists.legend.Wonders.Type.ARENA.blueprint);
+			if (!net.colonists.legend.Wonders.holds(server, cap.faction, net.colonists.legend.Wonders.Type.ARENA)) throw new IllegalStateException("wonder not held after building");
+			for (net.colonists.legend.Wonders.Type type : net.colonists.legend.Wonders.Type.values()) {
+				if (type.blueprint.entries.isEmpty()) throw new IllegalStateException(type + " has an empty blueprint");
+			}
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST wonder sizes: {}", java.util.Arrays.stream(net.colonists.legend.Wonders.Type.values())
+					.map(x -> x.name() + "=" + x.blueprint.width + "x" + x.blueprint.depth + "x" + x.blueprint.height + "/" + x.blueprint.entries.size()).toList());
+		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
+			step("world-edge", () -> {
+				int r = net.colonists.world.WorldEdge.radius;
+				if (r <= 0) return;
+				int beyond = 0, inside = 0;
+				for (int dz = 0; dz < 16; dz++) {
+					BlockPos far = surface(w, r + 40, dz * 4), near = surface(w, r - 200, dz * 4);
+					if (far.getY() > w.getBottomY()) beyond++;
+					if (near.getY() > w.getBottomY()) inside++;
+				}
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST edge: {} of 16 columns past the edge have ground, {} of 16 inside", beyond, inside);
+				if (beyond > 0) throw new IllegalStateException("terrain past the world edge");
+				if (inside == 0) throw new IllegalStateException("no terrain inside the world edge");
+			});
+			step("banners", () -> {
+				int flying = 0;
+				for (Settlement x : fm.allSettlements()) {
+					if (x.cityCenter == null) continue;
+					for (BlockPos p : BlockPos.iterate(x.cityCenter.add(-6, -3, -6), x.cityCenter.add(6, 3, 6))) {
+						if (w.getBlockState(p).getBlock() instanceof net.minecraft.block.AbstractBannerBlock) {
+							flying++;
+							break;
+						}
+					}
+				}
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST banners: {} of {} towns fly a banner", flying, fm.allSettlements().size());
+			});
 			step("invariants", () -> {
 				for (Faction f : fm.all()) {
 					for (Faction.Citizen c : f.citizens.values()) {
@@ -212,7 +249,7 @@ public final class SelfTest {
 			String summary0 = "factions=" + fm.all().size() + " settlements=" + fm.allSettlements().size() + " villages=" + villages
 					+ " religions=" + h.religions.size() + " legends=" + h.legends.size() + " events=" + h.events.size()
 					+ " prisoners=" + Justice.get(server).prisoners.size() + " colonists=" + w.getEntitiesByType(ColonistsMod.COLONIST, c -> true).size();
-			String summary = summary0;
+			String summary = summary0 + " age=\"" + net.colonists.legend.Ages.name(h) + "\" wonders=" + h.wonders.keySet();
 			if (villages == 0) failures.add("village was not discovered");
 			java.util.Map<String, Integer> deaths = new java.util.TreeMap<>();
 			long today = w.getTimeOfDay() / 24000L;

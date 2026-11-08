@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 
@@ -27,7 +28,7 @@ public final class AtlasServer {
 
 	/** Terrain kinds sent to the client. */
 	public static final byte DEEP_OCEAN = 1, OCEAN = 2, RIVER = 3, BEACH = 4, PLAINS = 5, FOREST = 6, TAIGA = 7, SNOW = 8,
-			DESERT = 9, BADLANDS = 10, SAVANNA = 11, JUNGLE = 12, SWAMP = 13, MOUNTAIN = 14, MUSHROOM = 15, FROZEN_OCEAN = 16;
+			DESERT = 9, BADLANDS = 10, SAVANNA = 11, JUNGLE = 12, SWAMP = 13, MOUNTAIN = 14, MUSHROOM = 15, FROZEN_OCEAN = 16, VOID = 17;
 
 	private record Job(UUID player, int tx, int tz, int cell) {
 	}
@@ -89,6 +90,10 @@ public final class AtlasServer {
 		for (int i = 0; i < n; i++) {
 			for (int j = 0; j < n; j++) {
 				int x = (tx * n + i) * cell + cell / 2, z = (tz * n + j) * cell + cell / 2;
+				if (net.colonists.world.WorldEdge.beyond(x, z)) {
+					out[i + j * n] = VOID;
+					continue;
+				}
 				RegistryEntry<Biome> b = source.getBiome(x >> 2, seaQuart, z >> 2, sampler);
 				out[i + j * n] = kind(b);
 			}
@@ -137,7 +142,7 @@ public final class AtlasServer {
 			int relation = my == null ? fm.standing(p, f.id) : my == f ? 100 : fm.relation(my.id, f.id);
 			factions.add(new AtlasPayloads.FactionInfo(f.id, f.name, rgb == null ? 0xFFFFFF : rgb, f.realmTitle(), f.government.label,
 					f.rulerName, f.rulerPlayer != null, relation, f.atWar, f.approval, f.armyOpinion, f.courtOpinion, f.warGoal, laws,
-					f.slavery, treasury, fm.memberCount(f.id), f.overlord, f == my, f.religion));
+					f.slavery, treasury, fm.memberCount(f.id), f.overlord, f == my, f.religion, f.banner, f.era));
 			for (Settlement s : f.settlements.values()) {
 				if (s.cityCenter == null) continue;
 				int[] b = s.bounds(now);
@@ -168,6 +173,32 @@ public final class AtlasServer {
 		for (net.colonists.legend.History.Legend l : all.subList(0, Math.min(40, all.size()))) {
 			legends.add(new AtlasPayloads.LegendInfo(l.styled(), l.kind.label, l.factionName, l.alive, l.religion));
 		}
-		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns, religions, legends);
+		List<AtlasPayloads.WonderInfo> wonders = new ArrayList<>();
+		for (net.colonists.legend.History.Wonder w : h.wonders.values()) {
+			net.colonists.legend.Wonders.Type t;
+			try {
+				t = net.colonists.legend.Wonders.Type.valueOf(w.type);
+			} catch (IllegalArgumentException e) {
+				continue;
+			}
+			Settlement s = fm.settlement(w.settlement);
+			BlockPos o = BlockPos.fromLong(w.origin);
+			wonders.add(new AtlasPayloads.WonderInfo(t.label(), s == null ? "?" : s.name, s == null || s.faction == null ? "" : s.faction.name,
+					w.ruined, o.getX(), o.getZ(), t.effect));
+		}
+		for (Faction f : fm.all()) {
+			net.colonists.legend.Wonders.Type t;
+			try {
+				t = f.wonderProject.isEmpty() ? null : net.colonists.legend.Wonders.Type.valueOf(f.wonderProject);
+			} catch (IllegalArgumentException e) {
+				t = null;
+			}
+			Settlement cap = f.capital();
+			if (t != null && cap != null && cap.cityCenter != null) {
+				wonders.add(new AtlasPayloads.WonderInfo(t.label() + " (being built)", cap.name, f.name, false, cap.cityCenter.getX(), cap.cityCenter.getZ(), t.effect));
+			}
+		}
+		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns, religions, legends,
+				net.colonists.legend.Ages.name(h), wonders);
 	}
 }

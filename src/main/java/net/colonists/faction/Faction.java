@@ -150,6 +150,12 @@ public class Faction {
 	/** The state religion ("" = none yet) and the faction a holy war is being waged against ("" = none). */
 	public String religion = "";
 	public String holyWar = "";
+	/** The nation's banner ("base|pattern:color;..."), drawn at random when it is founded. */
+	public String banner = "";
+	/** The realm's era: 0 Timber, 1 Stone, 2 Iron, 3 Grand. */
+	public int era;
+	/** The wonder this realm has set out to build ("" = none). */
+	public String wonderProject = "";
 	/** A great holy war, proclaimed by a Prophet Conqueror. */
 	public boolean greatHolyWar;
 
@@ -327,6 +333,9 @@ public class Faction {
 		nbt.putString("Religion", this.religion);
 		nbt.putString("HolyWar", this.holyWar);
 		nbt.putBoolean("GreatHolyWar", this.greatHolyWar);
+		nbt.putString("Banner", this.banner);
+		nbt.putInt("Era", this.era);
+		nbt.putString("WonderProject", this.wonderProject);
 		if (this.rulerPlayer != null) nbt.putUuid("RulerPlayer", this.rulerPlayer);
 		if (this.heirPlayer != null) nbt.putUuid("HeirPlayer", this.heirPlayer);
 		nbt.putInt("ArmyOp", this.armyOpinion);
@@ -392,6 +401,9 @@ public class Faction {
 		f.religion = nbt.getString("Religion");
 		f.holyWar = nbt.getString("HolyWar");
 		f.greatHolyWar = nbt.getBoolean("GreatHolyWar");
+		f.banner = nbt.getString("Banner");
+		f.era = nbt.getInt("Era");
+		f.wonderProject = nbt.getString("WonderProject");
 		if (nbt.containsUuid("RulerPlayer")) f.rulerPlayer = nbt.getUuid("RulerPlayer");
 		if (nbt.containsUuid("HeirPlayer")) f.heirPlayer = nbt.getUuid("HeirPlayer");
 		f.armyOpinion = nbt.contains("ArmyOp") ? nbt.getInt("ArmyOp") : 55;

@@ -102,6 +102,7 @@ public final class AtlasClient {
 			case AtlasServer.SWAMP -> 0x91936D;
 			case AtlasServer.MOUNTAIN -> 0xAAA18E;
 			case AtlasServer.MUSHROOM -> 0xB8A0A8;
+			case AtlasServer.VOID -> 0x15141C;
 			default -> 0xD9CBA3;
 		};
 	}

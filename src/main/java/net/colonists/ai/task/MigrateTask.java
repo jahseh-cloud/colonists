@@ -82,7 +82,7 @@ public class MigrateTask extends Task {
 			double angle = (this.colonist.getRandom().nextDouble() - 0.5) * (this.stuck() ? 2.0 : 0.4);
 			double dx = dir.x * Math.cos(angle) - dir.z * Math.sin(angle);
 			double dz = dir.x * Math.sin(angle) + dir.z * Math.cos(angle);
-			int x = (int) Math.floor(here.x + dx * step), z = (int) Math.floor(here.z + dz * step);
+			int x = net.colonists.world.WorldEdge.clamp((int) Math.floor(here.x + dx * step)), z = net.colonists.world.WorldEdge.clamp((int) Math.floor(here.z + dz * step));
 			this.hop = new BlockPos(x, City.surfaceYOr(this.colonist.getWorld(), x, z, this.colonist.getBlockY()), z);
 			this.resetMovement();
 		}

@@ -76,6 +76,11 @@ public final class Legends {
 
 	public static void earn(MinecraftServer server, UUID who, int kind, int amount) {
 		History h = History.get(server);
+		if (kind == History.ADVENTURE || kind == History.VALOUR) {
+			Faction f = factionOf(FactionManager.get(server), who);
+			if (kind == History.ADVENTURE && Wonders.holds(server, f, Wonders.Type.OBSERVATORY)) amount *= 2;
+			if (kind == History.VALOUR && Wonders.holds(server, f, Wonders.Type.ARENA)) amount *= 2;
+		}
 		h.renown(who)[kind] += amount;
 		h.markDirty();
 	}
@@ -96,6 +101,15 @@ public final class Legends {
 		l.died = day;
 		FactionManager fm = FactionManager.get(world.getServer());
 		Faction own = fm.get(dead.getFactionId());
+		// A Mausoleum keeps their memory: kin inherit a share of the legend's renown.
+		if (own != null && Wonders.holds(world.getServer(), own, Wonders.Type.MAUSOLEUM)) {
+			int cat = l.kind == Kind.ADVENTURER ? History.ADVENTURE : l.kind == Kind.HERO ? History.VALOUR : l.kind == Kind.EMPEROR ? History.RULE : History.PIETY;
+			int share = l.kind == Kind.ADVENTURER ? ADVENTURE_NEEDED / 2 : l.kind == Kind.HERO ? VALOUR_NEEDED / 2 : RULE_NEEDED / 2;
+			String surname = l.name.contains(" ") ? l.name.substring(l.name.lastIndexOf(' ') + 1) : "";
+			for (Map.Entry<UUID, Faction.Citizen> e2 : own.citizens.entrySet()) {
+				if (!surname.isEmpty() && e2.getValue().surname.equals(surname) && !e2.getKey().equals(dead.getUuid())) h.renown(e2.getKey())[cat] += share;
+			}
+		}
 		if (own != null) own.armyOpinion = Math.max(0, own.armyOpinion - (l.kind == Kind.HERO ? 8 : 4));
 		if (killer instanceof ColonistEntity k) {
 			Faction them = fm.get(k.getFactionId());
@@ -147,6 +161,9 @@ public final class Legends {
 		History h = History.get(server);
 		long day = day(world);
 		Faith.tick(server, fm, h, random, day);
+		Ages.tick(server, fm, h, random, day);
+		Wonders.tick(server, fm, h, random, day);
+		shrines(server, fm, h, random);
 
 		// Rule: every minute on the throne of a kingdom or empire counts.
 		for (Faction f : fm.all()) {
@@ -177,7 +194,9 @@ public final class Legends {
 			else if (r[History.VALOUR] >= VALOUR_NEEDED && have < Kind.HERO.rank) next = Kind.HERO;
 			else if (r[History.ADVENTURE] >= (wanderer(fm, h, who) ? ADVENTURE_NEEDED / 2 : ADVENTURE_NEEDED) && have < Kind.ADVENTURER.rank) next = Kind.ADVENTURER;
 			// Fortune's part: once deserving, about two days on average before the songs begin.
-			if (next == null || random.nextInt(40) != 0) continue;
+			Faction home = factionOf(fm, who);
+			int odds = Ages.legendOdds(h) / (Wonders.holds(server, home, Wonders.Type.LIBRARY) ? 2 : 1);
+			if (next == null || random.nextInt(Math.max(4, odds)) != 0) continue;
 			raise(server, fm, h, who, next, day, random);
 		}
 
@@ -192,7 +211,7 @@ public final class Legends {
 				rel.prophet = null;
 			}
 			if (rel.prophet == null) {
-				if (rel.nextProphetDay < 0) rel.nextProphetDay = day + 25 + random.nextInt(16);
+				if (rel.nextProphetDay < 0) rel.nextProphetDay = nextProphet(server, fm, h, rel, day, random);
 				if (day >= rel.nextProphetDay) prophetRises(server, fm, h, rel, day, random);
 			} else {
 				prophesy(server, fm, h, rel, day, random);
@@ -323,7 +342,7 @@ public final class Legends {
 			pool.add(p.getUuid());
 			weights.add(Math.max(1, piety / 4));
 		}
-		rel.nextProphetDay = day + 25 + random.nextInt(16);
+		rel.nextProphetDay = nextProphet(server, fm, h, rel, day, random);
 		if (pool.isEmpty()) return;
 		int total = weights.stream().mapToInt(Integer::intValue).sum();
 		int roll = random.nextInt(Math.max(1, total));
@@ -374,6 +393,35 @@ public final class Legends {
 		if (p != null) {
 			p.sendMessage(Text.literal("☀ You have had a vision. You are the prophet of " + faith.name + ". Where you go, the faith spreads. "
 					+ "Rule a realm and you become a Prophet King; lead it to war and you become a Prophet Conqueror.").formatted(Formatting.LIGHT_PURPLE), false);
+		}
+	}
+
+	/** When a faith's next prophet may rise: 25-40 days, sooner in an age of faith or with a great cathedral or shrine. */
+	static long nextProphet(MinecraftServer server, FactionManager fm, History h, Religion rel, long day, Random random) {
+		long wait = 25 + random.nextInt(16) + Ages.prophetDelay(h);
+		for (Faction f : fm.all()) {
+			if (!f.religion.equals(rel.id)) continue;
+			if (Wonders.holds(server, f, Wonders.Type.CATHEDRAL) || Wonders.holds(server, f, Wonders.Type.SHRINE)) {
+				wait -= 5;
+				break;
+			}
+		}
+		return day + Math.max(10, wait);
+	}
+
+	/** A Shrine of the Prophet draws pilgrims: its faith spreads around it, and the faithful grow in piety. */
+	private static void shrines(MinecraftServer server, FactionManager fm, History h, Random random) {
+		History.Wonder w = h.wonders.get(Wonders.Type.SHRINE.name());
+		if (w == null || w.ruined) return;
+		Settlement seat = fm.settlement(w.settlement);
+		if (seat == null || seat.faction == null || seat.cityCenter == null || seat.faction.religion.isEmpty()) return;
+		for (Settlement s : fm.allSettlements()) {
+			if (s.cityCenter != null && s.faction != null && s.cityCenter.getSquaredDistance(seat.cityCenter) < 600 * 600) {
+				Faith.preach(fm, h, s, seat.faction.religion, 40, random);
+			}
+		}
+		for (Map.Entry<UUID, Faction.Citizen> e : seat.faction.citizens.entrySet()) {
+			if (e.getValue().religion.equals(seat.faction.religion) && random.nextInt(20) == 0) h.renown(e.getKey())[History.PIETY] += 1;
 		}
 	}
 
@@ -468,7 +516,7 @@ public final class Legends {
 
 		// The Prophet Conqueror's great holy war.
 		if (l.kind == Kind.PROPHET_CONQUEROR && !f.atWar && random.nextInt(8) == 0) {
-			Faction foe = nearestInfidel(fm, f);
+			Faction foe = nearestInfidel(server, fm, f);
 			if (foe != null) greatHolyWar(server, fm, h, f, foe, l, day);
 		}
 	}
@@ -484,13 +532,14 @@ public final class Legends {
 	}
 
 	@Nullable
-	static Faction nearestInfidel(FactionManager fm, Faction f) {
+	static Faction nearestInfidel(MinecraftServer server, FactionManager fm, Faction f) {
 		BlockPos c = f.center();
 		if (c == null) return null;
 		Faction best = null;
 		double bestD = 900 * 900;
 		for (Faction o : fm.all()) {
 			if (o == f || o.religion.equals(f.religion) || o.settlements.isEmpty() || o.center() == null) continue;
+			if (Wonders.holds(server, o, Wonders.Type.PANTHEON)) continue; // even zealots spare the Pantheon's people
 			double d = o.center().getSquaredDistance(c);
 			if (d < bestD) {
 				bestD = d;

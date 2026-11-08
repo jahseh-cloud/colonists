@@ -284,6 +284,7 @@ public class AtlasScreen extends Screen {
 		this.drawTerritories(ctx);
 		this.drawWars(ctx);
 		this.drawTowns(ctx);
+		this.drawWonders(ctx);
 		this.drawPlayer(ctx);
 		ctx.disableScissor();
 		// Frame and sidebar.
@@ -292,6 +293,13 @@ public class AtlasScreen extends Screen {
 		ctx.fill(this.mapRight() + 1, 0, this.width, this.height, 0xFFDCCB9C);
 		this.drawSidebar(ctx);
 		this.drawScaleBar(ctx);
+		if (AtlasClient.data != null) {
+			String age = AtlasClient.data.age();
+			String text = "⌛ " + Character.toUpperCase(age.charAt(0)) + age.substring(1);
+			int w = this.textRenderer.getWidth(text);
+			ctx.fill(this.mapRight() / 2 - w / 2 - 4, TOPBAR + 2, this.mapRight() / 2 + w / 2 + 4, TOPBAR + 13, 0xCCE9DCB5);
+			ctx.drawText(this.textRenderer, text, this.mapRight() / 2 - w / 2, TOPBAR + 4, INK, false);
+		}
 	}
 
 	@Override
@@ -453,6 +461,31 @@ public class AtlasScreen extends Screen {
 		}
 	}
 
+	private void drawWonders(DrawContext ctx) {
+		if (AtlasClient.data == null) return;
+		for (AtlasPayloads.WonderInfo w : AtlasClient.data.wonders()) {
+			int x = this.sx(w.x()), y = this.sy(w.z());
+			boolean building = w.name().endsWith("(being built)");
+			int col = w.ruined() ? 0xFF7A7060 : building ? 0xFFB8A070 : 0xFFD4A017;
+			ctx.fill(x - 3, y - 3, x + 3, y + 3, INK);
+			ctx.fill(x - 2, y - 2, x + 2, y + 2, col);
+			if (zoom <= 2 && !building) {
+				String label = w.name();
+				ctx.drawText(this.textRenderer, label, x - this.textRenderer.getWidth(label) / 2, y - 13, w.ruined() ? 0xFF7A7060 : 0xFF8A6A10, false);
+			}
+		}
+	}
+
+	@Nullable
+	private net.minecraft.item.ItemStack bannerOf(@Nullable FactionInfo f) {
+		if (f == null || f.banner().isEmpty() || this.client == null || this.client.world == null) return null;
+		try {
+			return net.colonists.faction.Banners.item(this.client.world.getRegistryManager(), f.banner(), f.name());
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
 	private void drawPlayer(DrawContext ctx) {
 		if (this.client == null || this.client.player == null) return;
 		int x = this.sx(this.client.player.getX()), y = this.sy(this.client.player.getZ());
@@ -474,6 +507,13 @@ public class AtlasScreen extends Screen {
 		if (d == null) {
 			lines.add(Text.literal("Unrolling the map...").formatted(Formatting.ITALIC));
 		} else if (this.panel == Panel.LEGENDS) {
+			lines.add(Text.literal("Wonders of the world").formatted(Formatting.BOLD));
+			if (d.wonders().isEmpty()) lines.add(Text.literal("None yet raised.").withColor(0x6B5638));
+			for (AtlasPayloads.WonderInfo w : d.wonders()) {
+				lines.add(Text.literal((w.ruined() ? "✖ " : "◆ ") + w.name()).withColor(w.ruined() ? 0x8A7A60 : 0x8A6A10));
+				lines.add(Text.literal("  " + w.town() + (w.owner().isEmpty() ? "" : ", " + w.owner()) + (w.ruined() ? " (in ruins)" : "")).withColor(0x6B5638));
+			}
+			lines.add(Text.literal(""));
 			lines.add(Text.literal("Faiths of the world").formatted(Formatting.BOLD));
 			for (AtlasPayloads.ReligionInfo r : d.religions()) {
 				lines.add(Text.literal("☩ ").withColor(r.color()).append(Text.literal(r.name()).withColor(0x3B2A1A)));
@@ -512,6 +552,7 @@ public class AtlasScreen extends Screen {
 			} else {
 				lines.add(Text.literal(f.title() + " of the " + f.name()).formatted(Formatting.BOLD));
 				lines.add(Text.literal(f.government() + (f.ruler().isEmpty() ? "" : " — " + f.ruler())));
+				lines.add(Text.literal(net.colonists.legend.Ages.ERAS[Math.max(0, Math.min(3, f.era()))] + " Era").withColor(0x6B5638));
 				AtlasPayloads.ReligionInfo faith = this.faith(f.religion());
 				if (faith != null) lines.add(Text.literal("☩ " + faith.name()).withColor(faith.color()));
 				lines.add(Text.literal(d.ruler() ? "You rule this realm." : d.heir() ? "You are heir to the throne." : "You are a member.").formatted(Formatting.ITALIC));
@@ -545,6 +586,13 @@ public class AtlasScreen extends Screen {
 			lines.add(Text.literal("Open land").formatted(Formatting.BOLD));
 			lines.add(Text.literal(this.selectedLand[0] + ", " + this.selectedLand[1]).withColor(0x6B5638));
 			if (d.ruler()) lines.add(Text.literal("Send settlers here to found a new town.").withColor(0x6B5638));
+		}
+		// The nation's banner, top right of the sidebar.
+		FactionInfo shown = this.selected != null && this.panel == Panel.NONE ? this.factionById.get(this.selected.faction()) : this.mine();
+		net.minecraft.item.ItemStack banner = this.bannerOf(shown);
+		if (banner != null && this.panel != Panel.LEGENDS && this.panel != Panel.DIPLOMACY) {
+			ctx.drawItem(banner, this.width - 22, TOPBAR + 4);
+			w -= 20;
 		}
 		for (Text t : lines) {
 			for (var row : this.textRenderer.wrapLines(t, w)) {

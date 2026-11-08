@@ -179,7 +179,9 @@ public final class Faith {
 			for (Faction.Citizen c : f.citizens.values()) {
 				if (h.religion(c.religion) == null) c.religion = f.religion;
 				// The state's faith wins hearts slowly.
-				if (!c.religion.equals(f.religion) && random.nextInt(60) == 0) c.religion = f.religion;
+				// (a Pantheon's realm lets faiths live side by side; a Cathedral's realm converts quickly)
+				int pressure = Wonders.holds(server, f, Wonders.Type.PANTHEON) ? 0 : Wonders.holds(server, f, Wonders.Type.CATHEDRAL) ? 20 : 60;
+				if (pressure > 0 && !c.religion.equals(f.religion) && random.nextInt(pressure) == 0) c.religion = f.religion;
 				if (!c.child) {
 					adults++;
 					counts.merge(c.religion, 1, Integer::sum);

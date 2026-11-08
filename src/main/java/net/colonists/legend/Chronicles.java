@@ -74,7 +74,7 @@ public final class Chronicles {
 	}
 
 	private static boolean relevant(Settlement s, Event e) {
-		if (e.legend != null || e.type == History.EventType.NEW_FAITH || e.type == History.EventType.PROPHET
+		if (e.legend != null || e.type == History.EventType.AGE || e.type.name().startsWith("WONDER") || e.type == History.EventType.NEW_FAITH || e.type == History.EventType.PROPHET
 				|| e.type == History.EventType.HOLY_WAR || e.type == History.EventType.PROPHECY_FULFILLED) return true;
 		if (e.actor.equals(s.faction.id) || e.target.equals(s.faction.id)) return true;
 		return Math.hypot(e.x - s.cityCenter.getX(), e.z - s.cityCenter.getZ()) < 700;
@@ -98,7 +98,7 @@ public final class Chronicles {
 		if (title.length() > 32) title = "Chronicle of " + village.name;
 		if (title.length() > 32) title = title.substring(0, 32);
 		List<String> pages = new ArrayList<>();
-		String opening = "Here begins the " + (village.volumes <= ORDINAL.length ? ORDINAL[village.volumes - 1] : village.volumes + "th")
+		String opening = "Written in " + Ages.name(h) + ".\n" + "Here begins the " + (village.volumes <= ORDINAL.length ? ORDINAL[village.volumes - 1] : village.volumes + "th")
 				+ " book of the chronicle of " + village.name + ", set down by " + scribeName + ", " + village.faction.name.replace("Free Men", "a free man")
 				+ ".\n\n";
 		StringBuilder page = new StringBuilder(opening);
@@ -215,6 +215,16 @@ public final class Chronicles {
 			case VILLAGE_SEIZED -> when + ", " + e.person + " seized the free village of " + e.place + (sa > 0 ? " and brought it order." : " and lorded over its people.");
 			case EXODUS -> when + ", " + e.person + " left " + e.place + " with a few companions, seeking a land of their own.";
 			case FALL -> when + ", " + actor + " were no more.";
+			case AGE -> when + ", " + e.person.toLowerCase() + ". So began " + e.extra + ".";
+			case ERA -> when + ", " + actor + " entered their " + e.extra + " era" + (sa > 0 ? ", and grew mighty." : ".");
+			case WONDER_BEGUN -> when + ", " + actor + " laid the first stones of the " + e.extra + " at " + e.place
+					+ (sa > 0 ? ", a work for the ages." : sa < 0 ? ", out of vanity." : ".");
+			case WONDER_BUILT -> e.extra.endsWith("|restored")
+					? when + ", the " + e.extra.replace("|restored", "") + " of " + e.place + " was raised again from its ruins."
+					: when + ", the " + e.extra + " was completed in " + e.place + " by " + actor + (sa > 0 ? ". There is nothing like it under the sky." : sa < 0 ? ", built on the backs of the poor." : ".");
+			case WONDER_RUINED -> when + ", the " + e.extra + " of " + e.place + " fell into ruin" + (sa < 0 ? ", as all proud things must." : ". It was a sorrow to all.");
+			case WONDER_RAZED -> sa > 0 ? when + ", " + actor + " cast down the " + e.extra + " of " + e.place + ", a monument to falsehood."
+					: when + ", " + actor + " razed the " + e.extra + " of " + e.place + ". Such barbarity was never seen.";
 		};
 	}
 

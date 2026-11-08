@@ -115,7 +115,7 @@ public final class Politics {
 			if (f.rulerPlayer != null) {
 				// A player rules: the realm lives on, but the ruler writes the laws and steers the state.
 				for (Settlement st : new java.util.ArrayList<>(f.settlements.values())) growth(server, st);
-				updateApproval(f, random);
+				updateApproval(server, f, random);
 				if (f.government == Faction.Government.REPUBLIC && now - f.lastElection > ELECTION_INTERVAL) election(server, fm, f, now);
 				unrest(server, fm, f, now, random);
 				if (f.warWeariness > 0 && random.nextInt(2) == 0) f.warWeariness--;
@@ -124,7 +124,7 @@ public final class Politics {
 			ensureRuler(server, fm, f, now, random);
 			Statecraft.considerHeir(server, fm, f);
 			for (Settlement st : new java.util.ArrayList<>(f.settlements.values())) growth(server, st);
-			updateApproval(f, random);
+			updateApproval(server, f, random);
 			if (f.government == Faction.Government.REPUBLIC && now - f.lastElection > ELECTION_INTERVAL) election(server, fm, f, now);
 			reforms(server, fm, f, now, random);
 			laws(server, f);
@@ -227,12 +227,18 @@ public final class Politics {
 
 	// ---------------------------------------------------------------- approval, reforms, laws
 
-	private static void updateApproval(Faction f, Random random) {
+	private static void updateApproval(MinecraftServer server, Faction f, Random random) {
 		Faction.Citizen ruler = f.rulerCitizen();
 		int adults = Math.max(1, f.adults());
 		int target = 50;
 		if (ruler != null) target += (ruler.kindness - 50) / 4;
 		target += f.totalHomes() >= adults ? 8 : -8;
+		// Wonders please the people.
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.ARENA)) target += 5;
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.GARDENS)) target += 3;
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.PANTHEON)) target += 4;
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.MAUSOLEUM)) target += 3;
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.OBSERVATORY)) target += 2;
 		target += f.totalFood() == 0 ? -8 : Math.min(15, f.totalFood() / 6);
 		target -= f.warWeariness * 2;
 		if (f.slavery && f.captives > 0) {
@@ -386,8 +392,9 @@ public final class Politics {
 				// Aggressive (or ambitious) rulers pick fights with weaker neighbours to take their land.
 				// Faith matters: a religion of the sword makes for warlike rulers (above all against unbelievers); one of peace, for gentle ones.
 				net.colonists.legend.History hist = net.colonists.legend.History.get(server);
-				int zeal = net.colonists.legend.Faith.warlike(hist, a);
-				boolean infidel = !a.religion.isEmpty() && !a.religion.equals(b.religion);
+				int zeal = net.colonists.legend.Faith.warlike(hist, a) + net.colonists.legend.Ages.zeal(hist);
+				boolean infidel = !a.religion.isEmpty() && !a.religion.equals(b.religion)
+						&& !net.colonists.legend.Wonders.holds(server, b, net.colonists.legend.Wonders.Type.PANTHEON); // all gods are honoured there
 				boolean holy = infidel && net.colonists.legend.Faith.has(hist, a, net.colonists.legend.Tenet.SWORD);
 				if (holy) zeal += 15;
 				// Young realms need a few days of peace to find their feet; free villages are only worth a war to a real town.

@@ -27,6 +27,9 @@ public final class LegendCommand {
 		dispatcher.register(CommandManager.literal("colony")
 				.then(CommandManager.literal("religions").executes(LegendCommand::religions))
 				.then(CommandManager.literal("legends").executes(LegendCommand::legends))
+				.then(CommandManager.literal("ages").executes(LegendCommand::ages))
+				.then(CommandManager.literal("wonders").executes(LegendCommand::wonders))
+				.then(CommandManager.literal("banner").executes(LegendCommand::banner))
 				.then(CommandManager.literal("history")
 						.executes(ctx -> history(ctx, 12))
 						.then(CommandManager.argument("count", IntegerArgumentType.integer(1, 60)).executes(ctx -> history(ctx, IntegerArgumentType.getInteger(ctx, "count"))))));
@@ -70,6 +73,60 @@ public final class LegendCommand {
 							+ (l.alive ? "" : " (died day " + (l.died + 1) + ")") + (l.player ? " [player]" : "")).formatted(Formatting.GRAY)), false);
 		}
 		return list.size();
+	}
+
+	private static int ages(CommandContext<ServerCommandSource> ctx) {
+		ServerCommandSource src = ctx.getSource();
+		History h = History.get(src.getServer());
+		FactionManager fm = FactionManager.get(src.getServer());
+		String age = net.colonists.legend.Ages.name(h);
+		src.sendFeedback(() -> Text.literal("⌛ This is " + age + ".").formatted(Formatting.AQUA, Formatting.BOLD), false);
+		src.sendFeedback(() -> Text.literal(String.format("   Milestone: %s · Fortune %s (%.0f) · Faith %s (%.0f) · War %s (%.0f)",
+				net.colonists.legend.Ages.MILESTONES[h.milestone],
+				h.prosperity > 0 ? "golden" : h.prosperity < 0 ? "dark" : "steady", h.prosperityMeter,
+				h.faith > 0 ? "fervent" : h.faith < 0 ? "reasoned" : "quiet", h.faithMeter,
+				h.strife > 0 ? "strife" : h.strife < 0 ? "peace" : "uneasy", h.strifeMeter)).formatted(Formatting.GRAY), false);
+		for (Faction f : fm.all()) {
+			if (f.freeVillage) continue;
+			src.sendFeedback(() -> Text.literal("   ").append(f.displayName()).append(Text.literal(": " + net.colonists.legend.Ages.ERAS[Math.min(3, f.era)] + " Era").formatted(Formatting.GRAY)), false);
+		}
+		return 1;
+	}
+
+	private static int wonders(CommandContext<ServerCommandSource> ctx) {
+		ServerCommandSource src = ctx.getSource();
+		History h = History.get(src.getServer());
+		FactionManager fm = FactionManager.get(src.getServer());
+		for (net.colonists.legend.Wonders.Type t : net.colonists.legend.Wonders.Type.values()) {
+			History.Wonder w = h.wonders.get(t.name());
+			String state;
+			if (w != null) {
+				net.colonists.faction.Settlement s = fm.settlement(w.settlement);
+				state = (w.ruined ? "IN RUINS at " : "stands in ") + (s == null ? "a lost city" : s.name + (s.faction == null ? "" : " (" + s.faction.name + ")"))
+						+ ", raised day " + (w.builtDay + 1);
+			} else {
+				List<String> builders = new ArrayList<>();
+				for (Faction f : fm.all()) if (f.wonderProject.equals(t.name())) builders.add(f.name);
+				state = builders.isEmpty() ? "not yet begun (needs the " + net.colonists.legend.Ages.ERAS[t.era] + " Era)" : "being raised by " + String.join(", ", builders);
+			}
+			String line = state;
+			src.sendFeedback(() -> Text.literal("◆ " + t.label()).formatted(w != null && !w.ruined ? Formatting.GOLD : Formatting.GRAY)
+					.append(Text.literal(" — " + line + ". " + t.effect).formatted(Formatting.GRAY)), false);
+		}
+		return h.wonders.size();
+	}
+
+	private static int banner(CommandContext<ServerCommandSource> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		net.minecraft.server.network.ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+		FactionManager fm = FactionManager.get(p.getServer());
+		Faction f = fm.get(fm.playerFaction(p.getUuid()));
+		if (f == null || f.banner.isEmpty()) {
+			ctx.getSource().sendError(Text.literal("You fly no nation's banner. Join or found one first."));
+			return 0;
+		}
+		p.giveItemStack(net.colonists.faction.Banners.item(p.getWorld().getRegistryManager(), f));
+		ctx.getSource().sendFeedback(() -> Text.literal("You take up the banner of the ").append(f.displayName()), false);
+		return 1;
 	}
 
 	private static int history(CommandContext<ServerCommandSource> ctx, int count) {

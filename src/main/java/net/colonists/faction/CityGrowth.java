@@ -127,6 +127,7 @@ public final class CityGrowth {
 					}
 				}
 				if (clash || touchesRoad(f, rect)) continue;
+				if (!net.colonists.world.WorldEdge.playable(rect[0], rect[1], 8) || !net.colonists.world.WorldEdge.playable(rect[2], rect[3], 8)) continue;
 				Integer floor = City.floorFor(world, rect[0], rect[1], rect[2], rect[3], tolerance);
 				if (floor == null) continue;
 				double score = score(world, f, rect, floor, purpose);
@@ -211,6 +212,7 @@ public final class CityGrowth {
 		double bestScore = -Double.MAX_VALUE;
 		for (int i = 0; i < 40; i++) {
 			int x = near.getX() + random.nextInt(65) - 32, z = near.getZ() + random.nextInt(65) - 32;
+			if (!net.colonists.world.WorldEdge.playable(x, z, 40)) continue;
 			Integer floor = City.floorFor(world, x - City.PLAZA_HALF, z - City.PLAZA_HALF, x + City.PLAZA_HALF, z + City.PLAZA_HALF, 2);
 			if (floor == null) continue;
 			double score = waterNearby(world, x, z, 14) * 2.0 + Math.min(10, valleyDepth(world, x, z, floor)) * 1.5

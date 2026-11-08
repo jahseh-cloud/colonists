@@ -116,10 +116,18 @@ public final class Blueprint {
 			this.depth = depth;
 		}
 
+		private final java.util.Map<Long, Integer> index = new java.util.HashMap<>();
+
 		private Builder add(Entry e) {
 			// Later entries replace earlier ones at the same spot (e.g. a window punched into a wall).
-			this.entries.removeIf(o -> o.x == e.x && o.y == e.y && o.z == e.z);
-			this.entries.add(e);
+			long key = BlockPos.asLong(e.x, e.y, e.z);
+			Integer at = this.index.get(key);
+			if (at != null) {
+				this.entries.set(at, e);
+			} else {
+				this.index.put(key, this.entries.size());
+				this.entries.add(e);
+			}
 			this.maxY = Math.max(this.maxY, e.y);
 			return this;
 		}

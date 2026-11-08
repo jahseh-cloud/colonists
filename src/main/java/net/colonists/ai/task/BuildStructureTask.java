@@ -357,6 +357,8 @@ public class BuildStructureTask extends Task {
 				if (this.colonist.bed == null && world.getBlockState(this.site.at(b)).getBlock() instanceof BedBlock) this.colonist.bed = this.site.at(b);
 			}
 			if (this.bp.chest != null && world.getBlockState(this.site.at(this.bp.chest)).isOf(Blocks.CHEST)) this.colonist.chest = this.site.at(this.bp.chest);
+		} else if (this.bp.id.startsWith("wonder_")) {
+			net.colonists.legend.Wonders.onBuilt(world.getServer(), f, this.origin, this.bp);
 		} else if (!wasBuilt) {
 			FactionManager.broadcastNear(world, this.origin, 128, Text.literal("🔨 ").formatted(Formatting.YELLOW).append(f.displayName())
 					.append(Text.literal(" has finished building a " + this.bp.name.toLowerCase() + ".").formatted(Formatting.YELLOW)));

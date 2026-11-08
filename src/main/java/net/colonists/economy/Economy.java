@@ -101,7 +101,10 @@ public final class Economy {
 		if (s.village) s.treasury += s.freemen; // the free men's trade and harvests (or their dues, once subjects)
 		if (people.isEmpty()) return;
 		// Production: the town's farms, workshops and market turn out goods worth this much.
-		double blessing = net.colonists.legend.Faith.production(net.colonists.legend.History.get(server), f);
+		net.colonists.legend.History hist = net.colonists.legend.History.get(server);
+		double blessing = net.colonists.legend.Faith.production(hist, f) * net.colonists.legend.Ages.production(hist) * (1 + 0.05 * f.era);
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.COLOSSUS)) blessing *= 1.25;
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.BAZAAR)) blessing *= 1.1;
 		s.treasury += (int) Math.round((people.size() * 2 + (s.hasBuilt("market") ? people.size() / 2 : 0)) * blessing);
 		// Taxes on wealth (nobles of a monarchy are exempt).
 		double rate = s.taxRate >= 0 ? s.taxRate / 100.0 : defaultTax(f);
@@ -280,7 +283,8 @@ public final class Economy {
 			for (Settlement s : all) {
 				if (s == rich || s.faction == null || s.cityCenter == null) continue;
 				boolean friendly = s.faction == rich.faction || fm.relation(s.faction.id, rich.faction.id) >= FactionManager.ALLY;
-				if (!friendly || s.cityCenter.getSquaredDistance(rich.cityCenter) > 800 * 800) continue;
+				int range = net.colonists.legend.Wonders.holds(world.getServer(), rich.faction, net.colonists.legend.Wonders.Type.HARBOR) || net.colonists.legend.Wonders.holds(world.getServer(), s.faction, net.colonists.legend.Wonders.Type.HARBOR) ? 1300 : 800;
+				if (!friendly || s.cityCenter.getSquaredDistance(rich.cityCenter) > (double) range * range) continue;
 				int stock = Stockpile.count(Stockpile.chests(world, s), g.is);
 				if (stock < poorStock) {
 					poorStock = stock;

@@ -59,6 +59,8 @@ public final class Empire {
 					s.occupier = "";
 				}
 				loyalty(server, fm, f, s, random);
+				if (f.banner.isEmpty()) f.banner = Banners.random(random);
+				Banners.raise(server.getOverworld(), s);
 			}
 			if (f.orderedColony != null) orderedColony(server, fm, f, random);
 			else if (f.rulerPlayer == null && !f.freeVillage) colonize(server, fm, f, day, random);
@@ -82,9 +84,10 @@ public final class Empire {
 		BlockPos site = null;
 		for (int attempt = 0; attempt < 4 && site == null; attempt++) {
 			double angle = random.nextDouble() * Math.PI * 2;
-			int dist = COLONY_MIN_DIST + random.nextInt(COLONY_MAX_DIST - COLONY_MIN_DIST + 1);
+			int reach = net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.HARBOR) ? COLONY_MAX_DIST * 3 / 2 : COLONY_MAX_DIST;
+			int dist = COLONY_MIN_DIST + random.nextInt(reach - COLONY_MIN_DIST + 1);
 			BlockPos near = mother.cityCenter.add((int) (Math.cos(angle) * dist), 0, (int) (Math.sin(angle) * dist));
-			if (!world.getWorldBorder().contains(near)) continue;
+			if (!world.getWorldBorder().contains(near) || !net.colonists.world.WorldEdge.playable(near.getX(), near.getZ(), 48)) continue;
 			BlockPos c = CityGrowth.bestCenter(world, near, random);
 			if (c == null) continue;
 			Settlement other = fm.nearestSettlement(c, null);
@@ -139,7 +142,8 @@ public final class Empire {
 			return;
 		}
 		ServerWorld world = server.getOverworld();
-		BlockPos site = CityGrowth.bestCenter(world, new BlockPos(want.getX(), mother.cityCenter.getY(), want.getZ()), random);
+		BlockPos site = net.colonists.world.WorldEdge.playable(want.getX(), want.getZ(), 40)
+				? CityGrowth.bestCenter(world, new BlockPos(want.getX(), mother.cityCenter.getY(), want.getZ()), random) : null;
 		if (site == null) {
 			f.orderedColony = null;
 			tellRuler(server, f, "No settlers could find buildable ground near " + want.getX() + ", " + want.getZ() + ".");
@@ -232,6 +236,8 @@ public final class Empire {
 
 	public static void besiege(ServerWorld world, FactionManager fm, Settlement s, Faction attacker, int points) {
 		long now = world.getTime();
+		// The Great Wall: three times slower to take.
+		if (net.colonists.legend.Wonders.seatOf(world.getServer(), s, net.colonists.legend.Wonders.Type.GREAT_WALL)) points = world.getRandom().nextInt(3) == 0 ? points : 0;
 		if (!attacker.id.equals(s.occupier)) {
 			s.occupier = attacker.id;
 			s.occupation = 0;
@@ -260,6 +266,7 @@ public final class Empire {
 		if (conqueror != null) net.colonists.legend.Legends.earn(server, conqueror, net.colonists.legend.History.RULE, 15);
 		net.colonists.legend.Legends.event(server, treaty ? net.colonists.legend.History.EventType.CEDED : net.colonists.legend.History.EventType.CONQUERED,
 				winner, loser, s);
+		if (!treaty) net.colonists.legend.Wonders.onConquest(server, s, winner, loser);
 		s.occupation = 0;
 		s.occupier = "";
 		loser.warWeariness += 4;
@@ -303,6 +310,8 @@ public final class Empire {
 		Settlement cap = f.capital();
 		double dist = cap == null || cap.cityCenter == null || s.cityCenter == null ? 0 : horizontalDist(cap.cityCenter, s.cityCenter);
 		int drift = s.formerOwner.isEmpty() ? 2 : 1;
+		drift += net.colonists.legend.Ages.loyaltyDrift(net.colonists.legend.History.get(server));
+		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.PALACE)) drift += 2;
 		if (s.autonomy) drift += 2;
 		if (s.taxRate > 15) drift -= 1;
 		if (s.countJob("GUARD") >= 2) drift++;

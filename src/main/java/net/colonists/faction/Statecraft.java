@@ -73,7 +73,7 @@ public final class Statecraft {
 		int aggression = avgGuardAggression(f);
 		if (f.atWar && aggression > 55) army += 6;
 		if (!f.atWar && aggression > 70) army -= 4;
-		int court = 50 + Math.min(12, treasury / 20) - arrears * 5 - taxPush / Math.max(1, f.settlements.size()) + rep / 6;
+		int court = (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.PALACE) ? 55 : 50) + Math.min(12, treasury / 20) - arrears * 5 - taxPush / Math.max(1, f.settlements.size()) + rep / 6;
 		boolean harsh = f.laws.contains(Law.DEATH_PENALTY) || f.slavery;
 		int kindness = avgKindness(f);
 		if (harsh) court += (50 - kindness) / 4;

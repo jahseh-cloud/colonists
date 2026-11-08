@@ -69,6 +69,7 @@ public class FactionManager extends PersistentState {
 		} while (factions.containsKey(id) && attempts < 50);
 		Formatting color = COLORS[factions.size() % COLORS.length];
 		Faction f = new Faction(id, name, color);
+		f.banner = Banners.random(random);
 		factions.put(id, f);
 		markDirty();
 		return f;

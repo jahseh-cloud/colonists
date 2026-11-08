@@ -81,7 +81,10 @@ public final class AtlasPayloads {
 
 	public record FactionInfo(String id, String name, int color, String title, String government, String ruler, boolean playerRuler,
 							  int relation, boolean atWar, int approval, int army, int court, int warGoal, int laws, boolean slavery,
-							  int treasury, int people, String overlord, boolean mine, String religion) {
+							  int treasury, int people, String overlord, boolean mine, String religion, String banner, int era) {
+	}
+
+	public record WonderInfo(String name, String town, String owner, boolean ruined, int x, int z, String effect) {
 	}
 
 	public record ReligionInfo(String id, String name, int color, String tenets, String prophet, String parent, int realms) {
@@ -98,7 +101,7 @@ public final class AtlasPayloads {
 	/** Server → client: the whole political picture, as this player may see it. */
 	public record Data(String myFaction, boolean ruler, boolean member, int coupChance, boolean canStand, boolean heir,
 					   int armySupportWar, List<FactionInfo> factions, List<TownInfo> towns,
-					   List<ReligionInfo> religions, List<LegendInfo> legends) implements CustomPayload {
+					   List<ReligionInfo> religions, List<LegendInfo> legends, String age, List<WonderInfo> wonders) implements CustomPayload {
 		public static final Id<Data> ID = new Id<>(ColonistsMod.id("atlas_data"));
 		public static final PacketCodec<RegistryByteBuf, Data> CODEC = PacketCodec.of(Data::write, Data::read);
 
@@ -132,6 +135,8 @@ public final class AtlasPayloads {
 				buf.writeString(f.overlord());
 				buf.writeBoolean(f.mine());
 				buf.writeString(f.religion());
+				buf.writeString(f.banner());
+				buf.writeVarInt(f.era());
 			}
 			buf.writeVarInt(this.towns.size());
 			for (TownInfo t : this.towns) {
@@ -174,6 +179,17 @@ public final class AtlasPayloads {
 				buf.writeBoolean(l.alive());
 				buf.writeString(l.religion());
 			}
+			buf.writeString(this.age);
+			buf.writeVarInt(this.wonders.size());
+			for (WonderInfo w : this.wonders) {
+				buf.writeString(w.name());
+				buf.writeString(w.town());
+				buf.writeString(w.owner());
+				buf.writeBoolean(w.ruined());
+				buf.writeInt(w.x());
+				buf.writeInt(w.z());
+				buf.writeString(w.effect());
+			}
 		}
 
 		private static Data read(RegistryByteBuf buf) {
@@ -187,7 +203,7 @@ public final class AtlasPayloads {
 			for (int i = 0; i < nf; i++) {
 				fs.add(new FactionInfo(buf.readString(), buf.readString(), buf.readInt(), buf.readString(), buf.readString(), buf.readString(),
 						buf.readBoolean(), buf.readInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readInt(),
-						buf.readVarInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readString(), buf.readBoolean(), buf.readString()));
+						buf.readVarInt(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readString(), buf.readBoolean(), buf.readString(), buf.readString(), buf.readVarInt()));
 			}
 			int nt = buf.readVarInt();
 			List<TownInfo> ts = new ArrayList<>(nt);
@@ -204,7 +220,13 @@ public final class AtlasPayloads {
 			int nl = buf.readVarInt();
 			List<LegendInfo> ls = new ArrayList<>(nl);
 			for (int i = 0; i < nl; i++) ls.add(new LegendInfo(buf.readString(), buf.readString(), buf.readString(), buf.readBoolean(), buf.readString()));
-			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls);
+			String age = buf.readString();
+			int nw = buf.readVarInt();
+			List<WonderInfo> ws = new ArrayList<>(nw);
+			for (int i = 0; i < nw; i++) {
+				ws.add(new WonderInfo(buf.readString(), buf.readString(), buf.readString(), buf.readBoolean(), buf.readInt(), buf.readInt(), buf.readString()));
+			}
+			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls, age, ws);
 		}
 
 		@Override

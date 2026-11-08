@@ -105,6 +105,8 @@ public class ColonistsMod implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(CityMapPayload.ID, CityMapPayload.CODEC);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> sendCityMap(server, handler.getPlayer())));
 
+		net.colonists.world.WorldEdge.loadConfig();
+		net.colonists.build.WonderBlueprints.init();
 		net.colonists.law.Courts.register();
 		SelfTest.register();
 		net.colonists.law.Slavery.register();
@@ -114,7 +116,10 @@ public class ColonistsMod implements ModInitializer {
 				FactionManager.get(server).tickDiplomacy(server);
 			}
 			if (server.getTicks() % 200 == 100) net.colonists.faction.Villages.survey(server);
-			if (server.getTicks() % 100 == 50) net.colonists.legend.Legends.aura(server);
+			if (server.getTicks() % 100 == 50) {
+				net.colonists.legend.Legends.aura(server);
+				net.colonists.legend.Wonders.aura(server);
+			}
 			if (server.getTicks() % 200 == 0) {
 				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) sendCityMap(server, player);
 			}

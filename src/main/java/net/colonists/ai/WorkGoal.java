@@ -577,6 +577,11 @@ public class WorkGoal extends Goal {
 		if (net.colonists.legend.Faith.has(net.colonists.legend.History.get(c.server()), f.faction, net.colonists.legend.Tenet.ASCETIC)) {
 			return Blueprints.homeFor(f.rank, c.isRuler());
 		}
+		// A realm in its Grand era builds in stone even for ordinary folk.
+		if (f.faction != null && f.faction.era >= 3 && f.rank.ordinal() >= net.colonists.faction.Faction.Rank.TOWN.ordinal()) {
+			Blueprint grand = Blueprints.homeFor(f.rank, c.isRuler(), Math.max(50, net.colonists.economy.Economy.wealth(c)), slaver);
+			return grand;
+		}
 		return Blueprints.homeFor(f.rank, c.isRuler(), net.colonists.economy.Economy.wealth(c), slaver);
 	}
 

@@ -4,13 +4,21 @@
 	"version": "${version}",
 	"name": "Colonists",
 	"description": "Autonomous Steve-like NPCs who chop wood, mine, build homes, farm, sleep, fight, socialize, and form factions with alliances and wars.",
-	"authors": ["jahx"],
+	"authors": [
+		"jahx"
+	],
 	"license": "MIT",
 	"environment": "*",
 	"entrypoints": {
-		"main": ["net.colonists.ColonistsMod"],
-		"client": ["net.colonists.client.ColonistsClient"],
-		"journeymap": ["net.colonists.client.map.ColonistsJourneyMapPlugin"]
+		"main": [
+			"net.colonists.ColonistsMod"
+		],
+		"client": [
+			"net.colonists.client.ColonistsClient"
+		],
+		"journeymap": [
+			"net.colonists.client.map.ColonistsJourneyMapPlugin"
+		]
 	},
 	"depends": {
 		"fabricloader": ">=0.16.0",
@@ -21,5 +29,8 @@
 	"suggests": {
 		"journeymap": "*",
 		"xaerominimap": "*"
-	}
+	},
+	"mixins": [
+		"colonists.mixins.json"
+	]
 }
