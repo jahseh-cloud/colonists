@@ -323,7 +323,7 @@ public final class Slavery {
 
 	// ---------------------------------------------------------------- freedom
 
-	static void free(ServerWorld world, Justice j, FactionManager fm, Justice.Slave sl, String message) {
+	public static void free(ServerWorld world, Justice j, FactionManager fm, Justice.Slave sl, String message) {
 		j.slaves.remove(sl.who);
 		j.markDirty();
 		Faction f = fm.get(sl.faction);

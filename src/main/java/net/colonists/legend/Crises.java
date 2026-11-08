@@ -48,7 +48,9 @@ public final class Crises {
 
 	public enum Type {
 		MESSENGER("The Messenger", Kind.MESSENGER, 15, 90), KHAN("The Khan", Kind.KHAN, 10, 45),
-		IMPERATOR("The Imperator", Kind.IMPERATOR, 0, 0), GREAT("The Great", Kind.GREAT, 12, 40);
+		IMPERATOR("The Imperator", Kind.IMPERATOR, 0, 0), GREAT("The Great", Kind.GREAT, 12, 40),
+		PRETENDER("The Pretender", Kind.PRETENDER, 8, 25), REVOLT("The Peasants' Revolt", Kind.REBEL, 6, 20),
+		GOLDEN("The Golden Age", Kind.MAGNIFICENT, 8, 30), HERETIC("The False Prophet", Kind.FALSE_PROPHET, 0, 30);
 
 		public final String label;
 		public final Kind kind;
@@ -85,12 +87,17 @@ public final class Crises {
 		long day = day(server);
 		int running = (int) h.crises.stream().filter(c -> c.active() && c.figure != null).count();
 		// New crises, rarely, and more often when the age invites them.
-		if (running < 2) {
-			for (Type t : new Type[]{Type.MESSENGER, Type.KHAN, Type.GREAT}) {
+		if (running < 3) {
+			for (Type t : new Type[]{Type.MESSENGER, Type.KHAN, Type.GREAT, Type.PRETENDER, Type.REVOLT, Type.GOLDEN, Type.HERETIC}) {
 				if (day < t.earliest || active(h, t) != null || day - lastStart(h, t) < t.cooldown) continue;
 				int odds = switch (t) {
 					case MESSENGER -> h.faith > 0 ? 240 : 900;
 					case KHAN -> h.strife > 0 ? 200 : 700;
+					case GOLDEN -> h.prosperity > 0 ? 250 : 700;
+					case PRETENDER -> 600;
+					case REVOLT -> 500;
+					// The False Prophet only comes to trouble a Messenger's faith.
+					case HERETIC -> h.crises.stream().anyMatch(x -> x.active() && x.type.equals(Type.MESSENGER.name())) ? 300 : Integer.MAX_VALUE;
 					default -> 500;
 				};
 				if (random.nextInt(odds) == 0 && start(server, t, null) != null) break;
@@ -112,8 +119,14 @@ public final class Crises {
 				continue;
 			}
 			Faction realm = fm.get(c.faction);
-			if (realm == null) {
-				end(server, h, c, "and their realm is gone");
+			if (realm == null || realm.settlements.isEmpty()) {
+				String how = switch (t) {
+					case PRETENDER -> "his claim crushed and his followers scattered";
+					case REVOLT -> "the commune put down by force";
+					case HERETIC -> "his followers dispersed";
+					default -> "and their realm is gone";
+				};
+				finish(server, h, c, realm, how, day);
 				continue;
 			}
 			// No weariness for the realms of the great.
@@ -123,6 +136,10 @@ public final class Crises {
 				case GREAT -> great(server, fm, h, c, realm, day, random);
 				case IMPERATOR -> imperator(server, fm, h, c, realm, day, random);
 				case MESSENGER -> messenger(server, fm, h, c, realm, day, random);
+				case PRETENDER -> pretender(server, fm, h, c, realm, day, random);
+				case REVOLT -> revolt(server, fm, h, c, realm, day, random);
+				case GOLDEN -> golden(server, fm, h, c, realm, day, random);
+				case HERETIC -> heretic(server, fm, h, c, realm, day, random);
 			}
 		}
 		h.markDirty();
@@ -141,6 +158,10 @@ public final class Crises {
 			case KHAN -> startKhan(server, fm, h, day, random);
 			case GREAT -> startGreat(server, fm, h, day, random);
 			case MESSENGER -> startMessenger(server, fm, h, day, random);
+			case PRETENDER -> startPretender(server, fm, h, day, random);
+			case REVOLT -> startRevolt(server, fm, h, day, random);
+			case GOLDEN -> startGolden(server, fm, h, day, random);
+			case HERETIC -> startHeretic(server, fm, h, day, random);
 			case IMPERATOR -> {
 				History.Fracture fr = h.fractures.stream().filter(x -> !x.claimed).reduce((a, b) -> b).orElse(null);
 				if (fr == null) {
@@ -590,6 +611,17 @@ public final class Crises {
 					if (realm != null) fracture(server, fm, h, realm, t == Type.KHAN ? "Khanate" : "Kingdom", day, server.getOverworld().getRandom());
 				}
 				case IMPERATOR -> end(server, h, c, "his dream unfinished");
+				case PRETENDER -> {
+					// Without the claimant, his towns go back to the crown.
+					Faction crown = fm.get(c.oldName);
+					if (realm != null && crown != null) for (Settlement s : new ArrayList<>(realm.settlements.values())) fm.transferSettlement(s, crown);
+					finish(server, h, c, realm, "was slain, and his claim died with him", day);
+				}
+				case REVOLT -> finish(server, h, c, realm, "was slain; but the free folk of the commune fight on", day);
+				case GOLDEN -> finish(server, h, c, realm, "died, and the Golden Age of the " + (realm == null ? "realm" : realm.name) + " passed with him", day);
+				case HERETIC -> {
+					finish(server, h, c, realm, "was hunted down and slain by the faithful", day);
+				}
 				case MESSENGER -> {
 					// The Messenger is gone, but the record stays open: the Caliphs follow him.
 					c.figure = null;
@@ -598,6 +630,23 @@ public final class Crises {
 				}
 			}
 		}
+	}
+
+	static net.colonists.player.PlayerData.Profile pr(MinecraftServer server, ServerPlayerEntity p) {
+		return net.colonists.player.PlayerData.of(server, p.getUuid());
+	}
+
+	/** Ends a crisis with a line in the chronicles. */
+	static void finish(MinecraftServer server, History h, Crisis c, @Nullable Faction realm, String how, long day) {
+		if (!c.active()) return;
+		History.Event e = h.log(day, History.EventType.CRISIS_END);
+		e.person = c.figureName;
+		e.legend = c.figure;
+		e.actor = c.faction;
+		e.actorName = realm == null ? "" : realm.name;
+		e.extra = how;
+		c.ended = day;
+		FactionManager.broadcast(server, Text.literal("☄ " + c.figureName + " " + how + ".").formatted(Formatting.GRAY));
 	}
 
 	static void end(MinecraftServer server, History h, Crisis c, String how) {
@@ -638,6 +687,364 @@ public final class Crises {
 			e.z = at.getZ();
 		}
 		FactionManager.broadcast(server, Text.literal("💔 The realm of the " + realm.name + " breaks apart: " + e.extra + " go their own way.").formatted(Formatting.GOLD));
+	}
+
+
+	// ---------------------------------------------------------------- the Pretender
+
+	/** In an unhappy realm, someone claims to be the true heir. Half the realm's discontented towns rise for him. */
+	@Nullable
+	static String startPretender(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
+		Faction crown = null;
+		for (Faction f : fm.all()) {
+			if (f.freeVillage || f.settlements.size() < 3 || inCrisis(h, f)) continue;
+			if (crown == null || f.approval < crown.approval) crown = f;
+		}
+		if (crown == null) return "No realm is large and troubled enough for a pretender.";
+		List<Settlement> towns = new ArrayList<>(crown.settlements.values());
+		towns.removeIf(Settlement::isCapital);
+		towns.sort(Comparator.comparingInt(x -> x.loyalty));
+		Settlement first = towns.isEmpty() ? null : towns.get(0);
+		if (first == null) return "No town would rise.";
+		UUID claimant = bestCitizen(crown, first, (ci) -> ci.ambition * 2 - ci.kindness, random);
+		if (claimant == null) return "No one dares to make a claim.";
+		Faction.Citizen who = crown.citizens.get(claimant);
+		String house = crown.dynasty.isEmpty() ? crown.name : "House " + crown.dynasty;
+		Faction rebels = fm.createFaction(random, "Claimants of " + who.surname);
+		rebels.government = crown.government == Faction.Government.PLAYER ? Faction.Government.MONARCHY : crown.government;
+		rebels.religion = crown.religion;
+		rebels.laws.clear();
+		rebels.laws.addAll(crown.laws);
+		int n = Math.max(1, towns.size() / 2);
+		for (int i = 0; i < n; i++) if (i == 0 || towns.get(i).loyalty < 60) fm.transferSettlement(towns.get(i), rebels);
+		rebels.ruler = claimant;
+		rebels.rulerName = who.fullName();
+		who.ambition = Math.max(who.ambition, 85);
+		fm.setRelation(server, rebels.id, crown.id, -90);
+		Legend l = Legends.raise(server, fm, h, claimant, Kind.PRETENDER, day, random);
+		Crisis c = open(h, Type.PRETENDER, claimant, l.styled(), rebels, day);
+		c.oldName = crown.id;
+		c.fateDay = day + 20;
+		herald(server, h, c, l, rebels, "He claims to be the true heir of " + house + ", and " + rebels.settlements.size()
+				+ (rebels.settlements.size() == 1 ? " town rises" : " towns rise") + " for him. Civil war! (/colony crises back)", day);
+		return null;
+	}
+
+	private static void pretender(MinecraftServer server, FactionManager fm, History h, Crisis c, Faction rebels, long day, Random random) {
+		Faction crown = fm.get(c.oldName);
+		if (crown == null || crown.settlements.isEmpty()) {
+			// The claim made good: the claimant takes the old crown's name and throne.
+			if (crown != null) rebels.name = crown.name;
+			for (Settlement s : rebels.settlements.values()) s.loyalty = Math.max(s.loyalty, 70);
+			paySupporters(server, c, true);
+			finish(server, h, c, rebels, "made good his claim and took the throne", day);
+			return;
+		}
+		if (fm.relation(rebels.id, crown.id) > FactionManager.WAR) fm.setRelation(server, rebels.id, crown.id, -90);
+		aim(fm, rebels, crown);
+		aim(fm, crown, rebels);
+		// Discontented towns may go over to him.
+		if (random.nextInt(60) == 0) {
+			for (Settlement s : crown.settlements.values()) {
+				if (!s.isCapital() && s.loyalty < 35) {
+					fm.transferSettlement(s, rebels);
+					FactionManager.broadcast(server, Text.literal("⚑ " + s.name + " declares for " + c.figureName + ".").formatted(Formatting.GOLD));
+					break;
+				}
+			}
+		}
+		if (day >= c.fateDay) {
+			// Neither side can win: an uneasy peace splits the realm.
+			fm.setRelation(server, rebels.id, crown.id, -10);
+			finish(server, h, c, rebels, "could not win the whole realm, and an uneasy peace left it divided", day);
+		}
+	}
+
+	// ---------------------------------------------------------------- the Peasants' Revolt
+
+	/** Heavy taxes, bondage and an unloved ruler: the common folk rise, free the slaves and found a commune. */
+	@Nullable
+	static String startRevolt(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
+		Faction lord = null;
+		int worst = Integer.MAX_VALUE;
+		for (Faction f : fm.all()) {
+			if (f.freeVillage || f.settlements.size() < 2 || inCrisis(h, f)) continue;
+			int misery = f.approval - (f.slavery ? 20 : 0) - (int) (avgTax(f) * 100) + (f.government == Faction.Government.REPUBLIC ? 25 : 0);
+			if (misery < worst) {
+				worst = misery;
+				lord = f;
+			}
+		}
+		if (lord == null) return "No realm has a town to rise.";
+		List<Settlement> towns = new ArrayList<>(lord.settlements.values());
+		towns.removeIf(Settlement::isCapital);
+		if (towns.isEmpty()) return "No town would rise.";
+		towns.sort(Comparator.comparingInt(x -> x.loyalty));
+		Settlement first = towns.get(0);
+		// The leader: the bonded first, then the kindest.
+		UUID leader = bestCitizen(lord, first, (ci) -> ci.kindness + (ci.bonded ? 60 : 0) - ci.wealth / 4, random);
+		if (leader == null) return "No one leads the people.";
+		Faction.Citizen who = lord.citizens.get(leader);
+		Faction commune = fm.createFaction(random, "Free Commune of " + first.name);
+		commune.government = Faction.Government.REPUBLIC;
+		commune.slavery = false;
+		commune.laws.remove(net.colonists.law.Law.DEATH_PENALTY);
+		commune.religion = lord.religion;
+		fm.transferSettlement(first, commune);
+		for (int i = 1; i < towns.size(); i++) if (towns.get(i).loyalty < 35) fm.transferSettlement(towns.get(i), commune);
+		commune.ruler = leader;
+		commune.rulerName = who.fullName();
+		int freed = freeAll(server, fm, commune);
+		lord.armyOpinion = Math.max(0, lord.armyOpinion - 10);
+		fm.setRelation(server, commune.id, lord.id, -85);
+		Legend l = Legends.raise(server, fm, h, leader, Kind.REBEL, day, random);
+		Crisis c = open(h, Type.REVOLT, leader, l.styled(), commune, day);
+		c.oldName = lord.id;
+		c.fateDay = day + 15;
+		herald(server, h, c, l, commune, "The common folk of " + first.name + " have risen against the " + lord.name
+				+ (freed > 0 ? " and broken the chains of " + freed + (freed == 1 ? " slave" : " slaves") : "") + ". (/colony crises back)", day);
+		return null;
+	}
+
+	private static void revolt(MinecraftServer server, FactionManager fm, History h, Crisis c, Faction commune, long day, Random random) {
+		Faction lord = fm.get(c.oldName);
+		commune.slavery = false;
+		freeAll(server, fm, commune);
+		if (lord != null && !lord.settlements.isEmpty()) {
+			if (fm.relation(commune.id, lord.id) > FactionManager.WAR) fm.setRelation(server, commune.id, lord.id, -85);
+			aim(fm, lord, commune);
+			// The revolt spreads to the most miserable towns.
+			if (random.nextInt(40) == 0) {
+				for (Settlement s : lord.settlements.values()) {
+					if (!s.isCapital() && s.loyalty < 40) {
+						fm.transferSettlement(s, commune);
+						FactionManager.broadcast(server, Text.literal("✊ The revolt spreads: " + s.name + " joins the " + commune.name + ".").formatted(Formatting.GOLD));
+						break;
+					}
+				}
+			}
+		}
+		if (day >= c.fateDay || lord == null || lord.settlements.isEmpty()) {
+			if (lord != null) {
+				fm.setRelation(server, commune.id, lord.id, -20);
+				// The lords learn their lesson.
+				lord.approval = Math.max(lord.approval, 50);
+				for (Settlement s : lord.settlements.values()) if (s.taxRate > 8) s.taxRate = 8;
+			}
+			paySupporters(server, c, true);
+			finish(server, h, c, commune, "led the commune to freedom; the " + commune.name + " endures", day);
+		}
+	}
+
+	static int freeAll(MinecraftServer server, FactionManager fm, Faction commune) {
+		int n = 0;
+		for (Faction.Citizen ci : commune.citizens.values()) if (ci.bonded) {
+			ci.bonded = false;
+			n++;
+		}
+		net.colonists.law.Justice j = net.colonists.law.Justice.get(server);
+		for (net.colonists.law.Justice.Slave sl : new ArrayList<>(j.slaves.values())) {
+			if (commune.settlements.containsKey(sl.settlement) || sl.faction.equals(commune.id)) {
+				net.colonists.law.Slavery.free(server.getOverworld(), j, fm, sl, "The revolt has broken your chains. You are free!");
+				n++;
+			}
+		}
+		return n;
+	}
+
+	static double avgTax(Faction f) {
+		double sum = 0;
+		for (Settlement s : f.settlements.values()) sum += s.taxRate >= 0 ? s.taxRate / 100.0 : net.colonists.economy.Economy.defaultTax(f);
+		return f.settlements.isEmpty() ? 0 : sum / f.settlements.size();
+	}
+
+	// ---------------------------------------------------------------- the Golden Age
+
+	/** A happy, peaceful realm flowers: trade booms, builders work twice as fast, and legends are born. */
+	@Nullable
+	static String startGolden(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
+		Faction best = null;
+		for (Faction f : fm.all()) {
+			if (f.freeVillage || f.settlements.size() < 2 || f.atWar || inCrisis(h, f)) continue;
+			if (f.ruler == null && f.rulerPlayer == null) continue;
+			if (best == null || f.approval > best.approval) best = f;
+		}
+		if (best == null) return "No realm is at peace and prosperous enough.";
+		UUID patron = best.rulerPlayer != null ? best.rulerPlayer : best.ruler;
+		Legend l = Legends.raise(server, fm, h, patron, Kind.MAGNIFICENT, day, random);
+		Crisis c = open(h, Type.GOLDEN, patron, l.styled(), best, day);
+		c.fateDay = day + 10 + random.nextInt(6);
+		best.approval = Math.max(best.approval, 80);
+		herald(server, h, c, l, best, "A Golden Age dawns: trade flourishes, builders work twice as fast, and great men and women are born.", day);
+		return null;
+	}
+
+	private static void golden(MinecraftServer server, FactionManager fm, History h, Crisis c, Faction realm, long day, Random random) {
+		if (realm.atWar && random.nextInt(10) == 0) {
+			finish(server, h, c, realm, "saw his Golden Age cut short by war", day);
+			return;
+		}
+		realm.approval = Math.max(realm.approval, 70);
+		for (Settlement s : realm.settlements.values()) s.loyalty = Math.min(100, s.loyalty + 1);
+		if (c.figure != null) Legends.earn(server, c.figure, History.RULE, 2);
+		if (day >= c.fateDay) {
+			realm.era++;
+			finish(server, h, c, realm, "presided over a Golden Age that the " + realm.name + " will long remember", day);
+		}
+	}
+
+	/** True while a realm enjoys a Golden Age. */
+	public static boolean golden(MinecraftServer server, String factionId) {
+		if (factionId == null || factionId.isEmpty()) return false;
+		for (Crisis c : History.get(server).crises) if (c.active() && c.faction.equals(factionId) && c.type.equals(Type.GOLDEN.name())) return true;
+		return false;
+	}
+
+	// ---------------------------------------------------------------- the False Prophet
+
+	/** A deceiver rises within a great faith, preaching a heresy. The faithful must hunt him down. */
+	@Nullable
+	static String startHeretic(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
+		// The faith to trouble: the Messenger's if there is one, else the most widespread.
+		History.Religion target = null;
+		for (Crisis m : h.crises) if (m.active() && m.type.equals(Type.MESSENGER.name())) {
+			Faction cal = fm.get(m.faction);
+			if (cal != null) target = h.religion(cal.religion);
+		}
+		if (target == null) {
+			int most = 0;
+			for (History.Religion r : h.religions.values()) {
+				int n = (int) fm.allSettlements().stream().filter(x -> x.faction != null && x.faction.religion.equals(r.id)).count();
+				if (n > most) {
+					most = n;
+					target = r;
+				}
+			}
+		}
+		if (target == null) return "There is no faith to trouble.";
+		// His town: one of the faith's towns, preferably not a capital.
+		Settlement town = null;
+		for (Settlement s : fm.allSettlements()) {
+			if (s.faction == null || s.faction.freeVillage || !s.faction.religion.equals(target.id)) continue;
+			if (town == null || (town.isCapital() && !s.isCapital()) || (!s.isCapital() && s.loyalty < town.loyalty)) town = s;
+		}
+		if (town == null) return "The faith has no towns.";
+		Faction old = town.faction;
+		UUID who = bestCitizen(old, town, (ci) -> ci.ambition - ci.kindness + 50, random);
+		if (who == null || who.equals(old.ruler)) return "No deceiver is found.";
+		Faction.Citizen ci = old.citizens.get(who);
+		History.Religion heresy = Faith.create(h, random, target, ci.fullName(), day);
+		heresy.prophet = who;
+		Faction sect = fm.createFaction(random, "Followers of " + ci.surname);
+		sect.government = Faction.Government.THEOCRACY;
+		sect.religion = heresy.id;
+		if (!town.isCapital() || old.settlements.size() > 1) fm.transferSettlement(town, sect);
+		else return "The deceiver has nowhere to go.";
+		sect.ruler = who;
+		sect.rulerName = ci.fullName();
+		for (Faction.Citizen x : sect.citizens.values()) x.religion = heresy.id;
+		Legend l = Legends.raise(server, fm, h, who, Kind.FALSE_PROPHET, day, random);
+		l.religion = heresy.id;
+		Crisis c = open(h, Type.HERETIC, who, l.styled(), sect, day);
+		c.oldName = target.id;
+		c.fateDay = day + 20;
+		herald(server, h, c, l, sect, "He preaches " + heresy.name + ", a heresy of " + target.name + ", and leads " + town.name + " astray. The faithful must hunt him down!", day);
+		// The faithful take up arms.
+		for (Faction f : fm.all()) if (f != sect && f.religion.equals(target.id) && !f.freeVillage) Legends.holyWar(server, fm, f, sect, day);
+		return null;
+	}
+
+	private static void heretic(MinecraftServer server, FactionManager fm, History h, Crisis c, Faction sect, long day, Random random) {
+		History.Religion target = h.religion(c.oldName);
+		Settlement seat = sect.capital();
+		if (seat != null && seat.cityCenter != null && !sect.religion.isEmpty()) {
+			for (Settlement s : fm.allSettlements()) {
+				if (s.faction == null || s.faction == sect || s.cityCenter == null || target == null || !s.faction.religion.equals(target.id)) continue;
+				double d = Math.sqrt(s.cityCenter.getSquaredDistance(seat.cityCenter));
+				if (d > 600) continue;
+				Faith.preach(fm, h, s, sect.religion, 10, random);
+				if (!s.isCapital() && s.loyalty < 60 && Legends.followers(s, sect.religion) >= 60 && random.nextInt(25) == 0) {
+					fm.transferSettlement(s, sect);
+					FactionManager.broadcast(server, Text.literal("🐍 " + s.name + " follows " + c.figureName + " into heresy.").formatted(Formatting.DARK_PURPLE));
+				}
+			}
+		}
+		// The faithful keep up the hunt.
+		if (target != null) for (Faction f : fm.all()) {
+			if (f == sect || f.freeVillage || !f.religion.equals(target.id)) continue;
+			if (fm.relation(f.id, sect.id) > FactionManager.WAR) Legends.holyWar(server, fm, f, sect, day);
+			aim(fm, f, sect);
+		}
+		if (day >= c.fateDay) {
+			History.Event e = h.log(day, History.EventType.SCHISM);
+			e.actor = sect.id;
+			e.actorName = target == null ? sect.name : target.name;
+			e.extra = sect.name;
+			finish(server, h, c, sect, "outlived the hunt; his heresy endures", day);
+		}
+	}
+
+	// ---------------------------------------------------------------- shared
+
+	static boolean inCrisis(History h, Faction f) {
+		for (Crisis c : h.crises) if (c.active() && (c.faction.equals(f.id) || c.oldName.equals(f.id))) return true;
+		return false;
+	}
+
+	/** Points a realm's armies at the enemy's nearest town. */
+	static void aim(FactionManager fm, Faction f, Faction foe) {
+		Settlement goal = fm.settlement(f.warGoal);
+		if (goal != null && goal.faction == foe) return;
+		Settlement next = nearestOf(foe, center(f));
+		if (next != null) f.warGoal = next.id;
+	}
+
+	@Nullable
+	static UUID bestCitizen(Faction f, Settlement s, java.util.function.ToIntFunction<Faction.Citizen> score, Random random) {
+		UUID best = null;
+		int top = Integer.MIN_VALUE;
+		for (Map.Entry<UUID, Faction.Citizen> e : f.citizens.entrySet()) {
+			Faction.Citizen ci = e.getValue();
+			if (ci.child || ci.settlement != s.id || e.getKey().equals(f.ruler)) continue;
+			int v = score.applyAsInt(ci) + random.nextInt(20);
+			if (v > top) {
+				top = v;
+				best = e.getKey();
+			}
+		}
+		return best;
+	}
+
+	/** Players who backed a side in a civil war or a revolt. */
+	public static String back(ServerPlayerEntity p, boolean rebels) {
+		MinecraftServer server = p.getServer();
+		History h = History.get(server);
+		FactionManager fm = FactionManager.get(server);
+		Crisis c = null;
+		for (Crisis x : h.crises) if (x.active() && (x.type.equals(Type.PRETENDER.name()) || x.type.equals(Type.REVOLT.name()))) c = x;
+		if (c == null) return "There is no civil war or revolt to take part in.";
+		Faction side = fm.get(rebels ? c.faction : c.oldName);
+		if (side == null) return "That side is already gone.";
+		fm.setPlayerFaction(p.getUuid(), side.id);
+		fm.changeRep(server, p, side.id, 30);
+		Faction other = fm.get(rebels ? c.oldName : c.faction);
+		if (other != null) fm.changeRep(server, p, other.id, -40);
+		pr(server, p).add("backed:" + h.crises.indexOf(c) + ":" + (rebels ? "r" : "c"), 1);
+		FactionManager.broadcast(server, Text.literal("⚑ " + p.getName().getString() + " has taken the side of the " + side.name + ".").formatted(Formatting.GOLD));
+		return null;
+	}
+
+	/** When a side wins, those who backed it are remembered as Kingmakers. */
+	static void paySupporters(MinecraftServer server, Crisis c, boolean rebelsWon) {
+		int idx = History.get(server).crises.indexOf(c);
+		for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+			net.colonists.player.PlayerData.Profile pr = pr(server, p);
+			if (pr.stat("backed:" + idx + ":" + (rebelsWon ? "r" : "c")) > 0) {
+				pr.add("backed:won", 1);
+				pr.bank += 50;
+				p.sendMessage(Text.literal("👑 Your side won! The grateful victors pay you 50 emeralds (in your bank).").formatted(Formatting.GOLD), false);
+			}
+		}
 	}
 
 	// ---------------------------------------------------------------- helpers
@@ -689,6 +1096,8 @@ public final class Crises {
 				case GREAT -> 2;
 				case IMPERATOR -> 2;
 				case MESSENGER -> c.figure != null ? 3 : 1;
+				case PRETENDER, REVOLT, HERETIC -> 1;
+				case GOLDEN -> 0;
 			};
 		}
 		return 0;

@@ -162,6 +162,10 @@ public final class Chronicles {
 			case GREAT -> new String[]{"the Accursed", "the Madman", "the Butcher of Nations"};
 			case IMPERATOR -> new String[]{"the Usurper", "the Pretender", "the Tyrant Reborn"};
 			case MESSENGER -> new String[]{"the False Messenger", "the Deceiver of Nations"};
+			case PRETENDER -> new String[]{"the Impostor", "the False Heir", "the Usurper"};
+			case REBEL -> new String[]{"the Rabble-Rouser", "the Brigand", "the Oathbreaker"};
+			case MAGNIFICENT -> new String[]{"the Spendthrift", "the Vain", "the Gilded"};
+			case FALSE_PROPHET -> new String[]{"the Antichrist", "the Liar", "the Serpent"};
 		};
 		return l.name + " " + cursed[Math.floorMod(l.who.hashCode(), cursed.length)];
 	}
@@ -225,6 +229,7 @@ public final class Chronicles {
 			case RESTORATION -> sa > 0 ? when + ", " + who + " made whole again the realm of " + e.targetName + ". Glory returned to the world."
 					: when + ", " + who + " forced the old realm of " + e.targetName + " back together by fire and sword.";
 			case CALIPH -> when + ", " + e.person + " became the " + e.extra + " Caliph of " + actor + ".";
+			case CRISIS_END -> when + ", " + who + " " + e.extra + ".";
 			case SCHISM -> when + ", the faithful of " + actor + " were torn apart: " + e.extra + " broke away" + (sa > 0 ? ", heretics all." : ".");
 			case AGE -> when + ", " + e.person.toLowerCase() + ". So began " + e.extra + ".";
 			case ERA -> when + ", " + actor + " entered their " + e.extra + " era" + (sa > 0 ? ", and grew mighty." : ".");

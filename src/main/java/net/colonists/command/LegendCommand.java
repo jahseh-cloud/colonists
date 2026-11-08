@@ -33,8 +33,11 @@ public final class LegendCommand {
 				.then(CommandManager.literal("crises").executes(LegendCommand::crises)
 						.then(CommandManager.literal("start").requires(s -> s.hasPermissionLevel(2))
 								.then(CommandManager.argument("type", com.mojang.brigadier.arguments.StringArgumentType.word())
-										.suggests((c, b) -> net.minecraft.command.CommandSource.suggestMatching(new String[]{"messenger", "khan", "imperator", "great"}, b))
-										.executes(LegendCommand::startCrisis))))
+										.suggests((c, b) -> net.minecraft.command.CommandSource.suggestMatching(new String[]{"messenger", "khan", "imperator", "great", "pretender", "revolt", "golden", "heretic"}, b))
+										.executes(LegendCommand::startCrisis)))
+						.then(CommandManager.literal("back")
+								.then(CommandManager.literal("rebels").executes(ctx -> back(ctx, true)))
+								.then(CommandManager.literal("crown").executes(ctx -> back(ctx, false)))))
 				.then(CommandManager.literal("history")
 						.executes(ctx -> history(ctx, 12))
 						.then(CommandManager.argument("count", IntegerArgumentType.integer(1, 60)).executes(ctx -> history(ctx, IntegerArgumentType.getInteger(ctx, "count"))))));
@@ -58,13 +61,22 @@ public final class LegendCommand {
 		return h.crises.size();
 	}
 
+	private static int back(CommandContext<ServerCommandSource> ctx, boolean rebels) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		String fail = net.colonists.legend.Crises.back(ctx.getSource().getPlayerOrThrow(), rebels);
+		if (fail != null) {
+			ctx.getSource().sendError(Text.literal(fail));
+			return 0;
+		}
+		return 1;
+	}
+
 	private static int startCrisis(CommandContext<ServerCommandSource> ctx) {
 		String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "type").toUpperCase();
 		net.colonists.legend.Crises.Type t;
 		try {
 			t = net.colonists.legend.Crises.Type.valueOf(name);
 		} catch (IllegalArgumentException e) {
-			ctx.getSource().sendError(Text.literal("Unknown crisis. Try messenger, khan, imperator or great."));
+			ctx.getSource().sendError(Text.literal("Unknown crisis. Try messenger, khan, imperator, great, pretender, revolt, golden or heretic."));
 			return 0;
 		}
 		String fail = net.colonists.legend.Crises.start(ctx.getSource().getServer(), t, null);

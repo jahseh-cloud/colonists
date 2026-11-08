@@ -94,7 +94,8 @@ public class History extends PersistentState {
 	public enum Kind {
 		ADVENTURER("Adventurer", 1), HERO("Hero", 2), EMPEROR("Emperor", 3),
 		PROPHET("Prophet", 4), PROPHET_KING("Prophet King", 5), PROPHET_CONQUEROR("Prophet Conqueror", 6),
-		KHAN("Khan", 7), GREAT("Conqueror", 7), IMPERATOR("Imperator", 7), MESSENGER("Messenger", 8);
+		KHAN("Khan", 7), GREAT("Conqueror", 7), IMPERATOR("Imperator", 7), MESSENGER("Messenger", 8),
+		PRETENDER("Pretender", 6), REBEL("Liberator", 6), MAGNIFICENT("Patron", 6), FALSE_PROPHET("False Prophet", 6);
 
 		public final String label;
 		public final int rank;
@@ -105,12 +106,12 @@ public class History extends PersistentState {
 		}
 
 		public boolean prophet() {
-			return this == PROPHET || this == PROPHET_KING || this == PROPHET_CONQUEROR || this == MESSENGER;
+			return this == PROPHET || this == PROPHET_KING || this == PROPHET_CONQUEROR || this == MESSENGER || this == FALSE_PROPHET;
 		}
 
 		/** The great figures of a crisis. */
 		public boolean crisis() {
-			return this == KHAN || this == GREAT || this == IMPERATOR || this == MESSENGER;
+			return this.rank >= 6 && this != PROPHET_CONQUEROR;
 		}
 	}
 
@@ -371,7 +372,7 @@ public class History extends PersistentState {
 	public enum EventType {
 		FOUNDED, CONQUERED, CEDED, WAR, HOLY_WAR, PEACE, CROWNED, REBELLION, EXECUTION, LEGEND_RISES, LEGEND_DIES,
 		PROPHET, NEW_FAITH, CONVERSION, PROPHECY_FULFILLED, MIRACLE, VILLAGE_SEIZED, EXODUS, FALL,
-		AGE, ERA, WONDER_BEGUN, WONDER_BUILT, WONDER_RUINED, WONDER_RAZED, CRISIS, FRACTURE, RESTORATION, CALIPH, SCHISM
+		AGE, ERA, WONDER_BEGUN, WONDER_BUILT, WONDER_RUINED, WONDER_RAZED, CRISIS, FRACTURE, RESTORATION, CALIPH, SCHISM, CRISIS_END
 	}
 
 	/** One thing that happened, with who did it (faction ids so chroniclers can take sides). */

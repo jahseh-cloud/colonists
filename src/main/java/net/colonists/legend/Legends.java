@@ -197,7 +197,7 @@ public final class Legends {
 			else if (r[History.ADVENTURE] >= (wanderer(fm, h, who) ? ADVENTURE_NEEDED / 2 : ADVENTURE_NEEDED) && have < Kind.ADVENTURER.rank) next = Kind.ADVENTURER;
 			// Fortune's part: once deserving, about two days on average before the songs begin.
 			Faction home = factionOf(fm, who);
-			int odds = Ages.legendOdds(h) / (Wonders.holds(server, home, Wonders.Type.LIBRARY) ? 2 : 1);
+			int odds = Ages.legendOdds(h) / (Wonders.holds(server, home, Wonders.Type.LIBRARY) ? 2 : 1) / (home != null && Crises.golden(server, home.id) ? 2 : 1);
 			if (next == null || random.nextInt(Math.max(4, odds)) != 0) continue;
 			raise(server, fm, h, who, next, day, random);
 		}
@@ -295,6 +295,10 @@ public final class Legends {
 			case GREAT -> "the Great";
 			case IMPERATOR -> "Restitutor";
 			case MESSENGER -> "the Messenger";
+			case PRETENDER -> "the Claimant";
+			case REBEL -> "the Liberator";
+			case MAGNIFICENT -> "the Magnificent";
+			case FALSE_PROPHET -> "the Unveiled";
 		};
 		l.faction = f == null ? "" : f.id;
 		l.factionName = f == null ? "wilds" : f.name;

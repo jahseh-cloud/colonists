@@ -216,12 +216,19 @@ Each era adds 5% production. Grand-era realms build in stone even for ordinary f
 
 ## Crises
 
-Every so often the world is shaken by a figure greater than any legend. Crises start on their own, are more likely in the right age, and at most two run at once. Operators can begin one with `/colony crises start <messenger|khan|imperator|great>`. `/colony crises` lists past and present crises and broken empires.
+Every so often the world is shaken by a figure greater than any legend. Crises start on their own, are more likely in the right age, and at most three run at once. Operators can begin one with `/colony crises start <messenger|khan|imperator|great|pretender|revolt|golden|heretic>`. `/colony crises` lists past and present crises and broken empires.
 
 - **The Messenger** (from day 15; three times likelier in an Age of Faith): the mightiest prophet. He founds a new faith with three teachings, always including the sword or the way of peace. His realm becomes a **Caliphate**. His word spreads 1000 blocks, and faithful towns of other realms defect to him. If his faith holds the sword, he wages great holy wars. After he dies, **Caliphs** succeed him one by one. By the third Caliph the faithful may quarrel: a **schism** splits off a rival faith and half of the realm.
 - **The Khan** (from day 10; likelier in an Age of Strife): a **Horde** rides out of empty land with a dozen armoured riders, and more join every day, up to 40. It is always at war with its nearest neighbour, takes towns fast, and feels no war weariness. When the Khan dies, the horde breaks into Khanates. The player who kills him is hailed as **Bane of the Khan**, the highest title a player can earn.
 - **The Great**: the ambitious ruler of a small nation declares war on the largest empire and conquers town after town. Conquered towns stay loyal to him. Within 10–16 days a fever takes him, and his generals divide his realm.
 - **The Imperator** (a "Restitutor"): 5–15 days after a great realm breaks apart, the heir holding most of its towns swears to rebuild it. He wars on whoever holds the old towns and preaches his faith in every town he takes. Holding 80% of them is a **Restoration**.
+
+- **The Pretender** (from day 8): in a large, unhappy realm, someone claims to be the true heir. Half its discontented towns rise for him, and the civil war is on. More towns may declare for him as it goes. If he takes the whole realm, he takes its name and throne. If he dies, his towns go back to the crown. After 20 days with no winner, an uneasy peace leaves the realm divided.
+- **The Peasants' Revolt** (from day 6): in the most miserable realm (unloved rulers, heavy taxes, slavery), the common folk of a town rise up and found a **Free Commune**, a republic with no slaves and no gallows. Every slave in its towns, players included, is freed. The revolt can spread to other unhappy towns. If the commune lasts 15 days, it is free for good, and its old lords lower their taxes.
+- **The Golden Age** (likelier in an Age of Prosperity): a good crisis. For 10–15 days a happy, peaceful realm under its Magnificent ruler earns 50% more, builds twice as fast and produces legends twice as often. It ends in a new era for the realm, unless war cuts it short.
+- **The False Prophet** (only while a Messenger's faith is strong): a deceiver preaches a heresy of the great faith and leads his town into a breakaway sect. He tries to lure nearby faithful towns over. Every realm of the true faith wages holy war on him. Kill him for the **Hand of the Faith** title. If he survives 20 days, his heresy endures.
+
+In a civil war or revolt, players can pick a side with `/colony crises back rebels` or `/colony crises back crown`. If your side wins, you get 50 emeralds in your bank and the **Kingmaker** title.
 
 Chroniclers write about all of it: crises, fractures, restorations, Caliphs and schisms. Killing any crisis figure earns a player "Slayer of Legends".
 

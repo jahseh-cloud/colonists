@@ -105,6 +105,7 @@ public final class Economy {
 		double blessing = net.colonists.legend.Faith.production(hist, f) * net.colonists.legend.Ages.production(hist) * (1 + 0.05 * f.era);
 		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.COLOSSUS)) blessing *= 1.25;
 		if (net.colonists.legend.Wonders.holds(server, f, net.colonists.legend.Wonders.Type.BAZAAR)) blessing *= 1.1;
+		if (net.colonists.legend.Crises.golden(server, f.id)) blessing *= 1.5;
 		s.treasury += (int) Math.round((people.size() * 2 + (s.hasBuilt("market") ? people.size() / 2 : 0)) * blessing);
 		// Taxes on wealth (nobles of a monarchy are exempt).
 		double rate = s.taxRate >= 0 ? s.taxRate / 100.0 : defaultTax(f);

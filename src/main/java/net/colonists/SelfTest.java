@@ -294,6 +294,26 @@ public final class SelfTest {
 			}
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST crises: {}", h.crises.stream().map(c -> c.type + "/" + c.figureName + "/" + (c.active() ? "active" : "ended") + "/caliphs=" + c.caliphs).toList());
 		});
+		if (t == 76000) step("crises-new", () -> {
+			net.colonists.legend.History h = net.colonists.legend.History.get(server);
+			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
+			for (String type : new String[]{"REVOLT", "PRETENDER", "GOLDEN", "HERETIC"}) {
+				if (h.crises.stream().noneMatch(c -> c.active() && c.type.equals(type))) {
+					String why = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.valueOf(type), null);
+					ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {}: {}", type, why == null ? "began" : why);
+				}
+			}
+			String backed = net.colonists.legend.Crises.back(fp, true);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST back rebels: {}", backed == null ? "ok" : backed);
+			for (int i = 0; i < 5; i++) net.colonists.legend.Crises.tick(server, fm, h, w.getRandom());
+			for (net.colonists.legend.History.Crisis c : new ArrayList<>(h.crises)) {
+				if (c.active() && c.figure != null && (c.type.equals("HERETIC") || c.type.equals("REVOLT")) && w.getEntity(c.figure) instanceof ColonistEntity e)
+					e.damage(w.getDamageSources().playerAttack(fp), Float.MAX_VALUE);
+			}
+			net.colonists.legend.Chronicles.tick(server, fm);
+			fm.setPlayerFaction(fp.getUuid(), null);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST crises now: {}", h.crises.stream().map(c -> c.type + "/" + c.figureName + "/" + (c.active() ? "active" : "ended")).toList());
+		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
 			step("world-edge", () -> {

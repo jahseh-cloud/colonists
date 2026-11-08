@@ -259,6 +259,8 @@ public class BuildStructureTask extends Task {
 		this.colonist.swingHand(Hand.MAIN_HAND);
 		this.current = null;
 		this.cooldown = j.step == Step.CLEAR ? 5 : 4;
+		// A Golden Age: builders work twice as fast.
+		if (this.colonist.getWorld().getServer() != null && net.colonists.legend.Crises.golden(this.colonist.getWorld().getServer(), this.colonist.getFactionId())) this.cooldown /= 2;
 	}
 
 	@Nullable
