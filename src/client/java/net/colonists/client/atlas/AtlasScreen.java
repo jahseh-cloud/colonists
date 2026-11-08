@@ -30,8 +30,9 @@ public class AtlasScreen extends Screen {
 	private enum Panel {NONE, REALM, LAWS, DIPLOMACY, LEGENDS}
 
 	private static final int[] ZOOMS = {1, 2, 4, 8, 16, 32};
-	private static final int SIDEBAR = 160, TOPBAR = 22;
-	private static final int PARCHMENT = 0xFFE9DCB5, INK = 0xFF3B2A1A, INK_SOFT = 0xFF6B5638;
+	private static final int TOPBAR = 24;
+	private static final int PARCHMENT = 0xFFE9DCB5, INK = 0xFF3B2A1A, INK_SOFT = 0xFF6B5638, RUBRIC = 0xFF7A2E22;
+	private static final int SIDE_BG = 0xFFDCCB9C, BAR_BG = 0xFFC9B585;
 
 	// Remembered between openings.
 	private static double centerX = Double.NaN, centerZ;
@@ -45,6 +46,8 @@ public class AtlasScreen extends Screen {
 	private int fundChoice;
 	private int govChoice = 1;
 	private int refresh;
+	/** The sidebar body scrolls; actions sit in a fixed area beneath it. */
+	private int scroll, contentHeight, actionsTop;
 	private final Map<String, FactionInfo> factionById = new HashMap<>();
 
 	public AtlasScreen() {
@@ -83,35 +86,45 @@ public class AtlasScreen extends Screen {
 
 	// ---------------------------------------------------------------- layout & buttons
 
+	private int sidebarWidth() {
+		return MathHelper.clamp((int) (this.width * 0.3), 172, 240);
+	}
+
 	private int mapRight() {
-		return this.width - SIDEBAR;
+		return this.width - this.sidebarWidth();
 	}
 
 	private void rebuild() {
 		this.clearChildren();
+		// Map modes, as tabs sized to their names (shrunk evenly if the map is narrow).
+		String[] labels = {"Realms", "Relations", "Wealth", "Loyalty", "Faith"};
+		int[] widths = new int[labels.length];
+		int total = 0;
+		for (int i = 0; i < labels.length; i++) total += widths[i] = this.textRenderer.getWidth(labels[i]) + 14;
+		double fit = Math.min(1.0, (this.mapRight() - 8 - 2 * labels.length) / (double) total);
 		int x = 4;
-		int modeW = Math.max(34, Math.min(56, (this.mapRight() - 8) / Mode.values().length - 2));
-		for (Mode m : Mode.values()) {
-			String label = switch (m) {
-				case POLITICAL -> "Realms";
-				case DIPLOMATIC -> "Relations";
-				case WEALTH -> "Wealth";
-				case LOYALTY -> "Loyalty";
-				case FAITH -> "Faith";
-			};
-			this.addDrawableChild(ButtonWidget.builder(Text.literal((mode == m ? "▶ " : "") + label), b -> {
+		for (int i = 0; i < labels.length; i++) {
+			Mode m = Mode.values()[i];
+			int w = Math.max(24, (int) (widths[i] * fit));
+			this.addDrawableChild(new ParchmentButton(x, 3, w, 18, Text.literal(labels[i]), b -> {
 				mode = m;
 				this.rebuild();
-			}).dimensions(x, 2, modeW, 18).build());
-			x += modeW + 2;
+			}, mode == m));
+			x += w + 2;
 		}
-		int sx = this.mapRight() + 4, w = SIDEBAR - 8;
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Realm"), b -> this.toggle(Panel.REALM)).dimensions(sx, 2, 36, 18).build());
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Laws"), b -> this.toggle(Panel.LAWS)).dimensions(sx + 37, 2, 32, 18).build());
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Nations"), b -> this.toggle(Panel.DIPLOMACY)).dimensions(sx + 70, 2, 42, 18).build());
-		this.addDrawableChild(ButtonWidget.builder(Text.literal("Lore"), b -> this.toggle(Panel.LEGENDS)).dimensions(sx + 113, 2, w - 113, 18).build());
+		// Sidebar tabs, evenly across the sidebar.
+		int sx = this.mapRight() + 4, sw = this.sidebarWidth() - 8;
+		Panel[] tabs = {Panel.REALM, Panel.LAWS, Panel.DIPLOMACY, Panel.LEGENDS};
+		String[] tabNames = {"Realm", "Laws", "Nations", "Lore"};
+		int tw = (sw - 3 * 2) / 4;
+		for (int i = 0; i < 4; i++) {
+			Panel p = tabs[i];
+			this.addDrawableChild(new ParchmentButton(sx + i * (tw + 2), 3, i == 3 ? sw - 3 * (tw + 2) : tw, 18, Text.literal(tabNames[i]), b -> this.toggle(p), this.panel == p));
+		}
+		int w = sw;
 
 		AtlasPayloads.Data d = AtlasClient.data;
+		this.actionsTop = this.height - 4;
 		if (d == null) return;
 		boolean ruler = d.ruler();
 		int y = this.height - 4;
@@ -179,21 +192,29 @@ public class AtlasScreen extends Screen {
 				actions.add(btn("Found colony from " + from.name(), () -> this.order(Statecraft.Order.COLONIZE, source, 0, land[0], land[1])));
 			}
 		}
-		for (int i = actions.size() - 1; i >= 0; i--) {
-			y -= 20;
+		// Actions in a grid at the foot of the sidebar: one column when few, two when many, never more than half its height.
+		int cols = actions.size() > 4 ? 2 : 1;
+		int rows = (actions.size() + cols - 1) / cols;
+		int maxRows = Math.max(1, (this.height - TOPBAR) / 2 / 20);
+		rows = Math.min(rows, maxRows);
+		int bw = cols == 1 ? w : (w - 2) / 2;
+		this.actionsTop = actions.isEmpty() ? this.height - 4 : y - rows * 20 - 6;
+		for (int i = 0; i < actions.size() && i < rows * cols; i++) {
 			ButtonWidget b = actions.get(i);
-			b.setDimensions(w, 18);
-			b.setPosition(sx, y);
+			int r = i / cols, c = i % cols;
+			b.setDimensions(bw, 18);
+			b.setPosition(sx + c * (bw + 2), this.actionsTop + 6 + r * 20);
 			this.addDrawableChild(b);
 		}
 	}
 
 	private ButtonWidget btn(String label, Runnable action) {
-		return ButtonWidget.builder(Text.literal(label), b -> action.run()).dimensions(0, 0, 100, 18).build();
+		return new ParchmentButton(0, 0, 100, 18, Text.literal(label), b -> action.run(), false);
 	}
 
 	private void toggle(Panel p) {
 		this.panel = this.panel == p ? Panel.NONE : p;
+		this.scroll = 0;
 		this.rebuild();
 	}
 
@@ -287,18 +308,27 @@ public class AtlasScreen extends Screen {
 		this.drawWonders(ctx);
 		this.drawPlayer(ctx);
 		ctx.disableScissor();
-		// Frame and sidebar.
-		ctx.fill(0, TOPBAR - 1, this.mapRight(), TOPBAR, INK);
-		ctx.fill(this.mapRight(), 0, this.mapRight() + 1, this.height, INK);
-		ctx.fill(this.mapRight() + 1, 0, this.width, this.height, 0xFFDCCB9C);
+		// The map's frame: a double ink rule.
+		int mr = this.mapRight();
+		ctx.fill(0, 0, this.width, TOPBAR, 0xFFCDB98A);
+		ctx.fill(0, TOPBAR - 1, this.width, TOPBAR, INK);
+		ctx.fill(2, TOPBAR + 2, mr - 2, TOPBAR + 3, 0x66000000 | (INK & 0xFFFFFF));
+		ctx.fill(2, this.height - 3, mr - 2, this.height - 2, 0x66000000 | (INK & 0xFFFFFF));
+		ctx.fill(2, TOPBAR + 2, 3, this.height - 2, 0x66000000 | (INK & 0xFFFFFF));
+		ctx.fill(mr - 3, TOPBAR + 2, mr - 2, this.height - 2, 0x66000000 | (INK & 0xFFFFFF));
+		// The sidebar.
+		ctx.fill(mr, TOPBAR - 1, mr + 1, this.height, INK);
+		ctx.fill(mr + 1, TOPBAR, this.width, this.height, SIDE_BG);
 		this.drawSidebar(ctx);
-		this.drawScaleBar(ctx);
+		this.drawLegend(ctx);
 		if (AtlasClient.data != null) {
 			String age = AtlasClient.data.age();
 			String text = "⌛ " + Character.toUpperCase(age.charAt(0)) + age.substring(1);
 			int w = this.textRenderer.getWidth(text);
-			ctx.fill(this.mapRight() / 2 - w / 2 - 4, TOPBAR + 2, this.mapRight() / 2 + w / 2 + 4, TOPBAR + 13, 0xCCE9DCB5);
-			ctx.drawText(this.textRenderer, text, this.mapRight() / 2 - w / 2, TOPBAR + 4, INK, false);
+			int cx = mr / 2;
+			ctx.fill(cx - w / 2 - 6, TOPBAR + 5, cx + w / 2 + 6, TOPBAR + 18, INK);
+			ctx.fill(cx - w / 2 - 5, TOPBAR + 6, cx + w / 2 + 5, TOPBAR + 17, PARCHMENT);
+			ctx.drawText(this.textRenderer, text, cx - w / 2, TOPBAR + 8, INK, false);
 		}
 	}
 
@@ -493,113 +523,263 @@ public class AtlasScreen extends Screen {
 		ctx.fill(x - 1, y - 1, x + 1, y + 1, 0xFFFFFFFF);
 	}
 
-	private void drawScaleBar(DrawContext ctx) {
+	/** Bottom-left of the map: a scale bar, and a key for the current map mode. */
+	private void drawLegend(DrawContext ctx) {
 		int blocks = (int) (64 * this.scale());
-		int y = this.height - 10;
-		ctx.fill(6, y, 6 + 64, y + 2, INK);
-		ctx.drawText(this.textRenderer, blocks + " blocks", 74, y - 3, INK, false);
+		int x = 8, y = this.height - 14;
+		List<String> keys = new ArrayList<>();
+		List<Integer> colours = new ArrayList<>();
+		switch (mode) {
+			case DIPLOMATIC -> {
+				keys.add("Yours"); colours.add(0xD4A017);
+				keys.add("Allied"); colours.add(0x3E9E4A);
+				keys.add("Wary"); colours.add(0xC06A30);
+				keys.add("At war"); colours.add(0xB03030);
+			}
+			case WEALTH -> {
+				keys.add("Poor"); colours.add(0x8A6A4A);
+				keys.add("Rich"); colours.add(0xE0B020);
+			}
+			case LOYALTY -> {
+				keys.add("Restless"); colours.add(0xB03030);
+				keys.add("Loyal"); colours.add(0x3E9E4A);
+			}
+			default -> {
+			}
+		}
+		int boxW = 74 + this.textRenderer.getWidth(blocks + " blocks");
+		int kx = 0;
+		for (String k : keys) kx += 12 + this.textRenderer.getWidth(k) + 6;
+		boxW = Math.max(boxW, kx + 6);
+		int boxH = keys.isEmpty() ? 14 : 26;
+		ctx.fill(x - 3, this.height - 6 - boxH, x - 3 + boxW, this.height - 6, 0xCCE9DCB5);
+		ctx.fill(x, y, x + 64, y + 2, INK);
+		ctx.fill(x, y - 2, x + 1, y + 4, INK);
+		ctx.fill(x + 63, y - 2, x + 64, y + 4, INK);
+		ctx.drawText(this.textRenderer, blocks + " blocks", x + 70, y - 3, INK, false);
+		int ky = y - 14, kxx = x;
+		for (int i = 0; i < keys.size(); i++) {
+			ctx.fill(kxx, ky, kxx + 9, ky + 9, INK);
+			ctx.fill(kxx + 1, ky + 1, kxx + 8, ky + 8, 0xFF000000 | colours.get(i));
+			ctx.drawText(this.textRenderer, keys.get(i), kxx + 12, ky + 1, INK, false);
+			kxx += 12 + this.textRenderer.getWidth(keys.get(i)) + 6;
+		}
+	}
+
+	/** A line of the sidebar: a heading, a paragraph, a labelled bar, a coloured key, or a gap. */
+	private record Row(int kind, Text text, int value, int colour) {
+		static final int HEADING = 0, TEXT = 1, BAR = 2, KEY = 3, GAP = 4, TITLE = 5;
+	}
+
+	private static Row heading(String s) {
+		return new Row(Row.HEADING, Text.literal(s), 0, RUBRIC);
+	}
+
+	private static Row text(String s, int colour) {
+		return new Row(Row.TEXT, Text.literal(s), 0, colour);
+	}
+
+	private static Row text(Text t) {
+		return new Row(Row.TEXT, t, 0, INK);
+	}
+
+	private static Row barRow(String label, int value, int colour) {
+		return new Row(Row.BAR, Text.literal(label), value, colour);
+	}
+
+	private static Row key(String s, int colour) {
+		return new Row(Row.KEY, Text.literal(s), 0, colour);
+	}
+
+	private static final Row GAP_ROW = new Row(Row.GAP, Text.empty(), 0, 0);
+
+	private List<Row> sidebarRows(@Nullable AtlasPayloads.Data d) {
+		List<Row> rows = new ArrayList<>();
+		if (d == null) {
+			rows.add(text("Unrolling the map…", INK_SOFT));
+			return rows;
+		}
+		if (this.panel == Panel.LEGENDS) {
+			rows.add(heading("Wonders of the world"));
+			if (d.wonders().isEmpty()) rows.add(text("None yet raised.", INK_SOFT));
+			for (AtlasPayloads.WonderInfo wi : d.wonders()) {
+				rows.add(key(wi.name(), wi.ruined() ? 0x8A7A60 : 0xD4A017));
+				rows.add(text("   " + wi.town() + (wi.owner().isEmpty() ? "" : ", " + wi.owner()) + (wi.ruined() ? " (in ruins)" : ""), INK_SOFT));
+			}
+			rows.add(GAP_ROW);
+			rows.add(heading("Faiths of the world"));
+			if (d.religions().isEmpty()) rows.add(text("No faith has yet been founded.", INK_SOFT));
+			for (AtlasPayloads.ReligionInfo r : d.religions()) {
+				rows.add(key(r.name(), r.color()));
+				rows.add(text("   " + r.tenets() + (r.parent().isEmpty() ? "" : " (from " + r.parent() + ")"), INK_SOFT));
+				rows.add(text("   " + r.realms() + (r.realms() == 1 ? " realm" : " realms") + (r.prophet().isEmpty() ? "" : " · prophet " + r.prophet()), INK_SOFT));
+			}
+			rows.add(GAP_ROW);
+			rows.add(heading("Legends"));
+			if (d.legends().isEmpty()) rows.add(text("None yet. Deeds and fortune make legends.", INK_SOFT));
+			for (AtlasPayloads.LegendInfo l : d.legends()) {
+				rows.add(text((l.alive() ? "✦ " : "† ") + l.name(), l.alive() ? INK : 0xFF8A7A60));
+				rows.add(text("   " + l.kind() + " of the " + l.faction(), INK_SOFT));
+			}
+			return rows;
+		}
+		if (this.panel == Panel.DIPLOMACY) {
+			rows.add(heading("Nations of the world"));
+			for (FactionInfo f : d.factions()) {
+				rows.add(key(f.name(), f.color()));
+				String rel = f.mine() ? "your realm" : f.relation() <= -50 ? "at war" : f.relation() >= 50 ? "allied" : "relations " + f.relation();
+				rows.add(text("   " + f.title() + " · " + f.people() + " people · " + rel, f.relation() <= -50 && !f.mine() ? 0xFFB03030 : INK_SOFT));
+			}
+			return rows;
+		}
+		if (this.panel == Panel.LAWS) {
+			FactionInfo f = this.mine();
+			rows.add(heading("Law book"));
+			if (f == null) {
+				rows.add(text("You belong to no realm.", INK_SOFT));
+			} else if (d.ruler()) {
+				rows.add(text("Toggle the laws of your realm below. ✔ is in force.", INK_SOFT));
+			} else {
+				for (Law l : Law.values()) rows.add(text((this.hasLaw(l) ? "✔ " : "✘ ") + l.label, this.hasLaw(l) ? INK : 0xFF8A7A60));
+				rows.add(text((f.slavery() ? "✔ " : "✘ ") + "Captivity", f.slavery() ? 0xFF7A1F1F : 0xFF8A7A60));
+				rows.add(GAP_ROW);
+				rows.add(text("Only the ruler can change the laws.", INK_SOFT));
+			}
+			return rows;
+		}
+		if (this.panel == Panel.REALM || (this.selected == null && this.selectedLand == null)) {
+			FactionInfo f = this.mine();
+			if (f == null) {
+				rows.add(heading("No realm"));
+				rows.add(text("Found one (/colony found) or join one (/colony join) to take part in its politics.", INK_SOFT));
+				rows.add(GAP_ROW);
+				rows.add(text("Click a town to see it. Drag to pan, scroll to zoom.", INK_SOFT));
+				return rows;
+			}
+			rows.add(new Row(Row.TITLE, Text.literal(f.name()), 0, f.color()));
+			rows.add(text(f.title() + " · " + f.government(), INK));
+			if (!f.ruler().isEmpty()) rows.add(text("Ruler: " + f.ruler(), INK));
+			rows.add(text(net.colonists.legend.Ages.ERAS[Math.max(0, Math.min(3, f.era()))] + " Era", INK_SOFT));
+			AtlasPayloads.ReligionInfo faith = this.faith(f.religion());
+			if (faith != null) rows.add(key(faith.name(), faith.color()));
+			rows.add(text(d.ruler() ? "You rule this realm." : d.heir() ? "You are heir to the throne." : "You are a member.", INK_SOFT));
+			rows.add(GAP_ROW);
+			rows.add(heading("Standing"));
+			rows.add(barRow("People", f.approval(), 0x3E9E4A));
+			rows.add(barRow("Army", f.army(), 0x8A3B2A));
+			rows.add(barRow("Court", f.court(), 0x6A4A9A));
+			rows.add(GAP_ROW);
+			rows.add(heading("Holdings"));
+			rows.add(text("Treasury: " + f.treasury() + " emeralds", INK));
+			rows.add(text(f.people() + " people in " + d.towns().stream().filter(t -> t.faction().equals(f.id())).count() + " towns", INK));
+			if (f.atWar()) rows.add(text("⚔ At war", 0xFFB03030));
+			if (!f.overlord().isEmpty()) rows.add(text("Pays tribute to the " + this.nameOf(f.overlord()), INK));
+			rows.add(GAP_ROW);
+			rows.add(text("Click a town to see it; click open land to plan a colony. Drag to pan, scroll to zoom.", INK_SOFT));
+			return rows;
+		}
+		if (this.selected != null) {
+			TownInfo t = this.selected;
+			FactionInfo f = this.factionById.get(t.faction());
+			rows.add(new Row(Row.TITLE, Text.literal((t.capital() ? "★ " : "") + t.name()), 0, f == null ? 0x888888 : f.color()));
+			rows.add(text(t.rank() + " of the " + (f == null ? "?" : f.name()), INK));
+			AtlasPayloads.ReligionInfo faith = f == null ? null : this.faith(f.religion());
+			if (faith != null) rows.add(key(faith.name(), faith.color()));
+			if (t.besieged()) rows.add(text("⚑ Under siege!", 0xFFB03030));
+			rows.add(GAP_ROW);
+			rows.add(barRow("Loyalty", t.loyalty(), t.loyalty() >= 50 ? 0x3E9E4A : 0xB03030));
+			rows.add(text("Population " + t.population() + " · guards " + t.guards(), INK));
+			rows.add(text("Treasury " + t.treasury() + " emeralds", INK));
+			if (t.taxRate() >= 0) rows.add(text("Taxes " + t.taxRate() + "%", INK));
+			if (t.garrison() >= 0) rows.add(text("Garrison order: " + t.garrison(), INK));
+			if (t.autonomy()) rows.add(text("Self-governing", INK_SOFT));
+			if (!t.priority().isEmpty()) rows.add(text("Building first: " + t.priority().replace('_', ' '), INK));
+			rows.add(GAP_ROW);
+			rows.add(text("At " + t.x() + ", " + t.z(), INK_SOFT));
+			return rows;
+		}
+		rows.add(heading("Open land"));
+		rows.add(text("At " + this.selectedLand[0] + ", " + this.selectedLand[1], INK_SOFT));
+		if (d.ruler()) rows.add(text("Send settlers here to found a new town.", INK_SOFT));
+		return rows;
 	}
 
 	private void drawSidebar(DrawContext ctx) {
-		int x = this.mapRight() + 6, y = TOPBAR + 4, w = SIDEBAR - 12;
+		int x = this.mapRight() + 8, top = TOPBAR + 6, w = this.sidebarWidth() - 16;
+		int bottom = Math.max(top + 20, this.actionsTop - 2);
 		AtlasPayloads.Data d = AtlasClient.data;
-		List<Text> lines = new ArrayList<>();
-		if (d == null) {
-			lines.add(Text.literal("Unrolling the map...").formatted(Formatting.ITALIC));
-		} else if (this.panel == Panel.LEGENDS) {
-			lines.add(Text.literal("Wonders of the world").formatted(Formatting.BOLD));
-			if (d.wonders().isEmpty()) lines.add(Text.literal("None yet raised.").withColor(0x6B5638));
-			for (AtlasPayloads.WonderInfo wi : d.wonders()) {
-				lines.add(Text.literal((wi.ruined() ? "✖ " : "◆ ") + wi.name()).withColor(wi.ruined() ? 0x8A7A60 : 0x8A6A10));
-				lines.add(Text.literal("  " + wi.town() + (wi.owner().isEmpty() ? "" : ", " + wi.owner()) + (wi.ruined() ? " (in ruins)" : "")).withColor(0x6B5638));
-			}
-			lines.add(Text.literal(""));
-			lines.add(Text.literal("Faiths of the world").formatted(Formatting.BOLD));
-			for (AtlasPayloads.ReligionInfo r : d.religions()) {
-				lines.add(Text.literal("☩ ").withColor(r.color()).append(Text.literal(r.name()).withColor(0x3B2A1A)));
-				lines.add(Text.literal("  " + r.tenets() + (r.parent().isEmpty() ? "" : " (from " + r.parent() + ")")).withColor(0x6B5638));
-				lines.add(Text.literal("  " + r.realms() + " realms" + (r.prophet().isEmpty() ? "" : " · prophet: " + r.prophet())).withColor(0x6B5638));
-			}
-			lines.add(Text.literal(""));
-			lines.add(Text.literal("Legends").formatted(Formatting.BOLD));
-			if (d.legends().isEmpty()) lines.add(Text.literal("None yet. Deeds and fortune make legends.").withColor(0x6B5638));
-			for (AtlasPayloads.LegendInfo l : d.legends()) {
-				lines.add(Text.literal((l.alive() ? "✦ " : "† ") + l.name()).withColor(l.alive() ? 0x3B2A1A : 0x8A7A60));
-				lines.add(Text.literal("  " + l.kind() + " of the " + l.faction()).withColor(0x6B5638));
-			}
-		} else if (this.panel == Panel.DIPLOMACY) {
-			lines.add(Text.literal("Nations of the world").formatted(Formatting.BOLD));
-			for (FactionInfo f : d.factions()) {
-				lines.add(Text.literal("■ ").withColor(f.color()).append(Text.literal(f.name()).withColor(0x3B2A1A)));
-				String rel = f.mine() ? "your realm" : f.relation() <= -50 ? "at war (" + f.relation() + ")" : f.relation() >= 50 ? "allied (" + f.relation() + ")" : "relations " + f.relation();
-				lines.add(Text.literal("  " + f.title() + ", " + f.people() + " people, " + rel).withColor(0x6B5638));
-			}
-		} else if (this.panel == Panel.LAWS) {
-			FactionInfo f = this.mine();
-			lines.add(Text.literal("Law book").formatted(Formatting.BOLD));
-			if (f == null) {
-				lines.add(Text.literal("You belong to no realm."));
-			} else {
-				for (Law l : Law.values()) lines.add(Text.literal((this.hasLaw(l) ? "✔ " : "✘ ") + l.label).withColor(this.hasLaw(l) ? 0x3B2A1A : 0x8A7A60));
-				lines.add(Text.literal((f.slavery() ? "✔ " : "✘ ") + "Captivity").withColor(f.slavery() ? 0x7A1F1F : 0x8A7A60));
-				if (!d.ruler()) lines.add(Text.literal("Only the ruler can change the laws.").formatted(Formatting.ITALIC));
-			}
-		} else if (this.panel == Panel.REALM || (this.selected == null && this.selectedLand == null)) {
-			FactionInfo f = this.mine();
-			if (f == null) {
-				lines.add(Text.literal("You belong to no realm.").formatted(Formatting.BOLD));
-				lines.add(Text.literal("Found one (/colony found) or join one (/colony join) to take part in its politics.").withColor(0x6B5638));
-			} else {
-				lines.add(Text.literal(f.title() + " of the " + f.name()).formatted(Formatting.BOLD));
-				lines.add(Text.literal(f.government() + (f.ruler().isEmpty() ? "" : " — " + f.ruler())));
-				lines.add(Text.literal(net.colonists.legend.Ages.ERAS[Math.max(0, Math.min(3, f.era()))] + " Era").withColor(0x6B5638));
-				AtlasPayloads.ReligionInfo faith = this.faith(f.religion());
-				if (faith != null) lines.add(Text.literal("☩ " + faith.name()).withColor(faith.color()));
-				lines.add(Text.literal(d.ruler() ? "You rule this realm." : d.heir() ? "You are heir to the throne." : "You are a member.").formatted(Formatting.ITALIC));
-				lines.add(Text.literal("People  " + bar(f.approval())));
-				lines.add(Text.literal("Army    " + bar(f.army())));
-				lines.add(Text.literal("Court   " + bar(f.court())));
-				lines.add(Text.literal("Treasury " + f.treasury() + " emeralds"));
-				lines.add(Text.literal(f.people() + " people in " + d.towns().stream().filter(t -> t.faction().equals(f.id())).count() + " towns"));
-				if (f.atWar()) lines.add(Text.literal("⚔ At war").withColor(0xB03030));
-				if (!f.overlord().isEmpty()) lines.add(Text.literal("Pays tribute to the " + this.nameOf(f.overlord())));
-				lines.add(Text.literal(""));
-				lines.add(Text.literal("Click a town to see it; click open land to plan a colony. Drag to pan, scroll to zoom.").withColor(0x6B5638));
-			}
-		} else if (this.selected != null) {
-			TownInfo t = this.selected;
-			FactionInfo f = this.factionById.get(t.faction());
-			lines.add(Text.literal((t.capital() ? "★ " : "") + t.name()).formatted(Formatting.BOLD));
-			lines.add(Text.literal(t.rank() + " of the " + (f == null ? "?" : f.name())));
-			AtlasPayloads.ReligionInfo faith = f == null ? null : this.faith(f.religion());
-			if (faith != null) lines.add(Text.literal("☩ " + faith.name()).withColor(faith.color()));
-			lines.add(Text.literal("Population " + t.population()));
-			lines.add(Text.literal("Loyalty " + bar(t.loyalty())));
-			lines.add(Text.literal("Treasury " + t.treasury() + "   Guards " + t.guards()));
-			if (t.taxRate() >= 0) lines.add(Text.literal("Taxes " + t.taxRate() + "%"));
-			if (t.garrison() >= 0) lines.add(Text.literal("Garrison order: " + t.garrison()));
-			if (t.autonomy()) lines.add(Text.literal("Self-governing"));
-			if (!t.priority().isEmpty()) lines.add(Text.literal("Building first: " + t.priority().replace('_', ' ')));
-			if (t.besieged()) lines.add(Text.literal("⚑ Under siege!").withColor(0xB03030));
-			lines.add(Text.literal(t.x() + ", " + t.z()).withColor(0x6B5638));
-		} else if (this.selectedLand != null) {
-			lines.add(Text.literal("Open land").formatted(Formatting.BOLD));
-			lines.add(Text.literal(this.selectedLand[0] + ", " + this.selectedLand[1]).withColor(0x6B5638));
-			if (d.ruler()) lines.add(Text.literal("Send settlers here to found a new town.").withColor(0x6B5638));
-		}
-		// The nation's banner, top right of the sidebar.
+		List<Row> rows = this.sidebarRows(d);
+		// The nation's banner sits by the title.
 		FactionInfo shown = this.selected != null && this.panel == Panel.NONE ? this.factionById.get(this.selected.faction()) : this.mine();
-		net.minecraft.item.ItemStack banner = this.bannerOf(shown);
-		if (banner != null && this.panel != Panel.LEGENDS && this.panel != Panel.DIPLOMACY) {
-			ctx.drawItem(banner, this.width - 22, TOPBAR + 4);
-			w -= 20;
-		}
-		for (Text t : lines) {
-			for (var row : this.textRenderer.wrapLines(t, w)) {
-				ctx.drawText(this.textRenderer, row, x, y, INK, false);
-				y += 10;
+		net.minecraft.item.ItemStack banner = this.panel == Panel.NONE || this.panel == Panel.REALM ? this.bannerOf(shown) : null;
+		ctx.enableScissor(this.mapRight() + 1, top - 2, this.width, bottom);
+		int y = top - this.scroll;
+		for (Row r : rows) {
+			switch (r.kind()) {
+				case Row.TITLE -> {
+					int start = y, tx = x;
+					if (banner != null) {
+						ctx.drawItem(banner, x, y);
+						tx += 20;
+					}
+					ctx.fill(tx, y + 2, tx + 8, y + 10, INK);
+					ctx.fill(tx + 1, y + 3, tx + 7, y + 9, 0xFF000000 | r.colour());
+					for (var line : this.textRenderer.wrapLines(r.text().copy().formatted(Formatting.BOLD), w - (tx - x) - 12)) {
+						ctx.drawText(this.textRenderer, line, tx + 12, y + 3, INK, false);
+						y += 10;
+					}
+					y = Math.max(y + 6, start + 20);
+				}
+				case Row.HEADING -> {
+					y += 2;
+					ctx.drawText(this.textRenderer, r.text().copy().formatted(Formatting.BOLD), x, y, RUBRIC, false);
+					ctx.fill(x, y + 10, x + w, y + 11, 0x667A2E22);
+					y += 14;
+				}
+				case Row.TEXT -> {
+					for (var line : this.textRenderer.wrapLines(r.text(), w)) {
+						ctx.drawText(this.textRenderer, line, x, y, r.colour() == 0 ? INK : r.colour(), false);
+						y += 10;
+					}
+				}
+				case Row.KEY -> {
+					ctx.fill(x, y, x + 8, y + 8, INK);
+					ctx.fill(x + 1, y + 1, x + 7, y + 7, 0xFF000000 | r.colour());
+					for (var line : this.textRenderer.wrapLines(r.text(), w - 12)) {
+						ctx.drawText(this.textRenderer, line, x + 12, y, INK, false);
+						y += 10;
+					}
+				}
+				case Row.BAR -> {
+					int labelW = 44, barX = x + labelW, barW = w - labelW - 22;
+					ctx.drawText(this.textRenderer, r.text(), x, y + 1, INK, false);
+					ctx.fill(barX, y + 1, barX + barW, y + 8, INK);
+					ctx.fill(barX + 1, y + 2, barX + barW - 1, y + 7, BAR_BG);
+					int fill = (int) ((barW - 2) * MathHelper.clamp(r.value(), 0, 100) / 100.0);
+					ctx.fill(barX + 1, y + 2, barX + 1 + fill, y + 7, 0xFF000000 | r.colour());
+					String v = String.valueOf(r.value());
+					ctx.drawText(this.textRenderer, v, x + w - this.textRenderer.getWidth(v), y + 1, INK_SOFT, false);
+					y += 12;
+				}
+				default -> y += 6;
 			}
 		}
+		ctx.disableScissor();
+		this.contentHeight = y + this.scroll - top;
+		int view = bottom - top;
+		int maxScroll = Math.max(0, this.contentHeight - view);
+		if (this.scroll > maxScroll) this.scroll = maxScroll;
+		// A thin scroll indicator when the page runs long.
+		if (maxScroll > 0) {
+			int trackX = this.width - 4;
+			ctx.fill(trackX, top, trackX + 2, bottom, 0x33000000);
+			int thumb = Math.max(12, view * view / this.contentHeight);
+			int ty = top + (int) ((view - thumb) * (this.scroll / (double) maxScroll));
+			ctx.fill(trackX, ty, trackX + 2, ty + thumb, INK);
+			if (this.scroll < maxScroll) ctx.drawText(this.textRenderer, "▾", this.width - 12, bottom - 9, INK_SOFT, false);
+		}
+		// The rule above the actions.
+		if (this.actionsTop < this.height - 4) ctx.fill(this.mapRight() + 6, this.actionsTop + 1, this.width - 6, this.actionsTop + 2, 0x663B2A1A);
 	}
 
 	private String nameOf(String factionId) {
@@ -687,6 +867,10 @@ public class AtlasScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mx, double my, double h, double v) {
+		if (mx >= this.mapRight() && my > TOPBAR) {
+			this.scroll = Math.max(0, this.scroll - (int) (v * 20));
+			return true;
+		}
 		if (!this.inMap(mx, my)) return super.mouseScrolled(mx, my, h, v);
 		double wxBefore = this.wx(mx), wzBefore = this.wz(my);
 		zoom = MathHelper.clamp(zoom + (v > 0 ? -1 : 1), 0, ZOOMS.length - 1);

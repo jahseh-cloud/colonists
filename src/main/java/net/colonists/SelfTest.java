@@ -331,6 +331,87 @@ public final class SelfTest {
 			fm.setPlayerFaction(fp.getUuid(), null);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST crises now: {}", h.crises.stream().map(c -> c.type + "/" + c.figureName + "/" + (c.active() ? "active" : "ended")).toList());
 		});
+		if (t == 86000) step("manor-land", () -> {
+			// Load the land around the biggest town so a manor has somewhere to go.
+			Settlement big = fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null).max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
+			int cx = big.cityCenter.getX() >> 4, cz = big.cityCenter.getZ() >> 4;
+			for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) w.setChunkForced(cx + dx, cz + dz, true);
+		});
+		if (t == 90000) step("cities-and-manors", () -> {
+			// Compact towns: how far homes stand from the plaza, against each town's reach.
+			for (Settlement st : fm.allSettlements()) {
+				if (st.village || st.cityCenter == null) continue;
+				double sum = 0, far = 0;
+				for (BlockPos home : st.homes.keySet()) {
+					double d = Math.hypot(home.getX() - st.cityCenter.getX(), home.getZ() - st.cityCenter.getZ());
+					sum += d;
+					far = Math.max(far, d);
+				}
+				int n = st.homes.size();
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST town {}: {} pop {}, {} houses, reach {}, mean house distance {}, farthest {}", st.name, st.rank.label,
+						st.population(), n, net.colonists.faction.CityGrowth.reach(st), n == 0 ? 0 : Math.round(sum / n), Math.round(far));
+			}
+			// Houses for need.
+			if (net.colonists.build.Blueprints.homeFor(Faction.Rank.CITY, false, 10, false, true, false) != net.colonists.build.Blueprints.TOWNHOUSE)
+				throw new IllegalStateException("a crowded city should build townhouses");
+			if (net.colonists.build.Blueprints.homeFor(Faction.Rank.TOWN, false, 10, false, true, true) != net.colonists.build.Blueprints.ROW_HOUSE)
+				throw new IllegalStateException("a crowded town should build row houses");
+			if (net.colonists.build.Blueprints.homeFor(Faction.Rank.TOWN, false, 10, false, false, true) != net.colonists.build.Blueprints.STONE_HOUSE)
+				throw new IllegalStateException("a family with room should build a two-storey house");
+			// A manor: claim its land, and work a field from bare ground to a sown crop.
+			Settlement big = fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null).max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
+			net.colonists.farm.Manor m = new net.colonists.farm.Manor();
+			m.id = 99;
+			m.name = "Test Grange";
+			m.lord = big.faction.citizens.keySet().iterator().next();
+			m.lordName = "the test lord";
+			net.colonists.farm.Manor.Field fld = null;
+			for (int i = 0; i < 6 && fld == null; i++) fld = net.colonists.farm.Manors.claimField(w, fm, big, m, w.getRandom());
+			if (fld == null) throw new IllegalStateException("no land could be found for a manor outside " + big.name);
+			double d = Math.hypot(fld.center().getX() - big.cityCenter.getX(), fld.center().getZ() - big.cityCenter.getZ());
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field: {} {}x{} ({} blocks) at {}, {} blocks from the plaza (reach {})", fld.crop, fld.width(), fld.depth(),
+					fld.area(), fld.center(), Math.round(d), net.colonists.faction.CityGrowth.reach(big));
+			if (fld.width() < 16 || fld.depth() < 16) throw new IllegalStateException("manor fields should be large");
+			if (d < net.colonists.faction.CityGrowth.reach(big)) throw new IllegalStateException("the field should lie beyond the town");
+			m.fields.add(fld);
+			big.manors.add(m);
+			int worked = 0;
+			for (int pass = 0; pass < 4; pass++) {
+				for (int x = fld.x0; x <= fld.x1; x++) for (int z = fld.z0; z <= fld.z1; z++) if (net.colonists.ai.task.ManorFieldTask.workSpot(w, m, fld, x, z)) worked++;
+			}
+			int crops = 0, sown = 0, water = 0;
+			for (int x = fld.x0; x <= fld.x1; x++) {
+				for (int z = fld.z0; z <= fld.z1; z++) {
+					BlockPos at = new BlockPos(x, net.colonists.farm.Manors.columnY(w, x, z), z);
+					switch (net.colonists.farm.Manors.role(fld, x, z)) {
+						case CROP -> {
+							crops++;
+							net.minecraft.block.BlockState b = w.getBlockState(at);
+							if (b.getBlock() instanceof net.minecraft.block.CropBlock || b.getBlock() instanceof net.minecraft.block.StemBlock
+									|| b.isOf(net.minecraft.block.Blocks.SUGAR_CANE) || b.isOf(net.minecraft.block.Blocks.SWEET_BERRY_BUSH)) sown++;
+						}
+						case CHANNEL -> {
+							if (w.getFluidState(at.down()).isIn(net.minecraft.registry.tag.FluidTags.WATER)) water++;
+						}
+						default -> {
+						}
+					}
+				}
+			}
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field worked: {} jobs, {}/{} crop spots sown, {} channel spots watered", worked, sown, crops, water);
+			if (sown * 2 < crops) throw new IllegalStateException("less than half the field was sown (" + sown + "/" + crops + ")");
+			// The estate grows: a second field beside the first.
+			net.colonists.farm.Manor.Field next = null;
+			for (int i = 0; i < 6 && next == null; i++) next = net.colonists.farm.Manors.claimField(w, fm, big, m, w.getRandom());
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor second field: {}", next == null ? "none found" : next.crop + " " + next.width() + "x" + next.depth() + " at " + next.center());
+			// The year turns: the estate ticks without trouble, and its land is saved.
+			net.colonists.farm.Manors.tick(server);
+			net.minecraft.nbt.NbtCompound saved = big.toNbt();
+			Settlement back = Settlement.fromNbt(saved, big.id, big.name);
+			if (back.manors.isEmpty() || back.manors.get(0).fields.isEmpty()) throw new IllegalStateException("manors were not saved");
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manors now: {}", fm.allSettlements().stream().filter(x -> !x.manors.isEmpty())
+					.map(x -> x.name + ":" + x.manors.stream().map(mm -> mm.name + "(" + mm.fields.size() + " fields, " + mm.laborers.size() + " laborers)").toList()).toList());
+		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
 			step("world-edge", () -> {

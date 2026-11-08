@@ -16,8 +16,20 @@ Colonists are player-shaped NPCs who live their own lives. Nobody controls them.
 Settlements grow with the land, not on a grid:
 
 - **Founding.** A new city's plaza goes on a level, dry spot near its founder, preferably beside water and down in a valley.
-- **Streets.** Streets are pathfound across the terrain from the plaza. They avoid climbs of more than one block, bend around hills, and briefly bridge water. When a city runs out of roadside space, it lays a new street from one of its outer ends toward the most inviting nearby ground (level, low-lying and close to water). The result: towns string out along rivers and fill valleys.
-- **Buildings and fields** are placed along the streets, turned to face them, on the best roadside spot: close to the centre, level, near water, sheltered in a valley. Fields prefer the outskirts and flat, well-watered ground.
+- **Streets.** Streets are pathfound across the terrain from the plaza. They avoid climbs of more than one block, bend around hills, and briefly bridge water.
+- **Compact towns.** A town fills in before it spreads:
+  - When it runs out of roadside space, it first branches short side streets off its inner streets.
+  - It only pushes a street outward once the core is full.
+  - It never grows past its **reach**: about 18 blocks from the plaza plus a little more for every building. A hamlet stays a cluster, and a city earns its suburbs.
+- **Buildings** are placed along the streets, facing them, on the best roadside spot: close to the centre, level, near water, sheltered in a valley. They huddle beside their neighbours.
+  - Hamlets keep a yard between houses.
+  - Towns and cities build wall to wall.
+- **Houses are built for need:**
+  - **Hamlets:** cabins, with a cottage for a family.
+  - **Towns and cities with room:** cottages for single people, and two-storey stone houses for families and the well-off.
+  - **Crowded towns:** once land near the centre runs short, people build up instead of out: narrow two-storey **row houses** in towns and three-storey **townhouses** in cities.
+  - **The rich, rulers and slave owners:** manors and estates.
+- **Evening gatherings.** At dusk, townsfolk down tools and gather at the tavern, or the plaza if there isn't one. Everyone there grows a little fonder of everyone else, so a close-knit town makes friends, couples and children faster.
 - **No size limit.** Cities grow as big as births, housing and food allow (`colonistsMaxPerFaction` 0 = unlimited).
 
 Every settlement grows through four ranks:
@@ -35,7 +47,27 @@ Promotions (and setbacks, if houses or the wall are lost) are announced in chat.
 
 - **Plaza.** The first colonist picks a spot for the city centre. Builders level a 9×9 square and add a well, a bell, a banner in the faction's colour, corner lamps, and the **city stockpile** chests.
 - **Roads and lamps.** Builders pave the streets as dirt paths, clear trees in the way, bridge water, and put a lamp post beside each house.
-- **Fields.** Communal fields (9×9, with a water channel across the middle). Farmers claim one for every four citizens.
+- **Fields.** A young town has up to two small common fields (9×9). Once it has manors, they feed it.
+
+### Manors
+
+Farming happens on **manors**: lords' estates beyond the edge of town.
+
+- **Founding.** A town of 5 or more people supports one manor, and one more for every 10 people (up to 5). The richest farmer (or another wealthy citizen) becomes its lord, claims a first large field well beyond the houses, and builds a manor house beside it.
+- **Land that grows.** The estate spreads the way a town does. Once its newest field is mostly sown, it clears another one beside it, with a cart track between. Fields are 16–24 blocks on a side, and an estate holds up to 2 fields plus one per laborer (8 at most). The land must be fairly level, dry and clear of trees, and streets go round the fields.
+- **Crops for the land:**
+  - **Plains and forests:** wheat, carrots, potatoes, beetroot and pumpkins.
+  - **Jungle:** melons, plus sugar cane by water.
+  - **Deserts, savannas and badlands:** pumpkins and melons, plus sugar cane by water.
+  - **Taiga and snow:** potatoes, berries and beetroot.
+  - **Swamps, rivers and beaches:** sugar cane and potatoes.
+- **Irrigation.** Fields are laid out with irrigation channels: one every nine rows for grain and roots, and one every third row for cane. Gourd stems have room to fruit.
+- **Laborers.** The town's farmers become laborers on its manors. They dig channels, till, sow, harvest and resow, and the harvest goes to the town's stores.
+  - Free laborers earn 2 emeralds a day from the lord.
+  - Bonded laborers and serfs work for their keep.
+  - The lord sells the harvest to the town treasury.
+- **Unwatched fields.** Crops keep growing even when no player is near, and manor fields stay loaded with their town.
+- `/colony manors` shows the manors of the nearest town: lords, fields and crops, laborers, and harvests.
 - **Shared economy.** Workers haul their surplus (logs, stone, ore, wheat, food) to the stockpile. Hungry colonists eat from it, and builders draw stone and coal from it.
 - **Moving away.** A faction founded near another city (for example, rebels) walks about 160 blocks away before it builds.
 
@@ -263,8 +295,11 @@ Press **G**, or right-click a **Political Atlas** (crafted from a book, a map an
 **Reading the map**
 - **Terrain** is sketched straight from the world generator, so you can see continents and oceans you haven't explored. Drawing it loads no chunks.
 - **Borders** are shown for every town, with capitals starred. Dotted lines show armies marching to their war goals, and a flag marks a town under siege.
-- **Map modes:** Realms, Relations (your diplomacy in colour), Wealth (treasuries) and Loyalty.
+- **Map modes:** Realms, Relations (your diplomacy in colour), Wealth (treasuries), Loyalty and Faith.
 - **Hover** a town for a summary. **Click** it for details. **Drag** to pan and **scroll** to zoom.
+- **Layout.** Map modes are tabs along the top, and a key for the current mode sits at the bottom left beside the scale bar. The sidebar on the right has tabs for Realm, Laws, Nations and Lore.
+  - Its page scrolls (scroll with the mouse over it), and standings are drawn as bars.
+  - Your orders sit in their own area at the foot of the sidebar, in two columns when there are many, so nothing overlaps.
 
 **Ruling.** Everyone can read the atlas, but only a ruler can give orders. There are four ways to take power:
 1. **Found** a faction (`/colony found`).

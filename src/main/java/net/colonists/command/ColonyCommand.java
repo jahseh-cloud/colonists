@@ -50,6 +50,7 @@ public final class ColonyCommand {
 								.then(CommandManager.argument("faction", StringArgumentType.word()).suggests(FACTIONS)
 										.executes(ctx -> spawn(ctx, IntegerArgumentType.getInteger(ctx, "count"), StringArgumentType.getString(ctx, "faction"))))))
 				.then(CommandManager.literal("factions").executes(ColonyCommand::list))
+				.then(CommandManager.literal("manors").executes(ColonyCommand::manors))
 				.then(CommandManager.literal("politics")
 						.executes(ctx -> politics(ctx, null))
 						.then(CommandManager.argument("faction", StringArgumentType.word()).suggests(FACTIONS)
@@ -319,5 +320,33 @@ public final class ColonyCommand {
 		}
 		fm.setRelation(ctx.getSource().getServer(), own.id, other.id, value);
 		return 1;
+	}
+
+	/** The manors of the nearest town: lords, fields and crops, laborers, and what they have grown. */
+	private static int manors(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
+		ServerCommandSource src = ctx.getSource();
+		FactionManager fm = FactionManager.get(src.getServer());
+		net.colonists.faction.Settlement s = fm.nearestSettlement(net.minecraft.util.math.BlockPos.ofFloored(src.getPosition()), null);
+		if (s == null) {
+			src.sendError(Text.literal("There is no town nearby."));
+			return 0;
+		}
+		if (s.manors.isEmpty()) {
+			src.sendFeedback(() -> Text.literal(s.name + " has no manors yet (a town of 5 or more founds its first).").formatted(Formatting.GRAY), false);
+			return 0;
+		}
+		src.sendFeedback(() -> Text.literal("═══ Manors of " + s.name + " ═══").formatted(Formatting.GOLD), false);
+		for (net.colonists.farm.Manor m : s.manors) {
+			StringBuilder crops = new StringBuilder();
+			for (net.colonists.farm.Manor.Field f : m.fields) {
+				if (crops.length() > 0) crops.append(", ");
+				crops.append(net.colonists.farm.Manors.Crop.of(f.crop).label).append(" ").append(f.width()).append("×").append(f.depth());
+			}
+			src.sendFeedback(() -> Text.literal("🌾 " + m.name).formatted(Formatting.YELLOW)
+					.append(Text.literal(" — lord " + (m.lordName.isEmpty() ? "none" : m.lordName) + ", " + m.laborers.size() + " laborers, "
+							+ m.area() + " blocks of land, " + m.harvestedTotal + " crops brought in").formatted(Formatting.GRAY)), false);
+			src.sendFeedback(() -> Text.literal("    Fields: " + crops).formatted(Formatting.DARK_GREEN), false);
+		}
+		return s.manors.size();
 	}
 }

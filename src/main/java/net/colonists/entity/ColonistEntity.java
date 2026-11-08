@@ -124,6 +124,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	public long liegeUntil;
 	public boolean following = true;
 	@Nullable public BlockPos guardPost;
+	/** The day this colonist last went to the evening gathering (not saved: at worst they go twice). */
+	public long gatheredDay = -1;
 	public int retainerKills;
 	private final Map<UUID, Long> greeted = new HashMap<>();
 

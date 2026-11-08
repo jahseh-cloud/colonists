@@ -442,6 +442,12 @@ public class FactionManager extends PersistentState {
 				};
 				int cx = f.cityCenter.getX() >> 4, cz = f.cityCenter.getZ() >> 4;
 				for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) want.add(net.minecraft.util.math.ChunkPos.toLong(cx + dx, cz + dz));
+				// A town's manors: keep their fields growing too.
+				for (net.colonists.farm.Manor m : f.manors) {
+					for (net.colonists.farm.Manor.Field fld : m.fields) {
+						for (int x = fld.x0 >> 4; x <= fld.x1 >> 4; x++) for (int z = fld.z0 >> 4; z <= fld.z1 >> 4; z++) want.add(net.minecraft.util.math.ChunkPos.toLong(x, z));
+					}
+				}
 				if (f.quarry != null) {
 					int qx = f.quarry.getX() >> 4, qz = f.quarry.getZ() >> 4;
 					for (int dx = 0; dx <= 1; dx++) for (int dz = 0; dz <= 1; dz++) want.add(net.minecraft.util.math.ChunkPos.toLong(qx + dx, qz + dz));

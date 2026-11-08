@@ -118,6 +118,13 @@ public class ColonistsMod implements ModInitializer {
 			}
 			if (server.getTicks() % 200 == 100) net.colonists.faction.Villages.survey(server);
 			if (server.getTicks() % 20 == 10) net.colonists.player.Contracts.tick(server);
+			if (server.getTicks() % 1200 == 900) {
+				try {
+					net.colonists.farm.Manors.tick(server);
+				} catch (RuntimeException e) {
+					LOGGER.error("Colonists: the manors failed to tick", e);
+				}
+			}
 			if (server.getTicks() % 1200 == 600) {
 				net.colonists.player.Titles.tick(server);
 				net.colonists.player.Household.tick(server);

@@ -133,8 +133,8 @@ public class FarmTask extends Task {
 			Site site = f.site(farm);
 			if (c.getWorld().isChunkLoaded(farm.getX() >> 4, farm.getZ() >> 4) && hasWork(c, site, true)) return site;
 		}
-		// One field for every four citizens.
-		if (f.farms.size() * 4 >= Math.max(4, f.population()) || c.onSearchCooldown("FIELD")) return null;
+		// Before the manors: a couple of small common fields; once there are manors, they feed the town.
+		if (!f.manors.isEmpty() || f.farms.size() >= 2 || f.farms.size() * 4 >= Math.max(4, f.population()) || c.onSearchCooldown("FIELD")) return null;
 		c.searchCooldown("FIELD", 1200);
 		Site site = net.colonists.faction.CityGrowth.claim((ServerWorld) c.getWorld(), fm, f, null,
 				net.colonists.faction.CityGrowth.Purpose.FIELD, c.getRandom());

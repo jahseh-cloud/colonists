@@ -327,6 +327,15 @@ public class WorkGoal extends Goal {
 			}
 		}
 
+		// 8b. Evening: down tools and gather at the tavern or the plaza.
+		long clock = world.getTimeOfDay() % 24000L;
+		if (city && clock >= 10500 && clock < 12600 && c.gatheredDay != world.getTimeOfDay() / 24000L && f.cityCenter != null && !c.isSoldier()) {
+			c.gatheredDay = world.getTimeOfDay() / 24000L;
+			BlockPos tavern = nearestBuilt(c, f, "tavern");
+			BlockPos spot = tavern != null ? BuildStructureTask.doorstep(c, tavern) : f.cityCenter;
+			return new net.colonists.ai.task.GatheringTask(c, spot);
+		}
+
 		// 7. The colonist's trade.
 		Task work = city ? jobTask(c, f, canBreak, canBuild) : null;
 		if (work != null) return work;
@@ -481,6 +490,20 @@ public class WorkGoal extends Goal {
 		switch (c.job) {
 			case FARMER -> {
 				if (!canBreak) return null;
+				// A laborer (or lord) of a manor works its fields: the nearest one with work.
+				net.colonists.farm.Manor manor = net.colonists.farm.Manors.of(f, c.getUuid());
+				if (manor != null) {
+					net.colonists.farm.Manor.Field best = null;
+					double bestD = Double.MAX_VALUE;
+					for (net.colonists.farm.Manor.Field fld : manor.fields) {
+						double d = c.getBlockPos().getSquaredDistance(fld.center().withY(c.getBlockY()));
+						if (d < bestD && net.colonists.ai.task.ManorFieldTask.hasWork(c.getWorld(), fld, c.getRandom())) {
+							bestD = d;
+							best = fld;
+						}
+					}
+					if (best != null) return new net.colonists.ai.task.ManorFieldTask(c, manor, best);
+				}
 				Site field = FarmTask.pickField(c);
 				if (field != null && (ColonistBrain.count(inv, ColonistBrain.SEEDS) > 0 || FarmTask.matureCrops(c, field, true) > 0
 						|| FarmTask.hasWork(c, field, true))) {
@@ -585,16 +608,22 @@ public class WorkGoal extends Goal {
 		}
 		// A realm in its Grand era builds in stone even for ordinary folk.
 		if (f.faction != null && f.faction.era >= 3 && f.rank.ordinal() >= net.colonists.faction.Faction.Rank.TOWN.ordinal()) {
-			Blueprint grand = Blueprints.homeFor(f.rank, c.isRuler(), Math.max(50, net.colonists.economy.Economy.wealth(c)), slaver);
+			Blueprint grand = Blueprints.homeFor(f.rank, c.isRuler(), Math.max(50, net.colonists.economy.Economy.wealth(c)), slaver, crowded(f), true);
 			return grand;
 		}
-		return Blueprints.homeFor(f.rank, c.isRuler(), net.colonists.economy.Economy.wealth(c), slaver);
+		return Blueprints.homeFor(f.rank, c.isRuler(), net.colonists.economy.Economy.wealth(c), slaver, crowded(f), c.partner != null);
+	}
+
+	/** Land near the centre is running short: time to build up, not out. */
+	static boolean crowded(Settlement f) {
+		return f.rank != net.colonists.faction.Faction.Rank.VILLAGE && f.homes.size() >= 8;
 	}
 
 	private static int homeTier(Blueprint bp) {
 		if (bp == Blueprints.ESTATE) return 5;
 		if (bp == Blueprints.MANOR) return 4;
-		if (bp == Blueprints.STONE_HOUSE) return 3;
+		if (bp == Blueprints.STONE_HOUSE || bp == Blueprints.TOWNHOUSE) return 3;
+		if (bp == Blueprints.ROW_HOUSE) return 2;
 		if (bp == Blueprints.COTTAGE) return 2;
 		return 1;
 	}

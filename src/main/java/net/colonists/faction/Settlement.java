@@ -53,6 +53,8 @@ public class Settlement {
 	public final Set<BlockPos> roads = new LinkedHashSet<>();
 	public final Set<BlockPos> built = new HashSet<>();
 	public final Set<BlockPos> farms = new LinkedHashSet<>();
+	/** The manors on the outskirts: lords' estates of large fields that feed this town. */
+	public final java.util.List<net.colonists.farm.Manor> manors = new java.util.ArrayList<>();
 	public final Set<BlockPos> blockedLots = new HashSet<>();
 	@Nullable public BlockPos quarry;
 	public int quarrySize;
@@ -230,6 +232,9 @@ public class Settlement {
 		nbt.put("Rotations", rot);
 		nbt.putLongArray("Roads", this.roads.stream().mapToLong(BlockPos::asLong).toArray());
 		nbt.putLongArray("Farms", this.farms.stream().mapToLong(BlockPos::asLong).toArray());
+		net.minecraft.nbt.NbtList manorList = new net.minecraft.nbt.NbtList();
+		for (net.colonists.farm.Manor m : this.manors) manorList.add(m.toNbt());
+		nbt.put("Manors", manorList);
 		nbt.putLongArray("Blocked", this.blockedLots.stream().mapToLong(BlockPos::asLong).toArray());
 		if (this.quarry != null) nbt.putLong("Quarry", this.quarry.asLong());
 		nbt.putInt("QuarrySize", this.quarrySize);
@@ -307,6 +312,8 @@ public class Settlement {
 		}
 		for (long l : nbt.getLongArray("Roads")) s.roads.add(BlockPos.fromLong(l));
 		for (long l : nbt.getLongArray("Farms")) s.farms.add(BlockPos.fromLong(l));
+		for (net.minecraft.nbt.NbtElement e : nbt.getList("Manors", net.minecraft.nbt.NbtElement.COMPOUND_TYPE))
+			s.manors.add(net.colonists.farm.Manor.fromNbt((net.minecraft.nbt.NbtCompound) e));
 		for (long l : nbt.getLongArray("Blocked")) s.blockedLots.add(BlockPos.fromLong(l));
 		if (nbt.contains("Quarry")) s.quarry = BlockPos.fromLong(nbt.getLong("Quarry"));
 		s.quarrySize = nbt.getInt("QuarrySize");

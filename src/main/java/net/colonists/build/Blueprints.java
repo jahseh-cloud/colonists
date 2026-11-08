@@ -123,13 +123,59 @@ public final class Blueprints {
 		return b;
 	}));
 
-	/** The house style a settlement of this rank builds. */
+	/** Town home where land is short: narrow, two storeys, built shoulder to shoulder with its neighbours. */
+	public static final Blueprint ROW_HOUSE = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("row_house", "Row house", 5, 6)
+				.walls(0, 0, Mat.STONE, false)
+				.walls(1, 5, Mat.PLANKS, true)
+				.box(1, 3, 1, 3, 3, 4, Mat.PLANKS)
+				.window(1, 1, 0).window(3, 1, 0).window(1, 4, 0).window(2, 4, 0).window(3, 4, 0)
+				.window(1, 1, 5).window(3, 1, 5).window(2, 4, 5)
+				.gableRoof(6, Mat.STAIRS, Mat.PLANKS, Mat.PLANKS)
+				.floor(Mat.PLANKS)
+				.door(2).bed(1, 2).bed(3, 3);
+		chestAt(b, 3, 1);
+		torch(b, 1, 4);
+		return b;
+	}));
+
+	/** City home in the crowded core: a tall, narrow townhouse of three storeys, stone below and timber above. */
+	public static final Blueprint TOWNHOUSE = register(build(() -> {
+		Blueprint.Builder b = Blueprint.builder("townhouse", "Townhouse", 5, 7)
+				.walls(0, 2, Mat.STONE, false)
+				.walls(3, 9, Mat.PLANKS, true)
+				.box(1, 3, 1, 3, 3, 5, Mat.PLANKS)
+				.box(1, 7, 1, 3, 7, 5, Mat.PLANKS)
+				.window(1, 1, 0).window(3, 1, 0)
+				.window(1, 5, 0).window(2, 5, 0).window(3, 5, 0).window(1, 8, 0).window(3, 8, 0)
+				.window(1, 1, 6).window(3, 1, 6).window(1, 5, 6).window(3, 5, 6).window(2, 8, 6)
+				.window(0, 5, 3).window(4, 5, 3).window(0, 8, 3).window(4, 8, 3)
+				.gableRoof(10, Mat.STAIRS, Mat.PLANKS, Mat.PLANKS)
+				.floor(Mat.PLANKS)
+				.door(2).bed(1, 3).bed(3, 4);
+		chestAt(b, 3, 1);
+		craftingTable(b, 1, 5);
+		torch(b, 1, 1);
+		return b;
+	}));
+
 	/** A home suited to the colonist's standing: rank sets the style, wealth buys better, slave owners build estates. */
 	public static Blueprint homeFor(Faction.Rank rank, boolean ruler, int wealth, boolean slaver) {
-		if (slaver && rank.ordinal() >= Faction.Rank.TOWN.ordinal()) return ESTATE;
-		if (wealth >= 120 && rank.ordinal() >= Faction.Rank.CITY.ordinal()) return MANOR;
-		if (wealth >= 50 && rank.ordinal() >= Faction.Rank.TOWN.ordinal()) return STONE_HOUSE;
-		return homeFor(rank, ruler);
+		return homeFor(rank, ruler, wealth, slaver, false, false);
+	}
+
+	/**
+	 * A home built for need. Where land near the centre is short, people build up instead of out (row houses in towns,
+	 * three-storey townhouses in cities); families want room for two beds; the rich and the rulers build big.
+	 */
+	public static Blueprint homeFor(Faction.Rank rank, boolean ruler, int wealth, boolean slaver, boolean crowded, boolean family) {
+		int r = rank.ordinal();
+		if (slaver && r >= Faction.Rank.TOWN.ordinal()) return ESTATE;
+		if ((ruler || wealth >= 120) && r >= Faction.Rank.CITY.ordinal()) return MANOR;
+		if (rank == Faction.Rank.VILLAGE) return family || wealth >= 50 ? COTTAGE : CABIN;
+		if (crowded) return r >= Faction.Rank.CITY.ordinal() ? TOWNHOUSE : ROW_HOUSE;
+		if (family || wealth >= 50) return STONE_HOUSE;
+		return COTTAGE;
 	}
 
 	public static Blueprint homeFor(Faction.Rank rank, boolean ruler) {

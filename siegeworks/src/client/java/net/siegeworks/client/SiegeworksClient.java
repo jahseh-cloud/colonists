@@ -25,7 +25,7 @@ public class SiegeworksClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		FIRE = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.siegeworks.fire", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_R, "key.categories.siegeworks"));
-		CRANK = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.siegeworks.crank", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, "key.categories.siegeworks"));
+		CRANK = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.siegeworks.crank", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.siegeworks"));
 
 		EntityRendererRegistry.register(Siegeworks.BALLISTA, EngineRenderers.Ballista::new);
 		EntityRendererRegistry.register(Siegeworks.CATAPULT, EngineRenderers.Catapult::new);

@@ -11,7 +11,7 @@ Medieval siege engines and vehicles for Minecraft 1.21.1 (Fabric). Every engine 
 | Place an engine | Use its item on the ground. It faces the way you look. |
 | Get on | Use the engine. |
 | Load / turn the crank (from the ground) | Sneak and use the engine. Hold ammunition to load it. |
-| Load / turn the crank (while riding) | **G** (rebindable). Hold ammunition to load it. |
+| Load / turn the crank (while riding) | **V** (rebindable). Hold ammunition to load it. |
 | Release (fire, swing, cross) | **R** (rebindable), while riding. |
 | Aim | Look around while riding. Turret engines swing slowly to follow you. |
 | Tow it | Ride a horse and use the engine to hitch or unhitch it. Heavy engines slow the horse. |
@@ -27,11 +27,11 @@ Winding takes work: each turn of the crank makes you a little hungrier. While yo
 - **Battering ram:** a covered ram on wheels. Drive it with WASD, crank it back two turns, then swing. Each hit wears down the blocks in front of the iron head. Gates, doors and wood give way first, stone takes longer, and obsidian never breaks. Up to three more crew can sit inside, and each adds weight to the blow. The roof shelters the crew from arrows.
 - **Siege tower:** taller than most walls. One driver at the bottom and five crew on the top floor, all safe from arrows (the crew can still shoot out). At the wall, crank the drawbridge down and press **R** to leap across onto the wall.
 - **Naphtha siphon:** a flamethrower on wheels: a bronze tube fed from a tank and driven by a bellows.
-  - Pour Naphtha pots into the tank (each pot is 2 seconds of fire, and the tank holds 4).
+  - Pour Naphtha pots into the tank with **V** (each pot is 2 seconds of fire, and the tank holds 4).
   - Pump it up with five strokes of the bellows, then **hold R** to spray a jet of fire 6–13 blocks long (longer at higher pressure).
   - The jet burns everyone in its path and leaves Naphtha fire where it lands, even on water.
   - Pumping past full makes the tank groan, and pumping again may burst it in a fireball.
-- **Cart:** 27 slots of cargo and two seats. Pull it by hand or hitch it to a horse. Sneak and use it, or press **G** while riding, to open it.
+- **Cart:** 27 slots of cargo and two seats. Pull it by hand or hitch it to a horse. Sneak and use it, or press **V** while riding, to open it.
 
 Engines are wooden. They break under axes, fire and catapult stones, and they drop themselves when destroyed.
 

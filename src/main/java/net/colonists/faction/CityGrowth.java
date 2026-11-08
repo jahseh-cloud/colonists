@@ -102,12 +102,14 @@ public final class CityGrowth {
 		int depth = purpose == Purpose.FIELD ? FIELD_SIZE : bp.depth;
 		int doorX = purpose == Purpose.FIELD ? FIELD_SIZE / 2 : (bp.doorX < 0 ? bp.width / 2 : bp.doorX);
 		int tolerance = purpose == Purpose.FIELD ? 1 : net.colonists.ai.task.BuildStructureTask.tolerance(f.rank);
+		// Hamlets keep a yard between houses; towns and cities build wall to wall.
+		int margin = purpose == Purpose.FIELD || f.rank == Faction.Rank.VILLAGE ? 1 : 0;
 		List<BlockPos> roads = new ArrayList<>(f.roads);
 		List<int[]> taken = new ArrayList<>();
 		for (Settlement other : fm.allSettlements()) taken.addAll(footprints(other));
 		Site best = null;
 		double bestScore = -Double.MAX_VALUE;
-		int tries = Math.min(48, roads.size());
+		int tries = Math.min(96, roads.size());
 		for (int t = 0; t < tries; t++) {
 			BlockPos r = roads.get(random.nextInt(roads.size()));
 			for (Direction d : Direction.Type.HORIZONTAL) {
@@ -121,7 +123,7 @@ public final class CityGrowth {
 				if (!loaded(world, rect)) continue;
 				boolean clash = inPlaza(f, rect[0], rect[1], 1) || inPlaza(f, rect[2], rect[3], 1);
 				for (int[] other : taken) {
-					if (overlaps(rect, other, 1)) {
+					if (overlaps(rect, other, margin)) {
 						clash = true;
 						break;
 					}
@@ -131,6 +133,8 @@ public final class CityGrowth {
 				Integer floor = City.floorFor(world, rect[0], rect[1], rect[2], rect[3], tolerance);
 				if (floor == null) continue;
 				double score = score(world, f, rect, floor, purpose);
+				// Neighbours: buildings huddle together along a street rather than scattering.
+				if (purpose == Purpose.BUILDING) for (int[] other : taken) if (overlaps(rect, other, 2)) score += 4;
 				if (score > bestScore) {
 					bestScore = score;
 					best = new Site(origin.withY(floor), rot);
@@ -167,11 +171,35 @@ public final class CityGrowth {
 				max = Math.max(max, h);
 			}
 		}
-		double score = purpose == Purpose.FIELD ? dist * 0.2 - Math.max(0, 40 - dist) * 0.5 : -dist;
+		double score = purpose == Purpose.FIELD ? dist * 0.2 - Math.max(0, reach(f) + 6 - dist) * 0.8 : -dist * 1.6;
 		score -= (max - min) * 3.0;
 		score += waterNearby(world, (int) cx, (int) cz, 9) * (purpose == Purpose.FIELD ? 2.5 : 1.5);
 		score += Math.min(8, valleyDepth(world, (int) cx, (int) cz, floor)) * 1.2;
 		return score;
+	}
+
+	public static int waterAround(World world, int x, int z, int radius) {
+		return waterNearby(world, x, z, radius);
+	}
+
+	/** Lays a street from the nearest point of the town's network to a spot (a manor house out in the fields). */
+	public static boolean connect(ServerWorld world, FactionManager fm, Settlement f, BlockPos target) {
+		if (f.roads.isEmpty()) return false;
+		BlockPos from = null;
+		double best = Double.MAX_VALUE;
+		for (BlockPos r : f.roads) {
+			double d = r.getSquaredDistance(target.getX(), 0, target.getZ());
+			if (d < best) {
+				best = d;
+				from = r;
+			}
+		}
+		if (from == null || best < 4) return false;
+		List<BlockPos> path = path(world, fm, f, from, new BlockPos(target.getX(), 0, target.getZ()));
+		if (path == null) return false;
+		for (BlockPos p : path) addStrip(f, p);
+		fm.markDirty();
+		return true;
 	}
 
 	/** How many sampled spots within a radius are water (rivers and lakes attract settlement). */
@@ -237,36 +265,65 @@ public final class CityGrowth {
 		}
 	}
 
-	/** Extends the network: a new street from a far end, toward the most inviting nearby spot. */
+	/**
+	 * How far the town may reach from its plaza: it grows with the number of buildings, so streets fill up before the
+	 * town spreads (a hamlet stays a cluster; a city earns its suburbs).
+	 */
+	public static int reach(Settlement f) {
+		int lots = f.homes.size() + f.buildingTypes.size();
+		return (int) Math.min(City.MAX_RADIUS, 18 + 4.5 * Math.sqrt(lots));
+	}
+
+	/**
+	 * Extends the network. Side streets branch off close to the centre first; only when the core has no room does a
+	 * street push outward, and never beyond the town's reach.
+	 */
 	public static boolean extendRoads(ServerWorld world, FactionManager fm, Settlement f, Random random) {
 		if (f.roads.isEmpty()) {
 			seedRoads(world, fm, f, random);
 			return true;
 		}
 		List<BlockPos> roads = new ArrayList<>(f.roads);
-		BlockPos start = null;
-		double best = -1;
-		for (int i = 0; i < 24; i++) {
-			BlockPos r = roads.get(random.nextInt(roads.size()));
-			double d = Math.hypot(r.getX() - f.cityCenter.getX(), r.getZ() - f.cityCenter.getZ()) + random.nextDouble() * 12;
-			if (d > best) {
-				best = d;
-				start = r;
+		int reach = reach(f);
+		for (int attempt = 0; attempt < 4; attempt++) {
+			// Last resort, when the core is truly full: push a street out past the old edge.
+			int limit = attempt == 3 ? reach + 14 : reach;
+			BlockPos start = null;
+			double best = Double.MAX_VALUE;
+			for (int i = 0; i < 32; i++) {
+				BlockPos r = roads.get(random.nextInt(roads.size()));
+				double d = Math.hypot(r.getX() - f.cityCenter.getX(), r.getZ() - f.cityCenter.getZ());
+				if (d > limit - 6) continue;
+				// Prefer the inner streets; later attempts look further out.
+				double score = d * (attempt == 0 ? 1 : 0.3) + random.nextDouble() * 10;
+				if (score < best) {
+					best = score;
+					start = r;
+				}
 			}
+			if (start == null) return false;
+			Direction outward = Direction.fromRotation(Math.toDegrees(Math.atan2(-(start.getX() - f.cityCenter.getX()), start.getZ() - f.cityCenter.getZ())));
+			// A side street: off at right angles from the street it leaves (or straight on, at the edge).
+			Direction dir = attempt < 2 ? (random.nextBoolean() ? outward.rotateYClockwise() : outward.rotateYCounterclockwise()) : outward;
+			if (growFrom(world, fm, f, start, dir, random, limit)) return true;
 		}
-		Direction out = Direction.fromRotation(Math.toDegrees(Math.atan2(-(start.getX() - f.cityCenter.getX()), start.getZ() - f.cityCenter.getZ())));
-		return growFrom(world, fm, f, start, out, random);
+		return false;
 	}
 
 	private static boolean growFrom(ServerWorld world, FactionManager fm, Settlement f, BlockPos start, Direction generally, Random random) {
+		return growFrom(world, fm, f, start, generally, random, City.MAX_RADIUS);
+	}
+
+	private static boolean growFrom(ServerWorld world, FactionManager fm, Settlement f, BlockPos start, Direction generally, Random random, int reach) {
 		int y0 = City.surfaceYOr(world, start.getX(), start.getZ(), f.cityCenter.getY());
 		BlockPos target = null;
 		double bestScore = -Double.MAX_VALUE;
 		for (int i = 0; i < 14; i++) {
 			// Mostly outward, but free to bend along the terrain.
-			double base = Math.toRadians(generally.asRotation()) + (random.nextDouble() - 0.5) * Math.PI * 1.2;
-			int len = 16 + random.nextInt(10);
+			double base = Math.toRadians(generally.asRotation()) + (random.nextDouble() - 0.5) * Math.PI * 0.6;
+			int len = 10 + random.nextInt(7);
 			int tx = start.getX() - (int) (Math.sin(base) * len), tz = start.getZ() + (int) (Math.cos(base) * len);
+			if (Math.hypot(tx - f.cityCenter.getX(), tz - f.cityCenter.getZ()) > reach) continue;
 			if (!world.isChunkLoaded(tx >> 4, tz >> 4) || occupied(fm, tx, tz, 2)) continue;
 			int ty = City.surfaceY(world, tx, tz);
 			BlockState ground = world.getBlockState(new BlockPos(tx, ty - 1, tz));
@@ -310,7 +367,7 @@ public final class CityGrowth {
 						break;
 					}
 				}
-				if (!blocked && !inPlaza(f, x, z, 0)) f.roads.add(new BlockPos(x, 0, z));
+				if (!blocked && !inPlaza(f, x, z, 0) && !net.colonists.farm.Manors.onLand(f, x, z)) f.roads.add(new BlockPos(x, 0, z));
 			}
 		}
 	}
