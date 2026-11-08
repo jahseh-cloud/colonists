@@ -346,7 +346,10 @@ public final class Slavery {
 		Inventories.remove(player.getInventory(), st -> st.isOf(Items.EMERALD), price, false);
 		pay(world, fm, sl, price);
 		j.clear(sl.faction, sl.who);
-		if (forWhom != null) net.colonists.legend.Legends.earn(world.getServer(), player.getUuid(), net.colonists.legend.History.PIETY, 15);
+		if (forWhom != null) {
+			net.colonists.legend.Legends.earn(world.getServer(), player.getUuid(), net.colonists.legend.History.PIETY, 15);
+			net.colonists.player.PlayerData.of(world.getServer(), player.getUuid()).add("freed", 1);
+		}
 		free(world, j, fm, sl, sl.name + "'s freedom has been bought for " + price + " emeralds.");
 		return null;
 	}

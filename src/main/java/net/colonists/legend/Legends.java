@@ -336,7 +336,9 @@ public final class Legends {
 		}
 		for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
 			Faction pf = fm.get(fm.playerFaction(p.getUuid()));
-			if (pf == null || !pf.religion.equals(rel.id)) continue;
+			String own = net.colonists.player.PlayerData.of(server, p.getUuid()).religion;
+			String theirs = !own.isEmpty() ? own : pf == null ? "" : pf.religion;
+			if (!theirs.equals(rel.id)) continue;
 			int piety = h.renown(p.getUuid())[History.PIETY];
 			if (piety <= 0) continue;
 			pool.add(p.getUuid());

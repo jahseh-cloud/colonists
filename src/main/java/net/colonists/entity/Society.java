@@ -49,7 +49,9 @@ final class Society {
 		}
 
 		// Widowed: free to remarry.
-		if (c.partner != null && !faction.citizens.containsKey(c.partner)) {
+		boolean playerSpouse = c.partner != null && net.colonists.player.PlayerData.get(world.getServer()).profiles.containsKey(c.partner)
+				&& c.getUuid().equals(net.colonists.player.PlayerData.get(world.getServer()).profiles.get(c.partner).spouse);
+		if (c.partner != null && !playerSpouse && !faction.citizens.containsKey(c.partner)) {
 			c.partner = null;
 			c.partnerName = "";
 		}
@@ -60,6 +62,11 @@ final class Society {
 						* net.colonists.legend.Ages.births(net.colonists.legend.History.get(world.getServer()))
 						* (net.colonists.legend.Wonders.holds(world.getServer(), faction, net.colonists.legend.Wonders.Type.GARDENS) ? 0.7 : 1.0)
 				&& (ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) >= 4 || (town != null && town.foodInStock >= 8)) && c.getRandom().nextInt(2) == 0) {
+			// Married to a player? Their children carry the player's name.
+			if (net.colonists.player.Household.childOfPlayer(world, c)) {
+				c.lastBirthTime = world.getTime();
+				return;
+			}
 			ColonistEntity spouse = world.getEntitiesByClass(ColonistEntity.class, c.getBoundingBox().expand(48),
 					o -> o.getUuid().equals(c.partner)).stream().findFirst().orElse(null);
 			if (spouse != null) {

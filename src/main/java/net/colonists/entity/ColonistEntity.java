@@ -119,6 +119,13 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	/** Set by the courts so the death report says "execution". */
 	@Nullable public String forcedDeathCause;
 	@Nullable private PlayerEntity customer;
+	/** A player this colonist serves as a retainer (until the given day), whether following or holding a post. */
+	@Nullable public UUID liege;
+	public long liegeUntil;
+	public boolean following = true;
+	@Nullable public BlockPos guardPost;
+	public int retainerKills;
+	private final Map<UUID, Long> greeted = new HashMap<>();
 
 	public int hunger = 20;
 	private String surname = "";
@@ -292,6 +299,10 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 
 	public String fullName() {
 		return this.surname.isEmpty() ? this.firstName : this.firstName + " " + this.surname;
+	}
+
+	public void setSurname(String surname) {
+		this.surname = surname;
 	}
 
 	public String getSurname() {
@@ -494,6 +505,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	public boolean isFriendly(@Nullable LivingEntity e) {
 		if (e == null) return false;
 		if (e == this) return true;
+		if (this.liege != null && e.getUuid().equals(this.liege)) return true;
+		if (this.liege != null && e instanceof ColonistEntity o && this.liege.equals(o.liege)) return true;
 		FactionManager fm = this.factions();
 		if (fm == null) return false;
 		if (e instanceof ColonistEntity c) return fm.relation(this.factionId, c.factionId) >= FactionManager.ALLY;
@@ -555,10 +568,12 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 			this.searchCooldowns.values().removeIf(t -> t < now);
 		}
 		if (phase % 2400 == 0) Society.tick(this, sw);
+		if (phase % 20 == 0 && this.liege != null) this.guardLiege();
 		if (phase % 200 == 0) {
 			this.followConquest();
 			if (this.customer != null && (!this.customer.isAlive() || this.customer.squaredDistanceTo(this) > 16 * 16)) this.customer = null;
 			this.wearColours();
+			this.greet();
 		}
 		if (phase % 600 == 0) {
 			this.syncCitizen();
@@ -953,6 +968,55 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		}
 	}
 
+	/** A retainer fights whoever fights their lord. */
+	private void guardLiege() {
+		if (!(this.getWorld() instanceof ServerWorld sw)) return;
+		ServerPlayerEntity lord = sw.getServer().getPlayerManager().getPlayer(this.liege);
+		if (lord == null || lord.getWorld() != this.getWorld() || lord.squaredDistanceTo(this) > 32 * 32) return;
+		LivingEntity foe = lord.getAttacker();
+		if (foe == null || !foe.isAlive()) foe = lord.getAttacking();
+		if (foe != null && foe.isAlive() && foe != this && !this.isFriendly(foe) && (this.getTarget() == null || !this.getTarget().isAlive())) {
+			if (foe instanceof ColonistEntity c && c.getFactionId().equals(this.factionId)) return; // won't raise a hand against kin
+			this.setTarget(foe);
+		}
+	}
+
+	/** Called when this colonist kills something while in a player's service: retainers grow stronger. */
+	public void retainerKill() {
+		if (this.liege == null) return;
+		this.retainerKills++;
+		this.applyRetainerLevel();
+	}
+
+	public int retainerLevel() {
+		return 1 + this.retainerKills / 3;
+	}
+
+	private void applyRetainerLevel() {
+		int lvl = this.retainerLevel() - 1;
+		var health = this.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MAX_HEALTH);
+		var attack = this.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE);
+		if (health != null) health.overwritePersistentModifier(new net.minecraft.entity.attribute.EntityAttributeModifier(
+				ColonistsMod.id("retainer_health"), Math.min(20, lvl * 2), net.minecraft.entity.attribute.EntityAttributeModifier.Operation.ADD_VALUE));
+		if (attack != null) attack.overwritePersistentModifier(new net.minecraft.entity.attribute.EntityAttributeModifier(
+				ColonistsMod.id("retainer_attack"), Math.min(5, lvl * 0.5), net.minecraft.entity.attribute.EntityAttributeModifier.Operation.ADD_VALUE));
+	}
+
+	/** Colonists greet players they pass, by name and title, warmly or coldly as the player deserves. */
+	private void greet() {
+		if (!(this.getWorld() instanceof ServerWorld sw) || this.isBaby() || this.random.nextInt(2) != 0) return;
+		ServerPlayerEntity p = sw.getPlayers(pl -> pl.squaredDistanceTo(this) < 5 * 5 && !pl.isSpectator()).stream().findFirst().orElse(null);
+		if (p == null) return;
+		long now = sw.getTime();
+		Long last = this.greeted.get(p.getUuid());
+		if (last != null && now - last < 6000) return;
+		this.greeted.put(p.getUuid(), now);
+		FactionManager fm = this.factions();
+		if (fm == null) return;
+		boolean wanted = net.colonists.law.Justice.get(sw.getServer()).heat(this.factionId, p.getUuid()) > 0;
+		this.tell(p, net.colonists.player.Titles.greeting(sw.getServer(), p, fm.standing(p, this.factionId), wanted, this.random));
+	}
+
 	/** Soldiers without a helmet march under their nation's banner (worn on the head, like a standard). */
 	private void wearColours() {
 		ItemStack head = this.getEquippedStack(EquipmentSlot.HEAD);
@@ -1068,6 +1132,13 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		nbt.putString("Faction", this.factionId);
 		nbt.putInt("Settlement", this.settlementId);
 		nbt.putInt("Purse", net.colonists.economy.Economy.wealth(this));
+		if (this.liege != null) {
+			nbt.putUuid("Liege", this.liege);
+			nbt.putLong("LiegeUntil", this.liegeUntil);
+			nbt.putBoolean("Following", this.following);
+			if (this.guardPost != null) nbt.putLong("GuardPost", this.guardPost.asLong());
+		}
+		nbt.putInt("RetainerKills", this.retainerKills);
 		nbt.putString("FirstName", this.firstName);
 		nbt.putInt("Skin", this.getSkin());
 		nbt.putInt("Hunger", this.hunger);
@@ -1104,6 +1175,13 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		this.factionId = nbt.getString("Faction");
 		this.settlementId = nbt.contains("Settlement") ? nbt.getInt("Settlement") : -1;
 		this.purse = nbt.getInt("Purse");
+		if (nbt.containsUuid("Liege")) {
+			this.liege = nbt.getUuid("Liege");
+			this.liegeUntil = nbt.getLong("LiegeUntil");
+			this.following = nbt.getBoolean("Following");
+			if (nbt.contains("GuardPost")) this.guardPost = BlockPos.fromLong(nbt.getLong("GuardPost"));
+		}
+		this.retainerKills = nbt.getInt("RetainerKills");
 		this.firstName = nbt.getString("FirstName");
 		this.dataTracker.set(SKIN, nbt.getInt("Skin"));
 		if (nbt.contains("Hunger")) this.hunger = nbt.getInt("Hunger");

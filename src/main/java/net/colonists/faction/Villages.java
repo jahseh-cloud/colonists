@@ -113,7 +113,10 @@ public final class Villages {
 		s.vMaxZ = bell.getZ() + 24;
 		fm.markDirty();
 		ServerPlayerEntity finder = world.getClosestPlayer(bell.getX(), bell.getY(), bell.getZ(), 160, false) instanceof ServerPlayerEntity sp ? sp : null;
-		if (finder != null) net.colonists.legend.Legends.earn(server, finder.getUuid(), net.colonists.legend.History.ADVENTURE, 8);
+		if (finder != null) {
+			net.colonists.legend.Legends.earn(server, finder.getUuid(), net.colonists.legend.History.ADVENTURE, 8);
+			net.colonists.player.PlayerData.of(server, finder.getUuid()).add("villages", 1);
+		}
 		FactionManager.broadcastNear(world, bell, 160, Text.literal("🏡 You have come upon the free village of ").formatted(Formatting.GREEN)
 				.append(s.displayName()).append(Text.literal(".").formatted(Formatting.GREEN)));
 		// A few colonists already live among the villagers.

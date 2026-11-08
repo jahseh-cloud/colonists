@@ -476,6 +476,7 @@ public final class Courts {
 		if (j.prisoners.containsKey(player.getUuid()) || j.slaves.containsKey(player.getUuid())) return;
 		Settlement s = territoryAt(fm, pos, sw.getTime());
 		if (s == null || isMember(fm, player, s.faction)) return;
+		if (net.colonists.player.Household.ownsAt(sw.getServer(), player.getUuid(), pos)) return; // their own property
 		if (state.getBlock() instanceof CropBlock || be instanceof Inventory) report(sw, s, player, Law.Crime.THEFT, true);
 		else if (fm.isNearAnyHome(pos)) report(sw, s, player, Law.Crime.VANDALISM, true);
 	}
@@ -488,6 +489,7 @@ public final class Courts {
 		if (shop != null && shop.owner.equals(player.getUuid())) return;
 		Settlement s = territoryAt(fm, pos, world.getTime());
 		if (s == null || isMember(fm, player, s.faction) || !fm.isNearAnyHome(pos)) return;
+		if (net.colonists.player.Household.ownsAt(world.getServer(), player.getUuid(), pos)) return;
 		if (fm.standing(player, s.faction.id) >= FactionManager.ALLY) return;
 		report(world, s, player, Law.Crime.THEFT, true);
 	}
@@ -541,13 +543,19 @@ public final class Courts {
 			Faction f = fm.get(victim.getFactionId());
 			if (f == null) return;
 			Settlement s = f.nearestTo(victim.getBlockPos());
+			if (source.getAttacker() instanceof ServerPlayerEntity sp0) net.colonists.player.Contracts.onKill(world.getServer(), sp0, victim);
+			if (source.getAttacker() instanceof ColonistEntity rk && rk.liege != null) rk.retainerKill();
 			if (source.getAttacker() instanceof PlayerEntity p) {
 				report(world, s, p, isMember(fm, p, f) && f.laws.contains(Law.TREASON) ? Law.Crime.TREASON : Law.Crime.MURDER, true);
 			} else if (source.getAttacker() instanceof ColonistEntity killer && killer.job != ColonistEntity.Job.GUARD
 					&& j.heat(f.id, victim.getUuid()) <= 0) {
 				report(world, s, killer, Law.Crime.MURDER, true);
 			}
-		} else if (entity instanceof AnimalEntity && source.getAttacker() instanceof PlayerEntity p) {
+		} else if (!(entity instanceof PlayerEntity)) {
+			if (source.getAttacker() instanceof ServerPlayerEntity sp1) net.colonists.player.Contracts.onKill(world.getServer(), sp1, entity);
+			if (source.getAttacker() instanceof ColonistEntity rk && rk.liege != null) rk.retainerKill();
+		}
+		if (entity instanceof AnimalEntity && source.getAttacker() instanceof PlayerEntity p) {
 			Settlement s = territoryAt(fm, entity.getBlockPos(), world.getTime());
 			if (s != null && !isMember(fm, p, s.faction) && fm.isNearAnyHome(entity.getBlockPos())) report(world, s, p, Law.Crime.POACHING, true);
 		}

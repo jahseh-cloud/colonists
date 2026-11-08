@@ -135,6 +135,8 @@ public final class Statecraft {
 		f.rulerName = p.getName().getString();
 		f.heirPlayer = null;
 		f.playerCandidates.remove(p.getUuid());
+		net.colonists.player.PlayerData.of(server, p.getUuid()).add("ruled", 1);
+		net.colonists.player.PlayerData.of(server, p.getUuid()).deed(server.getOverworld().getTimeOfDay() / 24000L, how + " and became ruler of the " + f.name);
 		net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.CROWNED, f, null, null).person = f.rulerName;
 		f.armyOpinion = Math.max(f.armyOpinion, 50);
 		f.courtOpinion = Math.max(f.courtOpinion, 50);
@@ -260,6 +262,7 @@ public final class Statecraft {
 				if (f.government == Faction.Government.REPUBLIC) f.government = Faction.Government.MONARCHY;
 				if (f.government == Faction.Government.MONARCHY) f.dynasty = player.getName().getString();
 				crown(server, f, player, "seizes power in a coup");
+				net.colonists.player.PlayerData.of(server, player.getUuid()).add("coups", 1);
 				f.courtOpinion = Math.min(f.courtOpinion, 40);
 				return ok("The palace is yours.");
 			}

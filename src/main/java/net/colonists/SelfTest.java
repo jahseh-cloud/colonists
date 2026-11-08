@@ -12,6 +12,7 @@ import net.colonists.law.Justice;
 import net.colonists.law.Law;
 import net.colonists.legend.Chronicles;
 import net.colonists.legend.History;
+import net.colonists.player.PlayerData;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Blocks;
@@ -154,6 +155,7 @@ public final class SelfTest {
 			if (fm2.all().size() != fm.all().size()) throw new IllegalStateException("factions lost in save: " + fm.all().size() + " → " + fm2.all().size());
 			Justice j = Justice.get(server);
 			Justice.fromNbt(j.writeNbt(new NbtCompound(), reg), reg);
+			PlayerData.fromNbt(PlayerData.get(server).writeNbt(new NbtCompound(), reg), reg);
 			History h = History.get(server);
 			History h2 = History.fromNbt(h.writeNbt(new NbtCompound(), reg), reg);
 			if (h2.religions.size() != h.religions.size() || h2.events.size() != h.events.size()) throw new IllegalStateException("history lost in save");
@@ -194,6 +196,42 @@ public final class SelfTest {
 			net.colonists.net.CityMapPayload.build(fm, fp);
 			net.colonists.law.Slavery.bid(fp, 50);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST orders: {}", String.join(" ; ", results));
+			// The player's own life: contracts, property, faith, retinue, titles, deeds.
+			fm.changeRep(server, fp, f.id, 60);
+			List<PlayerData.Contract> board = net.colonists.player.Contracts.board(server, cap);
+			results.clear();
+			for (PlayerData.Contract k : board) results.add(net.colonists.player.Contracts.describe(server, k));
+			String took = board.isEmpty() ? "no work" : String.valueOf(net.colonists.player.Contracts.accept(fp, cap, 1));
+			net.colonists.player.Contracts.tick(server);
+			for (java.util.Map.Entry<BlockPos, java.util.UUID> e : cap.homes.entrySet()) {
+				if (cap.built.contains(e.getKey())) {
+					cap.homes.put(e.getKey(), null);
+					fp.refreshPositionAndAngles(e.getKey().getX() + 1.5, e.getKey().getY(), e.getKey().getZ() + 1.5, 0, 0);
+					fp.getInventory().insertStack(new net.minecraft.item.ItemStack(net.minecraft.item.Items.EMERALD, 64));
+					results.add("buy=" + net.colonists.player.Household.buy(fp));
+					results.add("rent=" + net.colonists.player.Household.rent(fp));
+					break;
+				}
+			}
+			History h0 = History.get(server);
+			if (!h0.religions.isEmpty()) results.add("faith=" + net.colonists.player.Household.joinFaith(fp, h0.religions.keySet().iterator().next()));
+			results.add("pray=" + net.colonists.player.Household.pray(fp));
+			ColonistEntity follower = colonistsNear(w, cap.cityCenter).stream().filter(c -> !c.isRuler() && !c.isBaby()).findFirst().orElse(null);
+			if (follower != null) {
+				follower.liege = fp.getUuid();
+				follower.liegeUntil = w.getTimeOfDay() / 24000L + 5;
+				PlayerData.of(server, fp.getUuid()).retinue.add(follower.getUuid());
+				follower.retainerKill();
+			}
+			net.colonists.player.Titles.tick(server);
+			net.colonists.player.Household.tick(server);
+			net.colonists.player.Household.bookOfDeeds(fp);
+			net.colonists.player.Contracts.onKill(server, fp, follower != null ? follower : fp);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST player life: took={} board=[{}] {}", took, String.join(" | ", results.subList(0, Math.min(results.size(), 12))), String.join(" ; ", results));
+			if (follower != null) {
+				follower.liege = null;
+				PlayerData.of(server, fp.getUuid()).retinue.clear();
+			}
 			Statecraft.order(fp, Statecraft.Order.ABDICATE, 0, 0, 0, 0);
 			fm.setPlayerFaction(fp.getUuid(), null);
 		});

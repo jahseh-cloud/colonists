@@ -181,6 +181,12 @@ public class WorkGoal extends Goal {
 			}
 		}
 
+		// 0a. A retainer stays at their lord's side (after a bite to eat, if starving).
+		if (c.liege != null && (c.hunger > 6 || ColonistBrain.count(inv, ColonistBrain.FOOD) > 0)) {
+			net.minecraft.server.network.ServerPlayerEntity lord = world.getServer().getPlayerManager().getPlayer(c.liege);
+			if (lord != null && lord.getWorld() == world) return new net.colonists.ai.task.FollowLiegeTask(c, lord);
+		}
+
 		// 0b. War: soldiers march on the realm's objective, day and night (as long as they are not starving).
 		if (realm != null && realm.warGoal >= 0 && c.isSoldier() && (c.hunger > 6 || ColonistBrain.count(inv, ColonistBrain.FOOD) > 0)) {
 			Settlement goal = fm.settlement(realm.warGoal);
