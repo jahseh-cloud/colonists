@@ -29,6 +29,12 @@ Settlements grow with the land, not on a grid:
   - **Towns and cities with room:** cottages for single people, and two-storey stone houses for families and the well-off.
   - **Crowded towns:** once land near the centre runs short, people build up instead of out: narrow two-storey **row houses** in towns and three-storey **townhouses** in cities.
   - **The rich, rulers and slave owners:** manors and estates.
+- **Passive growth.** Towns grow on their own every day, whether or not anyone is nearby: newcomers from the countryside, and children of the town.
+  - **Rate by the realm's era:** 2% a day in the Timber era, 3% in Stone, 4% in Iron, and 5% in the Grand era. A town of 100 in the Stone era is 103 the next day.
+  - **Faster:** an Age of plenty, a Golden Age, or the Hanging Gardens.
+  - **Slower:** war, hunger, or too few houses (newcomers wait until more are built).
+  - **Off-screen:** a town no one has loaded counts its new people anyway. They wait at the gate and walk in when the town loads (counted in its population meanwhile).
+  - The `colonistsMaxPerFaction` gamerule still caps everything.
 - **Evening gatherings.** At dusk, townsfolk down tools and gather at the tavern, or the plaza if there isn't one. Everyone there grows a little fonder of everyone else, so a close-knit town makes friends, couples and children faster.
 - **No size limit.** Cities grow as big as births, housing and food allow (`colonistsMaxPerFaction` 0 = unlimited).
 
@@ -68,6 +74,27 @@ Farming happens on **manors**: lords' estates beyond the edge of town.
   - The lord sells the harvest to the town treasury.
 - **Unwatched fields.** Crops keep growing even when no player is near, and manor fields stay loaded with their town.
 - `/colony manors` shows the manors of the nearest town: lords, fields and crops, laborers, and harvests.
+- **On the atlas.** Every manor's fields are drawn on the map in its realm's colour, labelled like *Smith Manor (Kingdom of Red Arrows)*. Labels show when you're zoomed in.
+  - The **Farms** map mode colours each field by its crop, with a key.
+  - Hover a field for the estate's lord, crops, laborers and harvest. Click it for its page.
+  - A town's page lists its manors.
+
+### The lords of the manors
+
+Lords are the realm's landed nobility, and they have power:
+
+- **Favour.** Each lord has a favour toward the crown (0–100) that drifts daily.
+  - **Taxes** lower it: every rise in a town's tax costs favour, and every cut wins some back.
+  - **Long wars** lower it.
+  - **Cheap labor** (bonded folk and captives) and harsh laws raise it.
+  - **A Republic** raises it, because lords sit in its senate.
+  - **A big estate** raises it.
+- **The court.** Where there are manors, the lords' favour weighs most in the court's opinion, and the court in turn weighs into every order.
+- **No taxation without consent.** If the lords' favour falls below 40, they refuse any new tax rise.
+- **Levies.** Content lords (favour 50+) send their laborers to the realm's wars, giving extra siege strength.
+- **Votes.** In a Republic, each landowner casts three votes in elections.
+- **The barons' revolt.** If the lords' favour in a realm of two or more towns stays below 20, the angriest lord may claim the crown. The towns that follow him rise in a civil war, the Pretender crisis with the barons behind it. You can back either side.
+- **Winning them back.** A ruler can **Gift the lords** (20 emeralds from the treasury, in the atlas Realm panel), and cutting taxes helps too.
 - **Shared economy.** Workers haul their surplus (logs, stone, ore, wheat, food) to the stockpile. Hungry colonists eat from it, and builders draw stone and coal from it.
 - **Moving away.** A faction founded near another city (for example, rebels) walks about 160 blocks away before it builds.
 

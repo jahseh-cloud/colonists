@@ -142,6 +142,7 @@ public final class Legends {
 		if (l != null && (l.kind == Kind.HERO || l.kind == Kind.EMPEROR)) p += 1;
 		if (l != null && l.kind == Kind.PROPHET_CONQUEROR) p += 3;
 		p += Crises.siegeBonus(server, realm);
+		p += net.colonists.farm.Manors.levies(realm); // the lords' levies
 		if (soldier.getRandom().nextInt(5) == 0) earn(server, soldier.getUuid(), History.VALOUR, 1);
 		return p;
 	}

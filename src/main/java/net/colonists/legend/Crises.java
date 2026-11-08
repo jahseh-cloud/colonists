@@ -695,8 +695,21 @@ public final class Crises {
 	/** In an unhappy realm, someone claims to be the true heir. Half the realm's discontented towns rise for him. */
 	@Nullable
 	static String startPretender(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
-		Faction crown = null;
-		for (Faction f : fm.all()) {
+		return startPretender(server, fm, h, day, random, null, null, null);
+	}
+
+	/** The barons rise: an angry landowner claims the crown, and the towns his fellow lords hold sway in follow him. */
+	public static String baronsRevolt(MinecraftServer server, Faction crown, UUID lord, String manorName) {
+		FactionManager fm = FactionManager.get(server);
+		History h = History.get(server);
+		if (inCrisis(h, crown)) return "The realm is already in turmoil.";
+		return startPretender(server, fm, h, day(server), server.getOverworld().getRandom(), crown, lord, manorName);
+	}
+
+	static String startPretender(MinecraftServer server, FactionManager fm, History h, long day, Random random,
+			@Nullable Faction forcedCrown, @Nullable UUID forcedClaimant, @Nullable String manorName) {
+		Faction crown = forcedCrown;
+		if (crown == null) for (Faction f : fm.all()) {
 			if (f.freeVillage || f.settlements.size() < 3 || inCrisis(h, f)) continue;
 			if (crown == null || f.approval < crown.approval) crown = f;
 		}
@@ -706,7 +719,15 @@ public final class Crises {
 		towns.sort(Comparator.comparingInt(x -> x.loyalty));
 		Settlement first = null;
 		UUID claimant = null;
-		for (Settlement t : towns) {
+		if (forcedClaimant != null && crown.citizens.containsKey(forcedClaimant)) {
+			Settlement home = fm.settlement(crown.citizens.get(forcedClaimant).settlement);
+			if (home != null && home.isCapital()) home = towns.isEmpty() ? null : towns.get(0);
+			if (home != null) {
+				claimant = forcedClaimant;
+				first = home;
+			}
+		}
+		if (claimant == null) for (Settlement t : towns) {
 			claimant = bestCitizen(crown, t, (ci) -> ci.ambition * 2 - ci.kindness, random);
 			if (claimant != null) {
 				first = t;
@@ -733,6 +754,11 @@ public final class Crises {
 		Crisis c = open(h, Type.PRETENDER, claimant, l.styled(), rebels, day);
 		c.oldName = crown.id;
 		c.fateDay = day + 20;
+		if (manorName != null) {
+			herald(server, h, c, l, rebels, "The lords of the manors have had enough. The master of " + manorName + " claims the crown of " + house
+					+ ", and " + rebels.settlements.size() + (rebels.settlements.size() == 1 ? " town rises" : " towns rise") + " with the barons. (/colony crises back)", day);
+			return null;
+		}
 		herald(server, h, c, l, rebels, "He claims to be the true heir of " + house + ", and " + rebels.settlements.size()
 				+ (rebels.settlements.size() == 1 ? " town rises" : " towns rise") + " for him. Civil war! (/colony crises back)", day);
 		return null;

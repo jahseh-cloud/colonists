@@ -25,7 +25,7 @@ import java.util.Map;
  * taxes, garrisons, colonies, war and peace, alliances, laws and the form of government.
  */
 public class AtlasScreen extends Screen {
-	private enum Mode {POLITICAL, DIPLOMATIC, WEALTH, LOYALTY, FAITH}
+	private enum Mode {POLITICAL, DIPLOMATIC, WEALTH, LOYALTY, FAITH, FARMS}
 
 	private enum Panel {NONE, REALM, LAWS, DIPLOMACY, LEGENDS}
 
@@ -42,6 +42,7 @@ public class AtlasScreen extends Screen {
 
 	private Panel panel = Panel.NONE;
 	@Nullable private TownInfo selected;
+	@Nullable private AtlasPayloads.ManorInfo selectedManor;
 	@Nullable private int[] selectedLand;
 	private int fundChoice;
 	private int govChoice = 1;
@@ -66,6 +67,10 @@ public class AtlasScreen extends Screen {
 
 	void onData() {
 		this.factionById.clear();
+		if (this.selectedManor != null && AtlasClient.data != null) {
+			AtlasPayloads.ManorInfo old = this.selectedManor;
+			this.selectedManor = AtlasClient.data.manors().stream().filter(m -> m.town() == old.town() && m.lord().equals(old.lord())).findFirst().orElse(null);
+		}
 		if (AtlasClient.data != null) for (FactionInfo f : AtlasClient.data.factions()) this.factionById.put(f.id(), f);
 		if (this.selected != null && AtlasClient.data != null) {
 			int id = this.selected.id();
@@ -97,7 +102,7 @@ public class AtlasScreen extends Screen {
 	private void rebuild() {
 		this.clearChildren();
 		// Map modes, as tabs sized to their names (shrunk evenly if the map is narrow).
-		String[] labels = {"Realms", "Relations", "Wealth", "Loyalty", "Faith"};
+		String[] labels = {"Realms", "Relations", "Wealth", "Loyalty", "Faith", "Farms"};
 		int[] widths = new int[labels.length];
 		int total = 0;
 		for (int i = 0; i < labels.length; i++) total += widths[i] = this.textRenderer.getWidth(labels[i]) + 14;
@@ -139,6 +144,7 @@ public class AtlasScreen extends Screen {
 					this.rebuild();
 				}));
 				actions.add(btn("Pay army a bonus (20)", () -> this.order(Statecraft.Order.BONUS, 0, 20, 0, 0)));
+				if (!this.manorsOf(d.myFaction()).isEmpty()) actions.add(btn("Gift the lords (20)", () -> this.order(Statecraft.Order.GIFT_LORDS, 0, 20, 0, 0)));
 				actions.add(btn("Abdicate", () -> this.order(Statecraft.Order.ABDICATE, 0, 0, 0, 0)));
 			} else if (d.member()) {
 				if (d.canStand()) actions.add(btn("Stand for election", () -> this.order(Statecraft.Order.STAND, 0, 0, 0, 0)));
@@ -303,6 +309,7 @@ public class AtlasScreen extends Screen {
 		ctx.enableScissor(0, TOPBAR, this.mapRight(), this.height);
 		this.drawTerrain(ctx);
 		this.drawTerritories(ctx);
+		this.drawManors(ctx);
 		this.drawWars(ctx);
 		this.drawTowns(ctx);
 		this.drawWonders(ctx);
@@ -337,7 +344,9 @@ public class AtlasScreen extends Screen {
 		super.render(ctx, mouseX, mouseY, delta);
 		if (this.inMap(mouseX, mouseY)) {
 			TownInfo hover = this.townAt(mouseX, mouseY);
+			AtlasPayloads.ManorInfo manor = hover == null ? this.manorAt(mouseX, mouseY) : null;
 			if (hover != null) ctx.drawTooltip(this.textRenderer, this.tooltip(hover), mouseX, mouseY);
+			else if (manor != null) ctx.drawTooltip(this.textRenderer, this.manorTooltip(manor), mouseX, mouseY);
 		}
 	}
 
@@ -383,7 +392,128 @@ public class AtlasScreen extends Screen {
 			case WEALTH -> lerp(0x8A6A4A, 0xE0B020, MathHelper.clamp(t.treasury() / 200.0, 0, 1));
 			case LOYALTY -> lerp(0xB03030, 0x3E9E4A, t.loyalty() / 100.0);
 			case FAITH -> this.faithColour(f.religion());
+			case FARMS -> lerp(f.color(), 0xE9DCB5, 0.55);
 		};
+	}
+
+	// ---------------------------------------------------------------- manors
+
+	static int cropColour(String crop) {
+		return switch (crop) {
+			case "wheat" -> 0xD8B640;
+			case "carrot" -> 0xE07A20;
+			case "potato" -> 0xB89A5A;
+			case "beetroot" -> 0xA03040;
+			case "melon" -> 0x6AA830;
+			case "pumpkin" -> 0xE08A10;
+			case "sugar_cane" -> 0x88C060;
+			case "sweet_berries" -> 0xB02050;
+			default -> 0xC0A060;
+		};
+	}
+
+	static String cropName(String crop) {
+		return switch (crop) {
+			case "carrot" -> "carrots";
+			case "potato" -> "potatoes";
+			case "melon" -> "melons";
+			case "pumpkin" -> "pumpkins";
+			case "sugar_cane" -> "sugar cane";
+			case "sweet_berries" -> "berries";
+			default -> crop;
+		};
+	}
+
+	private List<AtlasPayloads.ManorInfo> manorsOf(String faction) {
+		List<AtlasPayloads.ManorInfo> list = new ArrayList<>();
+		if (AtlasClient.data != null) for (AtlasPayloads.ManorInfo m : AtlasClient.data.manors()) if (m.faction().equals(faction)) list.add(m);
+		return list;
+	}
+
+	/** The landed lords' favour in a realm (weighted by land), or -1. */
+	private int lordsFavour(String faction) {
+		int sum = 0, w = 0;
+		for (AtlasPayloads.ManorInfo m : this.manorsOf(faction)) {
+			int k = Math.max(1, m.fields().length / 4);
+			sum += m.favour() * k;
+			w += k;
+		}
+		return w == 0 ? -1 : sum / w;
+	}
+
+	/** Fields drawn as ploughed strips: the realm's colour (or the crop's, in Farms mode), with the estate's name when close. */
+	private void drawManors(DrawContext ctx) {
+		if (AtlasClient.data == null) return;
+		for (AtlasPayloads.ManorInfo m : AtlasClient.data.manors()) {
+			FactionInfo f = this.factionById.get(m.faction());
+			int realm = f == null ? 0x888888 : f.color();
+			int[] r = m.fields();
+			int labelX = 0, labelY = Integer.MAX_VALUE;
+			for (int i = 0; i + 3 < r.length; i += 4) {
+				int c = mode == Mode.FARMS ? cropColour(m.crops().get(i / 4)) : lerp(realm, 0xD8C080, 0.35);
+				int x0 = this.sx(r[i]), y0 = this.sy(r[i + 1]), x1 = Math.max(x0 + 1, this.sx(r[i + 2] + 1)), y1 = Math.max(y0 + 1, this.sy(r[i + 3] + 1));
+				ctx.fill(x0, y0, x1, y1, (mode == Mode.FARMS ? 0xD0000000 : 0x90000000) | c);
+				// Furrows.
+				if (y1 - y0 >= 6) for (int y = y0 + 2; y < y1 - 1; y += 3) ctx.fill(x0 + 1, y, x1 - 1, y + 1, 0x40000000 | darken(c));
+				int edge = 0xFF000000 | darken(c);
+				ctx.fill(x0, y0, x1, y0 + 1, edge);
+				ctx.fill(x0, y1 - 1, x1, y1, edge);
+				ctx.fill(x0, y0, x0 + 1, y1, edge);
+				ctx.fill(x1 - 1, y0, x1, y1, edge);
+				if (y0 < labelY) {
+					labelY = y0;
+					labelX = (x0 + x1) / 2;
+				}
+			}
+			boolean chosen = this.selectedManor != null && this.selectedManor.name().equals(m.name()) && this.selectedManor.town() == m.town();
+			if (zoom <= 2 || chosen || mode == Mode.FARMS && zoom <= 3) {
+				String label = m.name() + " (" + m.allegiance() + ")";
+				int w = this.textRenderer.getWidth(label);
+				int ly = labelY - 11;
+				ctx.fill(labelX - w / 2 - 2, ly - 1, labelX + w / 2 + 2, ly + 9, chosen ? 0xEEF4E9C8 : 0xBBE9DCB5);
+				ctx.drawText(this.textRenderer, label, labelX - w / 2, ly, chosen ? RUBRIC : INK_SOFT, false);
+			}
+		}
+	}
+
+	@Nullable
+	private AtlasPayloads.ManorInfo manorAt(double mx, double my) {
+		if (AtlasClient.data == null) return null;
+		double wx = this.wx(mx), wz = this.wz(my);
+		double pad = this.scale() * 2; // a couple of pixels of grace when zoomed out
+		for (AtlasPayloads.ManorInfo m : AtlasClient.data.manors()) {
+			int[] r = m.fields();
+			for (int i = 0; i + 3 < r.length; i += 4) if (wx >= r[i] - pad && wx <= r[i + 2] + 1 + pad && wz >= r[i + 1] - pad && wz <= r[i + 3] + 1 + pad) return m;
+		}
+		return null;
+	}
+
+	private List<Text> manorTooltip(AtlasPayloads.ManorInfo m) {
+		List<Text> l = new ArrayList<>();
+		l.add(Text.literal(m.name()).formatted(Formatting.BOLD));
+		FactionInfo f = this.factionById.get(m.faction());
+		l.add(Text.literal(m.allegiance()).withColor(f == null ? 0xAAAAAA : f.color()));
+		l.add(Text.literal("Lord: " + (m.lord().isEmpty() ? "none" : m.lord()) + " · near " + m.townName()));
+		l.add(Text.literal(this.cropsSummary(m)));
+		l.add(Text.literal(m.laborers() + " laborers · " + m.harvested() + " crops brought in · favour " + m.favour()));
+		return l;
+	}
+
+	private String cropsSummary(AtlasPayloads.ManorInfo m) {
+		StringBuilder b = new StringBuilder();
+		int area = 0;
+		java.util.LinkedHashMap<String, Integer> byCrop = new java.util.LinkedHashMap<>();
+		int[] r = m.fields();
+		for (int i = 0; i + 3 < r.length; i += 4) {
+			int a = (r[i + 2] - r[i] + 1) * (r[i + 3] - r[i + 1] + 1);
+			area += a;
+			byCrop.merge(m.crops().get(i / 4), a, Integer::sum);
+		}
+		for (var e : byCrop.entrySet()) {
+			if (b.length() > 0) b.append(", ");
+			b.append(cropName(e.getKey()));
+		}
+		return (r.length / 4) + (r.length / 4 == 1 ? " field" : " fields") + " (" + area + " blocks): " + b;
 	}
 
 	private int faithColour(String religion) {
@@ -544,6 +674,18 @@ public class AtlasScreen extends Screen {
 				keys.add("Restless"); colours.add(0xB03030);
 				keys.add("Loyal"); colours.add(0x3E9E4A);
 			}
+			case FARMS -> {
+				java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
+				if (AtlasClient.data != null) for (AtlasPayloads.ManorInfo m : AtlasClient.data.manors()) seen.addAll(m.crops());
+				for (String c : seen) {
+					keys.add(cropName(c));
+					colours.add(cropColour(c));
+				}
+				if (seen.isEmpty()) {
+					keys.add("No manors yet");
+					colours.add(0xC0A060);
+				}
+			}
 			default -> {
 			}
 		}
@@ -647,6 +789,25 @@ public class AtlasScreen extends Screen {
 			}
 			return rows;
 		}
+		if (this.panel == Panel.NONE && this.selectedManor != null) {
+			AtlasPayloads.ManorInfo m = this.selectedManor;
+			FactionInfo f = this.factionById.get(m.faction());
+			rows.add(new Row(Row.TITLE, Text.literal(m.name()), 0, f == null ? 0x888888 : f.color()));
+			rows.add(text(m.allegiance(), INK));
+			rows.add(text("Estate of " + (m.lord().isEmpty() ? "no one (lying fallow)" : m.lord()) + ", feeding " + m.townName(), INK_SOFT));
+			rows.add(GAP_ROW);
+			rows.add(barRow("Favour", m.favour(), m.favour() >= 50 ? 0x3E9E4A : m.favour() >= 25 ? 0xC06A30 : 0xB03030));
+			rows.add(text(m.laborers() + " laborers · " + m.harvested() + " crops brought in", INK));
+			rows.add(GAP_ROW);
+			rows.add(heading("Fields"));
+			int[] r = m.fields();
+			for (int i = 0; i + 3 < r.length; i += 4) {
+				rows.add(key(cropName(m.crops().get(i / 4)) + "  " + (r[i + 2] - r[i] + 1) + "×" + (r[i + 3] - r[i + 1] + 1), cropColour(m.crops().get(i / 4))));
+			}
+			rows.add(GAP_ROW);
+			rows.add(text("A content lord sends levies to the realm's wars; an angry one refuses new taxes, and many angry lords may rise against the crown.", INK_SOFT));
+			return rows;
+		}
 		if (this.panel == Panel.REALM || (this.selected == null && this.selectedLand == null)) {
 			FactionInfo f = this.mine();
 			if (f == null) {
@@ -668,6 +829,11 @@ public class AtlasScreen extends Screen {
 			rows.add(barRow("People", f.approval(), 0x3E9E4A));
 			rows.add(barRow("Army", f.army(), 0x8A3B2A));
 			rows.add(barRow("Court", f.court(), 0x6A4A9A));
+			int lords = this.lordsFavour(f.id());
+			if (lords >= 0) {
+				rows.add(barRow("Lords", lords, 0xB8860B));
+				rows.add(text(this.manorsOf(f.id()).size() + " landed lords" + (lords < 40 ? " · they refuse new taxes" : lords >= 50 ? " · they send levies to war" : ""), INK_SOFT));
+			}
 			rows.add(GAP_ROW);
 			rows.add(heading("Holdings"));
 			rows.add(text("Treasury: " + f.treasury() + " emeralds", INK));
@@ -694,6 +860,16 @@ public class AtlasScreen extends Screen {
 			if (t.garrison() >= 0) rows.add(text("Garrison order: " + t.garrison(), INK));
 			if (t.autonomy()) rows.add(text("Self-governing", INK_SOFT));
 			if (!t.priority().isEmpty()) rows.add(text("Building first: " + t.priority().replace('_', ' '), INK));
+			List<AtlasPayloads.ManorInfo> estates = new ArrayList<>();
+			if (AtlasClient.data != null) for (AtlasPayloads.ManorInfo m : AtlasClient.data.manors()) if (m.town() == t.id()) estates.add(m);
+			if (!estates.isEmpty()) {
+				rows.add(GAP_ROW);
+				rows.add(heading("Manors"));
+				for (AtlasPayloads.ManorInfo m : estates) {
+					rows.add(key(m.name(), m.favour() >= 50 ? 0x3E9E4A : m.favour() >= 25 ? 0xC06A30 : 0xB03030));
+					rows.add(text("   " + (m.lord().isEmpty() ? "no lord" : m.lord()) + " · " + this.cropsSummary(m), INK_SOFT));
+				}
+			}
 			rows.add(GAP_ROW);
 			rows.add(text("At " + t.x() + ", " + t.z(), INK_SOFT));
 			return rows;
@@ -840,9 +1016,16 @@ public class AtlasScreen extends Screen {
 		if (super.mouseReleased(mx, my, button)) return true;
 		if (!this.dragged && button == 0 && this.inMap(mx, my)) {
 			TownInfo t = this.townAt(mx, my);
+			AtlasPayloads.ManorInfo manor = t == null ? this.manorAt(mx, my) : null;
 			this.panel = Panel.NONE;
+			this.selectedManor = null;
+			this.scroll = 0;
 			if (t != null) {
 				this.selected = t;
+				this.selectedLand = null;
+			} else if (manor != null) {
+				this.selectedManor = manor;
+				this.selected = null;
 				this.selectedLand = null;
 			} else {
 				this.selected = null;

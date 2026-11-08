@@ -196,8 +196,11 @@ public final class Politics {
 				.limit(3).toList();
 		if (candidates.isEmpty() && f.playerCandidates.isEmpty() && f.rulerPlayer == null) return;
 		Map<UUID, Integer> votes = new HashMap<>();
-		for (Faction.Citizen voter : f.citizens.values()) {
+		for (Map.Entry<UUID, Faction.Citizen> ve : f.citizens.entrySet()) {
+			Faction.Citizen voter = ve.getValue();
 			if (voter.child) continue;
+			// Landowners carry three votes each in the senate.
+			int weight = net.colonists.farm.Manors.isLandowner(f, ve.getKey()) ? 3 : 1;
 			UUID choice = null;
 			int bestScore = Integer.MIN_VALUE;
 			for (Map.Entry<UUID, Faction.Citizen> cand : candidates) {
@@ -208,7 +211,7 @@ public final class Politics {
 					choice = cand.getKey();
 				}
 			}
-			if (choice != null) votes.merge(choice, 1, Integer::sum);
+			if (choice != null) votes.merge(choice, weight, Integer::sum);
 		}
 		for (UUID choice : f.playerVotes.values()) {
 			if (f.citizens.containsKey(choice)) votes.merge(choice, 3, Integer::sum);

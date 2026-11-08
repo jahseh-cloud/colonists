@@ -55,6 +55,10 @@ public class Settlement {
 	public final Set<BlockPos> farms = new LinkedHashSet<>();
 	/** The manors on the outskirts: lords' estates of large fields that feed this town. */
 	public final java.util.List<net.colonists.farm.Manor> manors = new java.util.ArrayList<>();
+	/** Passive growth: the last day counted, the fraction of a person carried over, and newcomers waiting to walk in. */
+	public long lastGrowthDay = -1;
+	public double growthCarry;
+	public int pendingNewcomers;
 	public final Set<BlockPos> blockedLots = new HashSet<>();
 	@Nullable public BlockPos quarry;
 	public int quarrySize;
@@ -186,7 +190,7 @@ public class Settlement {
 
 	public int population() {
 		if (this.faction == null) return 0;
-		int n = this.village ? this.freemen : 0;
+		int n = (this.village ? this.freemen : 0) + this.pendingNewcomers;
 		for (Faction.Citizen c : this.faction.citizens.values()) if (c.settlement == this.id) n++;
 		return n;
 	}
@@ -235,6 +239,9 @@ public class Settlement {
 		net.minecraft.nbt.NbtList manorList = new net.minecraft.nbt.NbtList();
 		for (net.colonists.farm.Manor m : this.manors) manorList.add(m.toNbt());
 		nbt.put("Manors", manorList);
+		nbt.putLong("GrowthDay", this.lastGrowthDay);
+		nbt.putDouble("GrowthCarry", this.growthCarry);
+		nbt.putInt("Newcomers", this.pendingNewcomers);
 		nbt.putLongArray("Blocked", this.blockedLots.stream().mapToLong(BlockPos::asLong).toArray());
 		if (this.quarry != null) nbt.putLong("Quarry", this.quarry.asLong());
 		nbt.putInt("QuarrySize", this.quarrySize);
@@ -314,6 +321,9 @@ public class Settlement {
 		for (long l : nbt.getLongArray("Farms")) s.farms.add(BlockPos.fromLong(l));
 		for (net.minecraft.nbt.NbtElement e : nbt.getList("Manors", net.minecraft.nbt.NbtElement.COMPOUND_TYPE))
 			s.manors.add(net.colonists.farm.Manor.fromNbt((net.minecraft.nbt.NbtCompound) e));
+		s.lastGrowthDay = nbt.contains("GrowthDay") ? nbt.getLong("GrowthDay") : -1;
+		s.growthCarry = nbt.getDouble("GrowthCarry");
+		s.pendingNewcomers = nbt.getInt("Newcomers");
 		for (long l : nbt.getLongArray("Blocked")) s.blockedLots.add(BlockPos.fromLong(l));
 		if (nbt.contains("Quarry")) s.quarry = BlockPos.fromLong(nbt.getLong("Quarry"));
 		s.quarrySize = nbt.getInt("QuarrySize");

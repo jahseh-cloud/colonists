@@ -93,6 +93,11 @@ public final class AtlasPayloads {
 	public record LegendInfo(String name, String kind, String faction, boolean alive, String religion) {
 	}
 
+	/** A manor: its name and allegiance, its lord, and its fields (x0, z0, x1, z1 per field) with one crop each. */
+	public record ManorInfo(String name, String allegiance, String faction, int town, String townName, String lord, int favour,
+							int laborers, int harvested, int[] fields, List<String> crops) {
+	}
+
 	public record TownInfo(int id, String faction, String name, String rank, int x, int z, int minX, int minZ, int maxX, int maxZ,
 						   int population, int loyalty, int treasury, int guards, boolean besieged, boolean capital,
 						   int taxRate, int garrison, boolean autonomy, String priority) {
@@ -101,7 +106,8 @@ public final class AtlasPayloads {
 	/** Server → client: the whole political picture, as this player may see it. */
 	public record Data(String myFaction, boolean ruler, boolean member, int coupChance, boolean canStand, boolean heir,
 					   int armySupportWar, List<FactionInfo> factions, List<TownInfo> towns,
-					   List<ReligionInfo> religions, List<LegendInfo> legends, String age, List<WonderInfo> wonders) implements CustomPayload {
+					   List<ReligionInfo> religions, List<LegendInfo> legends, String age, List<WonderInfo> wonders,
+					   List<ManorInfo> manors) implements CustomPayload {
 		public static final Id<Data> ID = new Id<>(ColonistsMod.id("atlas_data"));
 		public static final PacketCodec<RegistryByteBuf, Data> CODEC = PacketCodec.of(Data::write, Data::read);
 
@@ -190,6 +196,21 @@ public final class AtlasPayloads {
 				buf.writeInt(w.z());
 				buf.writeString(w.effect());
 			}
+			buf.writeVarInt(this.manors.size());
+			for (ManorInfo m : this.manors) {
+				buf.writeString(m.name());
+				buf.writeString(m.allegiance());
+				buf.writeString(m.faction());
+				buf.writeVarInt(m.town());
+				buf.writeString(m.townName());
+				buf.writeString(m.lord());
+				buf.writeVarInt(m.favour());
+				buf.writeVarInt(m.laborers());
+				buf.writeVarInt(m.harvested());
+				buf.writeIntArray(m.fields());
+				buf.writeVarInt(m.crops().size());
+				for (String c : m.crops()) buf.writeString(c);
+			}
 		}
 
 		private static Data read(RegistryByteBuf buf) {
@@ -226,7 +247,20 @@ public final class AtlasPayloads {
 			for (int i = 0; i < nw; i++) {
 				ws.add(new WonderInfo(buf.readString(), buf.readString(), buf.readString(), buf.readBoolean(), buf.readInt(), buf.readInt(), buf.readString()));
 			}
-			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls, age, ws);
+			int nm = buf.readVarInt();
+			List<ManorInfo> ms = new ArrayList<>(nm);
+			for (int i = 0; i < nm; i++) {
+				String name = buf.readString(), alleg = buf.readString(), fac = buf.readString();
+				int town = buf.readVarInt();
+				String townName = buf.readString(), lord = buf.readString();
+				int favour = buf.readVarInt(), laborers = buf.readVarInt(), harvested = buf.readVarInt();
+				int[] fields = buf.readIntArray();
+				int nc = buf.readVarInt();
+				List<String> crops = new ArrayList<>(nc);
+				for (int k = 0; k < nc; k++) crops.add(buf.readString());
+				ms.add(new ManorInfo(name, alleg, fac, town, townName, lord, favour, laborers, harvested, fields, crops));
+			}
+			return new Data(my, ruler, member, coup, stand, heir, sup, fs, ts, rs, ls, age, ws, ms);
 		}
 
 		@Override

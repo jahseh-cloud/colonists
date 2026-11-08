@@ -29,6 +29,8 @@ public class Manor {
 	/** Crops brought in since the last sale to the town, and in all. */
 	public int harvested, harvestedTotal;
 	public long founded, lastPayday = -1;
+	/** 0-100: what this lord thinks of the crown (the landed nobility's mood). */
+	public int favour = 60;
 
 	/** One field: a rectangle of land given over to one crop. */
 	public static class Field {
@@ -53,7 +55,14 @@ public class Manor {
 			return z1 - z0 + 1;
 		}
 
-		public int area() {
+		/** "Smith Manor": named for the family that holds it. */
+	public String title() {
+		if (lordName.isEmpty()) return name.isEmpty() ? "A fallow manor" : name;
+		String[] parts = lordName.trim().split(" ");
+		return parts[parts.length - 1] + " Manor";
+	}
+
+	public int area() {
 			return width() * depth();
 		}
 
@@ -113,6 +122,7 @@ public class Manor {
 		n.putInt("HarvestedTotal", harvestedTotal);
 		n.putLong("Founded", founded);
 		n.putLong("Payday", lastPayday);
+		n.putInt("Favour", favour);
 		return n;
 	}
 
@@ -134,6 +144,7 @@ public class Manor {
 		m.harvestedTotal = n.getInt("HarvestedTotal");
 		m.founded = n.getLong("Founded");
 		m.lastPayday = n.contains("Payday") ? n.getLong("Payday") : -1;
+		m.favour = n.contains("Favour") ? n.getInt("Favour") : 60;
 		return m;
 	}
 }

@@ -121,6 +121,7 @@ public class ColonistsMod implements ModInitializer {
 			if (server.getTicks() % 1200 == 900) {
 				try {
 					net.colonists.farm.Manors.tick(server);
+					net.colonists.faction.Growth.tick(server);
 				} catch (RuntimeException e) {
 					LOGGER.error("Colonists: the manors failed to tick", e);
 				}

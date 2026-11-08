@@ -198,7 +198,28 @@ public final class AtlasServer {
 				wonders.add(new AtlasPayloads.WonderInfo(t.label() + " (being built)", cap.name, f.name, false, cap.cityCenter.getX(), cap.cityCenter.getZ(), t.effect));
 			}
 		}
+		// Manors: every estate on the map, named for its family and its allegiance ("Smith Manor (Kingdom of Red Arrows)").
+		List<AtlasPayloads.ManorInfo> manors = new ArrayList<>();
+		for (Settlement s : fm.allSettlements()) {
+			if (s.faction == null) continue;
+			for (net.colonists.farm.Manor m : s.manors) {
+				if (m.fields.isEmpty()) continue;
+				int[] rects = new int[m.fields.size() * 4];
+				List<String> crops = new ArrayList<>();
+				for (int i = 0; i < m.fields.size(); i++) {
+					net.colonists.farm.Manor.Field fl = m.fields.get(i);
+					rects[i * 4] = fl.x0;
+					rects[i * 4 + 1] = fl.z0;
+					rects[i * 4 + 2] = fl.x1;
+					rects[i * 4 + 3] = fl.z1;
+					crops.add(fl.crop);
+				}
+				String allegiance = s.faction.realmTitle() + " of " + s.faction.name;
+				manors.add(new AtlasPayloads.ManorInfo(m.title(), allegiance, s.faction.id, s.id, s.name, m.lordName, m.favour, m.laborers.size(),
+						m.harvestedTotal, rects, crops));
+			}
+		}
 		return new AtlasPayloads.Data(mine == null ? "" : mine, ruler, my != null, coup, stand, heir, sup, factions, towns, religions, legends,
-				net.colonists.legend.Ages.name(h), wonders);
+				net.colonists.legend.Ages.name(h), wonders, manors);
 	}
 }

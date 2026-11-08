@@ -29,6 +29,7 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.World;
@@ -194,6 +195,7 @@ public final class Manors {
 			}
 			changed |= assignLaborers(s);
 		}
+		if (world.getTimeOfDay() % 24000L < 1300) for (Faction f : fm.all()) if (!f.freeVillage) baronsRevolt(server, f, world.getRandom());
 		if (changed) fm.markDirty();
 	}
 
@@ -226,13 +228,13 @@ public final class Manors {
 		m.id = s.manors.stream().mapToInt(x -> x.id).max().orElse(0) + 1;
 		m.lord = lord;
 		m.lordName = c.fullName();
-		m.name = c.surname + " " + new String[]{"Manor", "Grange", "Hall", "Farm", "Court"}[random.nextInt(5)];
+		m.name = c.surname + " Manor";
 		m.founded = world.getTimeOfDay() / 24000L;
 		Field first = claimField(world, fm, s, m, random);
 		if (first == null) return false;
 		m.fields.add(first);
 		s.manors.add(m);
-		FactionManager.broadcastNear(world, s.cityCenter, 160, Text.literal("🌾 " + c.fullName() + " founds " + m.name + " outside " + s.name
+		FactionManager.broadcastNear(world, s.cityCenter, 160, Text.literal("🌾 " + c.fullName() + " founds " + m.title() + " outside " + s.name
 				+ ", with a first field of " + Crop.of(first.crop).label + " (" + first.width() + "×" + first.depth() + ").").formatted(Formatting.GOLD));
 		return true;
 	}
@@ -295,6 +297,7 @@ public final class Manors {
 					c.wealth += 2;
 				}
 			}
+			m.favour = MathHelper.clamp(m.favour + (favourTarget(s, m) - m.favour) / 4, 0, 100);
 			int sale = Math.min(s.treasury, m.harvested / 8);
 			s.treasury -= sale;
 			lord.wealth += sale;
@@ -379,6 +382,70 @@ public final class Manors {
 			if (p.getName().equals("age") && s.get(p) instanceof Integer i) return i;
 		}
 		return 0;
+	}
+
+	// ---------------------------------------------------------------- the lords' politics
+
+	/**
+	 * What a lord's mood drifts toward. Lords hate taxes and endless wars, like cheap labor (bonded folk and captives),
+	 * like a crown that rewards them, and are proud of a big estate.
+	 */
+	static int favourTarget(Settlement s, Manor m) {
+		Faction f = s.faction;
+		int tax = s.taxRate >= 0 ? s.taxRate : (int) Math.round(net.colonists.economy.Economy.defaultTax(f) * 100);
+		int t = 60 - (tax - 10) * 2;
+		if (f.atWar) t -= 6 + f.warWeariness;
+		if (f.slavery) t += 6;
+		if (f.laws.contains(net.colonists.law.Law.DEATH_PENALTY)) t += 2;
+		if (f.government == Faction.Government.REPUBLIC) t += 4; // lords sit in the senate
+		t += Math.min(8, m.fields.size() * 2);
+		if (m.lord != null && m.lord.equals(f.ruler)) t = 100;
+		return t;
+	}
+
+	/** The manors of a whole realm. */
+	public static List<Manor> ofRealm(Faction f) {
+		List<Manor> list = new ArrayList<>();
+		for (Settlement s : f.settlements.values()) for (Manor m : s.manors) if (m.lord != null) list.add(m);
+		return list;
+	}
+
+	/** The landed lords' mood toward the crown, or -1 if the realm has none. Weighted by how much land each holds. */
+	public static int lordsFavour(Faction f) {
+		int sum = 0, weight = 0;
+		for (Manor m : ofRealm(f)) {
+			int w = Math.max(1, m.fields.size());
+			sum += m.favour * w;
+			weight += w;
+		}
+		return weight == 0 ? -1 : sum / weight;
+	}
+
+	/** Content lords send their levies to the realm's wars: extra siege strength. */
+	public static int levies(Faction f) {
+		int n = 0;
+		for (Manor m : ofRealm(f)) if (m.favour >= 50 && !m.laborers.isEmpty()) n++;
+		return Math.min(3, (n + 1) / 2);
+	}
+
+	/** Every lord's mood shifts at once (the crown raised taxes, paid a bonus, and so on). */
+	public static void moveFavour(Faction f, int by) {
+		for (Manor m : ofRealm(f)) m.favour = MathHelper.clamp(m.favour + by, 0, 100);
+	}
+
+	/** True if this citizen holds land. */
+	public static boolean isLandowner(Faction f, UUID who) {
+		for (Manor m : ofRealm(f)) if (who.equals(m.lord)) return true;
+		return false;
+	}
+
+	/** Lords pushed too far rise together: the angriest claims the crown (a Pretender's civil war of the barons). */
+	static void baronsRevolt(MinecraftServer server, Faction f, Random random) {
+		List<Manor> lords = ofRealm(f);
+		if (lords.size() < 2 || f.settlements.size() < 2 || lordsFavour(f) >= 20 || random.nextInt(8) != 0) return;
+		Manor angriest = lords.stream().min(java.util.Comparator.comparingInt(x -> x.favour)).orElse(null);
+		if (angriest == null || angriest.lord == null || angriest.lord.equals(f.ruler)) return;
+		net.colonists.legend.Crises.baronsRevolt(server, f, angriest.lord, angriest.title());
 	}
 
 	// ---------------------------------------------------------------- claiming land

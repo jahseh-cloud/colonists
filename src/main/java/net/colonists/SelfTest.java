@@ -40,6 +40,7 @@ public final class SelfTest {
 	private SelfTest() {}
 
 	private static final long LENGTH = 5 * 24000L;
+	private static int growthTown = -1, growthBefore;
 	private static long start = -1;
 	private static BlockPos a, b, v;
 	private static final List<String> failures = new ArrayList<>();
@@ -411,6 +412,40 @@ public final class SelfTest {
 			if (back.manors.isEmpty() || back.manors.get(0).fields.isEmpty()) throw new IllegalStateException("manors were not saved");
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manors now: {}", fm.allSettlements().stream().filter(x -> !x.manors.isEmpty())
 					.map(x -> x.name + ":" + x.manors.stream().map(mm -> mm.name + "(" + mm.fields.size() + " fields, " + mm.laborers.size() + " laborers)").toList()).toList());
+		});
+		if (t == 92000) step("growth-and-lords", () -> {
+			Settlement big = fm.allSettlements().stream().filter(x -> !x.village && x.cityCenter != null && x.colonists() >= 2)
+					.max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
+			growthTown = big.id;
+			growthBefore = big.faction.members.size();
+			long day = w.getTimeOfDay() / 24000L;
+			double rate = net.colonists.faction.Growth.rate(server, big);
+			// Ten days pass unseen.
+			big.lastGrowthDay = day - 10;
+			big.foodInStock = Math.max(big.foodInStock, 100);
+			net.colonists.faction.Growth.tick(server);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: {} at {}%/day, pop {} -> {} counted ({} waiting at the gate)", big.name,
+					Math.round(rate * 1000) / 10.0, growthBefore, big.population(), big.pendingNewcomers);
+			// The lords.
+			for (net.colonists.farm.Manor m : net.colonists.farm.Manors.ofRealm(big.faction)) m.favour = 8;
+			int favour = net.colonists.farm.Manors.lordsFavour(big.faction);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST lords of the {}: {} lords, favour {}, levies {}", big.faction.name,
+					net.colonists.farm.Manors.ofRealm(big.faction).size(), favour, net.colonists.farm.Manors.levies(big.faction));
+			if (!net.colonists.farm.Manors.ofRealm(big.faction).isEmpty() && favour >= 20) throw new IllegalStateException("lords' favour should be low");
+			// The atlas shows every manor with its allegiance.
+			net.colonists.atlas.AtlasPayloads.Data data = net.colonists.atlas.AtlasServer.build(net.fabricmc.fabric.api.entity.FakePlayer.get(w));
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST atlas manors: {}", data.manors().stream().map(m -> m.name() + " (" + m.allegiance() + ")").toList());
+			if (data.manors().isEmpty()) throw new IllegalStateException("no manors on the atlas");
+			if (!data.manors().get(0).name().endsWith(" Manor") || !data.manors().get(0).allegiance().contains(" of ")) throw new IllegalStateException("manor label format");
+			// Angry barons may rise.
+			net.colonists.farm.Manor angry = net.colonists.farm.Manors.ofRealm(big.faction).stream().findFirst().orElse(null);
+			if (angry != null) ColonistsMod.LOGGER.info("COLONISTS SELFTEST barons' revolt: {}", net.colonists.legend.Crises.baronsRevolt(server, big.faction, angry.lord, angry.title()));
+		});
+		if (t == 92600) step("growth-arrived", () -> {
+			Settlement big = fm.settlement(growthTown);
+			if (big == null) return;
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth arrived: {} members now {} (was {}), {} still waiting", big.name, big.faction.members.size(), growthBefore, big.pendingNewcomers);
+			if (big.faction.members.size() <= growthBefore && big.pendingNewcomers == 0) throw new IllegalStateException("the town did not grow");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {

@@ -25,7 +25,7 @@ public final class Statecraft {
 
 	public enum Order {
 		TAX, GARRISON, AUTONOMY, FUND, COLONIZE, WAR, PEACE_WHITE, PEACE_CEDE_THEIRS, PEACE_CEDE_OURS, PEACE_VASSAL,
-		ALLY, DEMAND_VASSAL, LAW, CAPTIVITY, GOVERNMENT, BONUS, COUP, STAND, ABDICATE
+		ALLY, DEMAND_VASSAL, LAW, CAPTIVITY, GOVERNMENT, BONUS, COUP, STAND, ABDICATE, GIFT_LORDS
 	}
 
 	public static final String[] PROJECTS = {"wall", "prison", "work_camp", "gallows", "market", "barracks", "tavern",
@@ -78,6 +78,9 @@ public final class Statecraft {
 		int kindness = avgKindness(f);
 		if (harsh) court += (50 - kindness) / 4;
 		f.armyOpinion = MathHelper.clamp((f.armyOpinion * 3 + army) / 4, 0, 100);
+		// The landed lords sit at court: where there are manors, their mood weighs heaviest.
+		int lords = net.colonists.farm.Manors.lordsFavour(f);
+		if (lords >= 0) court = (court + lords * 2) / 3;
 		f.courtOpinion = MathHelper.clamp((f.courtOpinion * 3 + court) / 4, 0, 100);
 	}
 
@@ -305,6 +308,11 @@ public final class Statecraft {
 			default -> {
 			}
 		}
+		// The lords of the manors will not be taxed without their consent.
+		if (order == Order.TAX && b > 0) {
+			int lords = net.colonists.farm.Manors.lordsFavour(f);
+			if (lords >= 0 && lords < 40) return err("The lords of the manors refuse new taxes (their favour: " + lords + "). Win them back first.");
+		}
 		if (!obeyed(support, random)) {
 			String who = f.government == Faction.Government.REPUBLIC ? "The senate" : f.government == Faction.Government.MONARCHY ? "Your generals and nobles" : "The elders";
 			return err(who + " refuse (" + support + "% support).");
@@ -317,9 +325,11 @@ public final class Statecraft {
 				if (b > 0) {
 					f.courtOpinion -= 3;
 					f.approval -= 2;
+					net.colonists.farm.Manors.moveFavour(f, -5);
 				} else {
 					f.courtOpinion += 2;
 					f.approval += 1;
+					net.colonists.farm.Manors.moveFavour(f, 3);
 				}
 				return ok("Taxes in " + own.name + " are now " + own.taxRate + "%.");
 			}
@@ -449,6 +459,20 @@ public final class Statecraft {
 				FactionManager.broadcast(server, Text.literal("📜 " + f.rulerName + " proclaims the ").formatted(Formatting.GOLD).append(f.displayName())
 						.append(Text.literal(" a " + g.label + ".").formatted(Formatting.GOLD)));
 				return ok("Your realm is now a " + g.label + ".");
+			}
+			case GIFT_LORDS -> {
+				List<net.colonists.farm.Manor> lords = net.colonists.farm.Manors.ofRealm(f);
+				if (lords.isEmpty()) return err("Your realm has no landed lords.");
+				Settlement cap = f.capital();
+				if (cap == null || cap.treasury < b || b <= 0) return err("The treasury cannot pay that.");
+				cap.treasury -= b;
+				for (net.colonists.farm.Manor m : lords) {
+					Faction.Citizen c = f.citizens.get(m.lord);
+					if (c != null) c.wealth += b / lords.size();
+				}
+				net.colonists.farm.Manors.moveFavour(f, Math.max(3, b * 12 / (10 * lords.size())));
+				f.courtOpinion = Math.min(100, f.courtOpinion + 3);
+				return ok("The lords of the manors accept your gift of " + b + " emeralds. Their favour is now " + net.colonists.farm.Manors.lordsFavour(f) + ".");
 			}
 			case BONUS -> {
 				Settlement cap = f.capital();
