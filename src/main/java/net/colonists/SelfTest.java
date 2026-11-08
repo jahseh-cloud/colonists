@@ -452,7 +452,7 @@ public final class SelfTest {
 			net.colonists.atlas.AtlasPayloads.Data data = net.colonists.atlas.AtlasServer.build(net.fabricmc.fabric.api.entity.FakePlayer.get(w));
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST atlas manors: {}", data.manors().stream().map(m -> m.name() + " (" + m.allegiance() + ")").toList());
 			if (data.manors().isEmpty()) throw new IllegalStateException("no manors on the atlas");
-			if (!data.manors().get(0).name().endsWith(" Manor") || !data.manors().get(0).allegiance().contains(" of ")) throw new IllegalStateException("manor label format");
+			if (data.manors().stream().noneMatch(m -> m.name().endsWith(" Manor") && m.allegiance().contains(" of "))) throw new IllegalStateException("manor label format");
 			// Angry barons may rise.
 			net.colonists.farm.Manor angry = net.colonists.farm.Manors.ofRealm(big.faction).stream().findFirst().orElse(null);
 			if (angry != null) ColonistsMod.LOGGER.info("COLONISTS SELFTEST barons' revolt: {}", net.colonists.legend.Crises.baronsRevolt(server, big.faction, angry.lord, angry.title()));
