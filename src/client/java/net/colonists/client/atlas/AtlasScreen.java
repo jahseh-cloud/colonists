@@ -509,9 +509,9 @@ public class AtlasScreen extends Screen {
 		} else if (this.panel == Panel.LEGENDS) {
 			lines.add(Text.literal("Wonders of the world").formatted(Formatting.BOLD));
 			if (d.wonders().isEmpty()) lines.add(Text.literal("None yet raised.").withColor(0x6B5638));
-			for (AtlasPayloads.WonderInfo w : d.wonders()) {
-				lines.add(Text.literal((w.ruined() ? "✖ " : "◆ ") + w.name()).withColor(w.ruined() ? 0x8A7A60 : 0x8A6A10));
-				lines.add(Text.literal("  " + w.town() + (w.owner().isEmpty() ? "" : ", " + w.owner()) + (w.ruined() ? " (in ruins)" : "")).withColor(0x6B5638));
+			for (AtlasPayloads.WonderInfo wi : d.wonders()) {
+				lines.add(Text.literal((wi.ruined() ? "✖ " : "◆ ") + wi.name()).withColor(wi.ruined() ? 0x8A7A60 : 0x8A6A10));
+				lines.add(Text.literal("  " + wi.town() + (wi.owner().isEmpty() ? "" : ", " + wi.owner()) + (wi.ruined() ? " (in ruins)" : "")).withColor(0x6B5638));
 			}
 			lines.add(Text.literal(""));
 			lines.add(Text.literal("Faiths of the world").formatted(Formatting.BOLD));
