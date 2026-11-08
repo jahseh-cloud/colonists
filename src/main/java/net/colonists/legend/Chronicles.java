@@ -158,6 +158,10 @@ public final class Chronicles {
 			case ADVENTURER -> new String[]{"the Vagrant", "the Thief of Roads"};
 			case PROPHET, PROPHET_KING -> new String[]{"the False Prophet", "the Deceiver", "the Heretic"};
 			case PROPHET_CONQUEROR -> new String[]{"the Scourge", "the Destroyer", "the Fanatic"};
+			case KHAN -> new String[]{"the Scourge of God", "the Burner of Cities", "the Wolf of the Steppe"};
+			case GREAT -> new String[]{"the Accursed", "the Madman", "the Butcher of Nations"};
+			case IMPERATOR -> new String[]{"the Usurper", "the Pretender", "the Tyrant Reborn"};
+			case MESSENGER -> new String[]{"the False Messenger", "the Deceiver of Nations"};
 		};
 		return l.name + " " + cursed[Math.floorMod(l.who.hashCode(), cursed.length)];
 	}
@@ -215,6 +219,13 @@ public final class Chronicles {
 			case VILLAGE_SEIZED -> when + ", " + e.person + " seized the free village of " + e.place + (sa > 0 ? " and brought it order." : " and lorded over its people.");
 			case EXODUS -> when + ", " + e.person + " left " + e.place + " with a few companions, seeking a land of their own.";
 			case FALL -> when + ", " + actor + " were no more.";
+			case CRISIS -> sa > 0 ? when + ", " + who + " rose among " + actor + ". " + e.extra
+					: when + ", a terror arose: " + who + " of " + actor + ". " + e.extra;
+			case FRACTURE -> when + ", the realm of " + e.targetName + " broke apart" + (e.extra.isEmpty() ? "." : " into " + e.extra + ".");
+			case RESTORATION -> sa > 0 ? when + ", " + who + " made whole again the realm of " + e.targetName + ". Glory returned to the world."
+					: when + ", " + who + " forced the old realm of " + e.targetName + " back together by fire and sword.";
+			case CALIPH -> when + ", " + e.person + " became the " + e.extra + " Caliph of " + actor + ".";
+			case SCHISM -> when + ", the faithful of " + actor + " were torn apart: " + e.extra + " broke away" + (sa > 0 ? ", heretics all." : ".");
 			case AGE -> when + ", " + e.person.toLowerCase() + ". So began " + e.extra + ".";
 			case ERA -> when + ", " + actor + " entered their " + e.extra + " era" + (sa > 0 ? ", and grew mighty." : ".");
 			case WONDER_BEGUN -> when + ", " + actor + " laid the first stones of the " + e.extra + " at " + e.place

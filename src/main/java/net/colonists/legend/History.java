@@ -93,7 +93,8 @@ public class History extends PersistentState {
 
 	public enum Kind {
 		ADVENTURER("Adventurer", 1), HERO("Hero", 2), EMPEROR("Emperor", 3),
-		PROPHET("Prophet", 4), PROPHET_KING("Prophet King", 5), PROPHET_CONQUEROR("Prophet Conqueror", 6);
+		PROPHET("Prophet", 4), PROPHET_KING("Prophet King", 5), PROPHET_CONQUEROR("Prophet Conqueror", 6),
+		KHAN("Khan", 7), GREAT("Conqueror", 7), IMPERATOR("Imperator", 7), MESSENGER("Messenger", 8);
 
 		public final String label;
 		public final int rank;
@@ -104,7 +105,12 @@ public class History extends PersistentState {
 		}
 
 		public boolean prophet() {
-			return this.rank >= 4;
+			return this == PROPHET || this == PROPHET_KING || this == PROPHET_CONQUEROR || this == MESSENGER;
+		}
+
+		/** The great figures of a crisis. */
+		public boolean crisis() {
+			return this == KHAN || this == GREAT || this == IMPERATOR || this == MESSENGER;
 		}
 	}
 
@@ -266,6 +272,97 @@ public class History extends PersistentState {
 		}
 	}
 
+	// ---------------------------------------------------------------- crises
+
+	public static class Crisis {
+		public String type = "";
+		@Nullable public UUID figure;
+		public String figureName = "";
+		public String faction = "";
+		public long started;
+		public long ended = -1;
+		/** The Great's appointed day with fate; the Khan's last reinforcement. */
+		public long fateDay = -1;
+		public long lastDay = -1;
+		/** Imperator: the towns of the old empire to win back. */
+		public final List<Integer> targets = new ArrayList<>();
+		public String oldName = "";
+		/** Caliphate: how many caliphs have followed the Messenger, and the last ruler seen. */
+		public int caliphs;
+		@Nullable public UUID lastRuler;
+
+		public boolean active() {
+			return this.ended < 0;
+		}
+
+		NbtCompound toNbt() {
+			NbtCompound n = new NbtCompound();
+			n.putString("Type", this.type);
+			if (this.figure != null) n.putUuid("Figure", this.figure);
+			n.putString("FigureName", this.figureName);
+			n.putString("Faction", this.faction);
+			n.putLong("Started", this.started);
+			n.putLong("Ended", this.ended);
+			n.putLong("Fate", this.fateDay);
+			n.putLong("Last", this.lastDay);
+			n.putIntArray("Targets", this.targets.stream().mapToInt(Integer::intValue).toArray());
+			n.putString("OldName", this.oldName);
+			n.putInt("Caliphs", this.caliphs);
+			if (this.lastRuler != null) n.putUuid("LastRuler", this.lastRuler);
+			return n;
+		}
+
+		static Crisis fromNbt(NbtCompound n) {
+			Crisis c = new Crisis();
+			c.type = n.getString("Type");
+			if (n.containsUuid("Figure")) c.figure = n.getUuid("Figure");
+			c.figureName = n.getString("FigureName");
+			c.faction = n.getString("Faction");
+			c.started = n.getLong("Started");
+			c.ended = n.getLong("Ended");
+			c.fateDay = n.getLong("Fate");
+			c.lastDay = n.getLong("Last");
+			for (int t : n.getIntArray("Targets")) c.targets.add(t);
+			c.oldName = n.getString("OldName");
+			c.caliphs = n.getInt("Caliphs");
+			if (n.containsUuid("LastRuler")) c.lastRuler = n.getUuid("LastRuler");
+			return c;
+		}
+	}
+
+	public final List<Crisis> crises = new ArrayList<>();
+
+	/** A great realm that broke apart: remembered so that someone may one day try to restore it. */
+	public static class Fracture {
+		public String name = "";
+		public final List<Integer> settlements = new ArrayList<>();
+		public long day;
+		public long restorerDay = -1;
+		public boolean claimed;
+
+		NbtCompound toNbt() {
+			NbtCompound n = new NbtCompound();
+			n.putString("Name", this.name);
+			n.putIntArray("Settlements", this.settlements.stream().mapToInt(Integer::intValue).toArray());
+			n.putLong("Day", this.day);
+			n.putLong("Restorer", this.restorerDay);
+			n.putBoolean("Claimed", this.claimed);
+			return n;
+		}
+
+		static Fracture fromNbt(NbtCompound n) {
+			Fracture f = new Fracture();
+			f.name = n.getString("Name");
+			for (int t : n.getIntArray("Settlements")) f.settlements.add(t);
+			f.day = n.getLong("Day");
+			f.restorerDay = n.getLong("Restorer");
+			f.claimed = n.getBoolean("Claimed");
+			return f;
+		}
+	}
+
+	public final List<Fracture> fractures = new ArrayList<>();
+
 	/** The world's completed wonders, one per type. */
 	public final Map<String, Wonder> wonders = new LinkedHashMap<>();
 
@@ -274,7 +371,7 @@ public class History extends PersistentState {
 	public enum EventType {
 		FOUNDED, CONQUERED, CEDED, WAR, HOLY_WAR, PEACE, CROWNED, REBELLION, EXECUTION, LEGEND_RISES, LEGEND_DIES,
 		PROPHET, NEW_FAITH, CONVERSION, PROPHECY_FULFILLED, MIRACLE, VILLAGE_SEIZED, EXODUS, FALL,
-		AGE, ERA, WONDER_BEGUN, WONDER_BUILT, WONDER_RUINED, WONDER_RAZED
+		AGE, ERA, WONDER_BEGUN, WONDER_BUILT, WONDER_RUINED, WONDER_RAZED, CRISIS, FRACTURE, RESTORATION, CALIPH, SCHISM
 	}
 
 	/** One thing that happened, with who did it (faction ids so chroniclers can take sides). */
@@ -393,6 +490,12 @@ public class History extends PersistentState {
 		NbtList won = new NbtList();
 		for (Wonder w : this.wonders.values()) won.add(w.toNbt());
 		nbt.put("Wonders", won);
+		NbtList cr = new NbtList();
+		for (Crisis c : this.crises) cr.add(c.toNbt());
+		nbt.put("Crises", cr);
+		NbtList fr = new NbtList();
+		for (Fracture f : this.fractures) fr.add(f.toNbt());
+		nbt.put("Fractures", fr);
 		return nbt;
 	}
 
@@ -436,6 +539,10 @@ public class History extends PersistentState {
 		h.prosperityMeter = nbt.getDouble("ProsperityMeter");
 		h.faithMeter = nbt.getDouble("FaithMeter");
 		h.strifeMeter = nbt.getDouble("StrifeMeter");
+		NbtList cr = nbt.getList("Crises", NbtElement.COMPOUND_TYPE);
+		for (int i = 0; i < cr.size(); i++) h.crises.add(Crisis.fromNbt(cr.getCompound(i)));
+		NbtList fr = nbt.getList("Fractures", NbtElement.COMPOUND_TYPE);
+		for (int i = 0; i < fr.size(); i++) h.fractures.add(Fracture.fromNbt(fr.getCompound(i)));
 		NbtList won = nbt.getList("Wonders", NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < won.size(); i++) {
 			Wonder w = Wonder.fromNbt(won.getCompound(i));

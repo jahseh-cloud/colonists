@@ -30,9 +30,49 @@ public final class LegendCommand {
 				.then(CommandManager.literal("ages").executes(LegendCommand::ages))
 				.then(CommandManager.literal("wonders").executes(LegendCommand::wonders))
 				.then(CommandManager.literal("banner").executes(LegendCommand::banner))
+				.then(CommandManager.literal("crises").executes(LegendCommand::crises)
+						.then(CommandManager.literal("start").requires(s -> s.hasPermissionLevel(2))
+								.then(CommandManager.argument("type", com.mojang.brigadier.arguments.StringArgumentType.word())
+										.suggests((c, b) -> net.minecraft.command.CommandSource.suggestMatching(new String[]{"messenger", "khan", "imperator", "great"}, b))
+										.executes(LegendCommand::startCrisis))))
 				.then(CommandManager.literal("history")
 						.executes(ctx -> history(ctx, 12))
 						.then(CommandManager.argument("count", IntegerArgumentType.integer(1, 60)).executes(ctx -> history(ctx, IntegerArgumentType.getInteger(ctx, "count"))))));
+	}
+
+	private static int crises(CommandContext<ServerCommandSource> ctx) {
+		ServerCommandSource src = ctx.getSource();
+		History h = History.get(src.getServer());
+		if (h.crises.isEmpty()) {
+			src.sendFeedback(() -> Text.literal("The world has known no great crisis yet.").formatted(Formatting.GRAY), false);
+			return 0;
+		}
+		for (History.Crisis c : h.crises) {
+			String label = net.colonists.legend.Crises.Type.valueOf(c.type).label;
+			String state = !c.active() ? "ended day " + (c.ended + 1) : c.figure == null ? "the Caliphs rule (" + c.caliphs + " so far)" : "ONGOING";
+			src.sendFeedback(() -> Text.literal("☄ " + label + ": " + c.figureName).formatted(c.active() ? Formatting.RED : Formatting.GRAY)
+					.append(Text.literal(" — began day " + (c.started + 1) + ", " + state).formatted(Formatting.GRAY)), false);
+		}
+		for (History.Fracture fr : h.fractures) src.sendFeedback(() -> Text.literal("💔 The " + fr.name + " broke apart on day " + (fr.day + 1)
+				+ (fr.claimed ? "; a restorer has risen." : "; a restorer may rise around day " + (fr.restorerDay + 1) + ".")).formatted(Formatting.GOLD), false);
+		return h.crises.size();
+	}
+
+	private static int startCrisis(CommandContext<ServerCommandSource> ctx) {
+		String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "type").toUpperCase();
+		net.colonists.legend.Crises.Type t;
+		try {
+			t = net.colonists.legend.Crises.Type.valueOf(name);
+		} catch (IllegalArgumentException e) {
+			ctx.getSource().sendError(Text.literal("Unknown crisis. Try messenger, khan, imperator or great."));
+			return 0;
+		}
+		String fail = net.colonists.legend.Crises.start(ctx.getSource().getServer(), t, null);
+		if (fail != null) {
+			ctx.getSource().sendError(Text.literal(fail));
+			return 0;
+		}
+		return 1;
 	}
 
 	private static int religions(CommandContext<ServerCommandSource> ctx) {

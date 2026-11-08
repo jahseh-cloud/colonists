@@ -93,6 +93,7 @@ public final class Legends {
 	/** A colonist died: legends are mourned (or celebrated by their enemies). */
 	public static void onDeath(ServerWorld world, ColonistEntity dead, @Nullable Entity killer) {
 		History h = History.get(world.getServer());
+		Crises.onFigureDeath(world.getServer(), dead.getUuid(), killer);
 		Legend l = h.living(dead.getUuid());
 		h.renown.remove(dead.getUuid());
 		if (l == null) return;
@@ -140,6 +141,7 @@ public final class Legends {
 		Legend l = h.living(soldier.getUuid());
 		if (l != null && (l.kind == Kind.HERO || l.kind == Kind.EMPEROR)) p += 1;
 		if (l != null && l.kind == Kind.PROPHET_CONQUEROR) p += 3;
+		p += Crises.siegeBonus(server, realm);
 		if (soldier.getRandom().nextInt(5) == 0) earn(server, soldier.getUuid(), History.VALOUR, 1);
 		return p;
 	}
@@ -218,6 +220,7 @@ public final class Legends {
 			}
 		}
 		resolveProphecies(server, fm, h, day);
+		Crises.tick(server, fm, h, random);
 		h.markDirty();
 	}
 
@@ -288,6 +291,10 @@ public final class Legends {
 			case HERO -> pick(HERO_TITLES, random);
 			case EMPEROR -> pick(EMPEROR_TITLES, random);
 			case PROPHET, PROPHET_KING, PROPHET_CONQUEROR -> pick(PROPHET_TITLES, random);
+			case KHAN -> "Khan";
+			case GREAT -> "the Great";
+			case IMPERATOR -> "Restitutor";
+			case MESSENGER -> "the Messenger";
 		};
 		l.faction = f == null ? "" : f.id;
 		l.factionName = f == null ? "wilds" : f.name;
@@ -456,7 +463,7 @@ public final class Legends {
 			int aggression = c != null ? c.aggression : 50;
 			kind = (rel.has(Tenet.SWORD) || aggression > 65) && !rel.has(Tenet.PEACE) ? Kind.PROPHET_CONQUEROR : Kind.PROPHET_KING;
 		}
-		if (kind != l.kind) {
+		if (kind != l.kind && !l.kind.crisis()) {
 			l.kind = kind;
 			l.title = kind == Kind.PROPHET_CONQUEROR ? "the Sword of the " + Faith.stripThe(rel.name).replaceAll("^(Way|Church|Faith|Order|Covenant|Path|Children|Keepers) of the ", "")
 					: kind == Kind.PROPHET_KING ? "the Prophet King" : l.title;
@@ -649,6 +656,7 @@ public final class Legends {
 				if (l.kind == Kind.PROPHET_CONQUEROR) ally.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 140, 0, true, false));
 			}
 		}
+		Crises.aura(server);
 	}
 
 	static long day(ServerWorld world) {

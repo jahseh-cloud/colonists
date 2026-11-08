@@ -27,7 +27,9 @@ public class Faction {
 		REPUBLIC("Republic", "Consul"),
 		PLAYER("Player-led", "Founder"),
 		FREE("Free village", "Elders"),
-		THEOCRACY("Theocracy", "Prophet King");
+		THEOCRACY("Theocracy", "Prophet King"),
+		CALIPHATE("Caliphate", "Caliph"),
+		HORDE("Horde", "Khan");
 
 		public final String label, title;
 

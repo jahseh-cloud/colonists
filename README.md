@@ -214,6 +214,17 @@ Each era adds 5% production. Grand-era realms build in stone even for ordinary f
 - **Getting them.** Buy them from the librarian, or read them on village lecterns.
 - **Commands.** `/colony religions`, `/colony legends` and `/colony history` show the plain record. The atlas has a **Faith** map mode and a **Lore** panel.
 
+## Crises
+
+Every so often the world is shaken by a figure greater than any legend. Crises start on their own, are more likely in the right age, and at most two run at once. Operators can begin one with `/colony crises start <messenger|khan|imperator|great>`. `/colony crises` lists past and present crises and broken empires.
+
+- **The Messenger** (from day 15; three times likelier in an Age of Faith): the mightiest prophet. He founds a new faith with three teachings, always including the sword or the way of peace. His realm becomes a **Caliphate**. His word spreads 1000 blocks, and faithful towns of other realms defect to him. If his faith holds the sword, he wages great holy wars. After he dies, **Caliphs** succeed him one by one. By the third Caliph the faithful may quarrel: a **schism** splits off a rival faith and half of the realm.
+- **The Khan** (from day 10; likelier in an Age of Strife): a **Horde** rides out of empty land with a dozen armoured riders, and more join every day, up to 40. It is always at war with its nearest neighbour, takes towns fast, and feels no war weariness. When the Khan dies, the horde breaks into Khanates. The player who kills him is hailed as **Bane of the Khan**, the highest title a player can earn.
+- **The Great**: the ambitious ruler of a small nation declares war on the largest empire and conquers town after town. Conquered towns stay loyal to him. Within 10–16 days a fever takes him, and his generals divide his realm.
+- **The Imperator** (a "Restitutor"): 5–15 days after a great realm breaks apart, the heir holding most of its towns swears to rebuild it. He wars on whoever holds the old towns and preaches his faith in every town he takes. Holding 80% of them is a **Restoration**.
+
+Chroniclers write about all of it: crises, fractures, restorations, Caliphs and schisms. Killing any crisis figure earns a player "Slayer of Legends".
+
 ## Free villages
 
 - **Vanilla villages become small realms** of free men, discovered as players come near. Each gets a name ("the Free Men of Ashford"), borders drawn around its houses, and a population count on the maps. It has its own relations, and its trade adds to its treasury. Villagers are called *Free Man / Free Woman of …* when you look at them, and their trading and breeding are untouched.

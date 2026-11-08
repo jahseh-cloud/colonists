@@ -246,6 +246,54 @@ public final class SelfTest {
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST wonder sizes: {}", java.util.Arrays.stream(net.colonists.legend.Wonders.Type.values())
 					.map(x -> x.name() + "=" + x.blueprint.width + "x" + x.blueprint.depth + "x" + x.blueprint.height + "/" + x.blueprint.entries.size()).toList());
 		});
+		if (t == 70000) step("crises-start", () -> {
+			net.colonists.legend.History h = net.colonists.legend.History.get(server);
+			for (net.colonists.legend.Crises.Type type : net.colonists.legend.Crises.Type.values()) {
+				String why = net.colonists.legend.Crises.start(server, type, null);
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {}: {}", type, why == null ? "began" : why);
+				if (why != null && (type == net.colonists.legend.Crises.Type.KHAN || type == net.colonists.legend.Crises.Type.MESSENGER))
+					throw new IllegalStateException(type + " could not begin: " + why);
+			}
+			if (h.crises.stream().noneMatch(c -> c.active() && c.type.equals("KHAN"))) throw new IllegalStateException("no khan");
+		});
+		if (t == 72000) step("crises-end", () -> {
+			net.colonists.legend.History h = net.colonists.legend.History.get(server);
+			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
+			for (net.colonists.legend.History.Crisis c : new ArrayList<>(h.crises)) {
+				if (!c.active() || c.figure == null) continue;
+				java.util.UUID fig = c.figure;
+				Faction realm = fm.get(c.faction);
+				if (realm == null) continue;
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {} realm {} has {} members, {} towns", c.type, realm.name, realm.members.size(), realm.settlements.size());
+				if (c.type.equals("KHAN") || c.type.equals("MESSENGER")) {
+					if (w.getEntity(fig) instanceof ColonistEntity e) {
+						if (c.type.equals("KHAN")) e.damage(w.getDamageSources().playerAttack(fp), Float.MAX_VALUE);
+						else e.damage(w.getDamageSources().genericKill(), Float.MAX_VALUE);
+					}
+					if (fig.equals(c.figure)) net.colonists.legend.Crises.onFigureDeath(server, fig, c.type.equals("KHAN") ? fp : null);
+				}
+			}
+			if (h.crises.stream().anyMatch(c -> c.type.equals("KHAN") && c.active())) throw new IllegalStateException("khan still alive");
+			if (net.colonists.player.PlayerData.of(server, fp.getUuid()).stat("khanSlain") <= 0) throw new IllegalStateException("no Bane of the Khan");
+			net.colonists.legend.History.Crisis m = h.crises.stream().filter(c -> c.type.equals("MESSENGER")).findFirst().orElseThrow();
+			if (m.figure != null) throw new IllegalStateException("messenger did not die");
+			Faction cal = fm.get(m.faction);
+			if (cal != null) {
+				java.util.UUID heir = cal.citizens.keySet().stream().filter(u -> !u.equals(m.lastRuler)).findFirst().orElse(null);
+				if (heir != null) {
+					cal.ruler = heir;
+					net.colonists.legend.Crises.tick(server, fm, h, w.getRandom());
+					if (m.caliphs < 1) throw new IllegalStateException("no caliph after the messenger");
+				}
+			}
+			Faction big = fm.all().stream().filter(x -> !x.freeVillage && x.settlements.size() >= 2).findFirst().orElse(null);
+			if (big != null) {
+				int before = fm.all().size();
+				net.colonists.legend.Crises.fracture(server, fm, h, big, "Kingdom", 0, w.getRandom());
+				if (fm.all().size() <= before) throw new IllegalStateException("fracture made no new realms");
+			}
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST crises: {}", h.crises.stream().map(c -> c.type + "/" + c.figureName + "/" + (c.active() ? "active" : "ended") + "/caliphs=" + c.caliphs).toList());
+		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
 			step("world-edge", () -> {

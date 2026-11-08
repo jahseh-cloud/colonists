@@ -30,6 +30,8 @@ public final class Titles {
 			int bane = pr.stat("bane:" + f.id);
 			if (bane >= 10) t.add(new Title("Bane of the " + f.name, 40 + Math.min(20, bane)));
 		}
+		if (pr.stat("khanSlain") > 0) t.add(new Title("Bane of the Khan", 95));
+		for (String k : new String[]{"GREAT", "IMPERATOR", "MESSENGER"}) if (pr.stat("slew:" + k) > 0) t.add(new Title("Slayer of Legends", 70));
 		if (pr.stat("ruled") > 0) t.add(new Title("Former Ruler", 35));
 		if (pr.stat("coups") > 0) t.add(new Title("Kingbreaker", 55));
 		int soldiers = pr.stat("soldiers");
