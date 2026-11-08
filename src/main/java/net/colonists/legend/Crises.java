@@ -197,10 +197,18 @@ public final class Crises {
 	static String startKhan(MinecraftServer server, FactionManager fm, History h, long day, Random random) {
 		ServerWorld world = server.getOverworld();
 		BlockPos camp = null;
+		List<Settlement> towns = fm.allSettlements().stream().filter(x -> x.cityCenter != null).toList();
 		int r = WorldEdge.radius > 0 ? WorldEdge.radius - 150 : 1200;
-		for (int i = 0; i < 12 && camp == null; i++) {
-			BlockPos near = new BlockPos(random.nextInt(2 * r) - r, 64, random.nextInt(2 * r) - r);
+		for (int i = 0; i < 10 && camp == null; i++) {
+			BlockPos near;
+			if (!towns.isEmpty()) {
+				// Out of the wilds beyond the known world: some way off from a town, in any direction.
+				BlockPos from = towns.get(random.nextInt(towns.size())).cityCenter;
+				double ang = random.nextDouble() * Math.PI * 2, dist = 260 + random.nextInt(340);
+				near = new BlockPos(WorldEdge.clamp(from.getX() + (int) (Math.cos(ang) * dist)), 64, WorldEdge.clamp(from.getZ() + (int) (Math.sin(ang) * dist)));
+			} else near = new BlockPos(random.nextInt(2 * r) - r, 64, random.nextInt(2 * r) - r);
 			if (!WorldEdge.playable(near.getX(), near.getZ(), 60)) continue;
+			for (int cx = -2; cx <= 2; cx++) for (int cz = -2; cz <= 2; cz++) world.getChunk((near.getX() >> 4) + cx, (near.getZ() >> 4) + cz);
 			BlockPos c = CityGrowth.bestCenter(world, near, random);
 			if (c == null) continue;
 			Settlement other = fm.nearestSettlement(c, null);
