@@ -1,6 +1,6 @@
 package net.colonists.ai.task;
 
-import net.colonists.ai.ColonistBrain;
+import net.colonists.entity.ColonistBrain;
 import net.colonists.entity.ColonistEntity;
 import net.colonists.faction.City;
 import net.colonists.farm.Manor;
