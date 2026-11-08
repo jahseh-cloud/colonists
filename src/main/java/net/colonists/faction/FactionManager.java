@@ -175,8 +175,12 @@ public class FactionManager extends PersistentState {
 
 	/** Founds a new settlement for a faction around a plaza centre (y = first air block above ground). */
 	public Settlement foundSettlement(MinecraftServer server, Faction f, BlockPos center, boolean announce) {
+		return this.foundSettlement(server, f, center, announce, null);
+	}
+
+	public Settlement foundSettlement(MinecraftServer server, Faction f, BlockPos center, boolean announce, @Nullable String name) {
 		Random random = server.getOverworld().getRandom();
-		Settlement s = new Settlement(newSettlementId(), Settlement.randomName(random));
+		Settlement s = new Settlement(newSettlementId(), name != null ? name : Settlement.randomName(random));
 		s.cityCenter = center.toImmutable();
 		s.foundedDay = server.getOverworld().getTimeOfDay() / 24000L;
 		f.addSettlement(s);

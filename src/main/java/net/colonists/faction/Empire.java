@@ -31,7 +31,7 @@ public final class Empire {
 	static final int COLONY_COOLDOWN_DAYS = 4;
 	static final int COLONY_MIN_DIST = 50, COLONY_MAX_DIST = 300;
 	/** Siege points needed to take a plaza (one point per besieging soldier per second). */
-	public static final int SIEGE_POINTS = 90;
+	public static final int SIEGE_POINTS = 240;
 
 	static void tick(MinecraftServer server, FactionManager fm, Random random) {
 		ServerWorld world = server.getOverworld();

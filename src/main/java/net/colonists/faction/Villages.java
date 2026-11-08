@@ -105,8 +105,7 @@ public final class Villages {
 		f.government = Faction.Government.FREE;
 		f.rulerName = "the Elders";
 		f.laws.remove(net.colonists.law.Law.POACHING);
-		Settlement s = fm.foundSettlement(server, f, bell, false);
-		s.name = name;
+		Settlement s = fm.foundSettlement(server, f, bell, false, name);
 		s.village = true;
 		s.vMinX = bell.getX() - 24;
 		s.vMaxX = bell.getX() + 24;
@@ -193,21 +192,21 @@ public final class Villages {
 			if (guests > s.freemen && s.freemen > 0) s.grievance += 3;
 			if (loaded && world.getRaidAt(bell) != null) s.grievance += 5;
 			if (s.grievance > 0 && random.nextInt(2) == 0) s.grievance--;
-			if (guests < 3 || !loaded) continue;
+			if (guests < 4 || !loaded) continue;
 
 			List<ColonistEntity> here = world.getEntitiesByClass(ColonistEntity.class, new net.minecraft.util.math.Box(bell).expand(96, 48, 96),
 					c -> c.isAlive() && !c.isBaby() && c.settlementId == s.id && c.getFactionId().equals(s.faction.id));
-			if (here.size() < 3) continue;
+			if (here.size() < 4) continue;
 			ColonistEntity leader = here.stream().max(Comparator.comparingInt(c -> c.ambition + c.aggression / 2)).orElse(null);
 			if (leader == null) continue;
 
 			// A: seize the village.
-			if (leader.ambition > 65 && leader.aggression > 55 && random.nextInt(200) < 4 + s.grievance) {
+			if (leader.ambition > 65 && leader.aggression > 55 && random.nextInt(1200) < 3 + s.grievance) {
 				takeOver(server, world, fm, s, leader, here);
 				continue;
 			}
 			// B: leave to found a people of their own.
-			if (leader.ambition > 55 && leader.kindness >= 35 && random.nextInt(300) < 3 + s.grievance) {
+			if (leader.ambition > 55 && leader.kindness >= 35 && random.nextInt(1500) < 3 + s.grievance) {
 				leave(server, fm, s, leader, here, random);
 			}
 			// C: otherwise they stay loyal to the free men, for now.

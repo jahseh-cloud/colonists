@@ -38,7 +38,7 @@ import java.util.List;
 public final class SelfTest {
 	private SelfTest() {}
 
-	private static final long LENGTH = 3 * 24000L;
+	private static final long LENGTH = 5 * 24000L;
 	private static long start = -1;
 	private static BlockPos a, b, v;
 	private static final List<String> failures = new ArrayList<>();
@@ -168,6 +168,36 @@ public final class SelfTest {
 			for (Faction f : fm.all()) Statecraft.support(fm, f, Statecraft.Order.WAR, null);
 			Chronicles.tick(server, fm);
 		});
+		if (t == 50000) step("player-rule", () -> {
+			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
+			fp.refreshPositionAndAngles(a.getX() + 0.5, a.getY(), a.getZ() + 0.5, 0, 0);
+			Faction f = fm.all().stream().filter(x -> !x.freeVillage && x.capital() != null).findFirst().orElseThrow();
+			Settlement cap = f.capital();
+			fm.setPlayerFaction(fp.getUuid(), f.id);
+			f.rulerPlayer = fp.getUuid();
+			f.armyOpinion = f.courtOpinion = f.approval = 95;
+			cap.treasury += 100;
+			Settlement foreign = fm.allSettlements().stream().filter(x -> x.faction != f).findFirst().orElse(null);
+			int fid = foreign == null ? -1 : foreign.id;
+			List<String> results = new ArrayList<>();
+			Object[][] orders = {
+					{Statecraft.Order.TAX, cap.id, 2}, {Statecraft.Order.TAX, cap.id, -4}, {Statecraft.Order.GARRISON, cap.id, 1},
+					{Statecraft.Order.AUTONOMY, cap.id, 0}, {Statecraft.Order.AUTONOMY, cap.id, 0}, {Statecraft.Order.FUND, cap.id, 1},
+					{Statecraft.Order.FUND, cap.id, 0}, {Statecraft.Order.BONUS, 0, 5}, {Statecraft.Order.CAPTIVITY, 0, 0},
+					{Statecraft.Order.ALLY, fid, 0}, {Statecraft.Order.DEMAND_VASSAL, fid, 0}, {Statecraft.Order.WAR, fid, 0},
+					{Statecraft.Order.PEACE_WHITE, fid, 0}, {Statecraft.Order.PEACE_CEDE_THEIRS, fid, 0}, {Statecraft.Order.GOVERNMENT, 0, 2},
+					{Statecraft.Order.GOVERNMENT, 0, 1}};
+			for (Object[] o : orders) results.add(o[0] + "=" + Statecraft.order(fp, (Statecraft.Order) o[0], (Integer) o[1], (Integer) o[2], 0, 0).getString());
+			for (Law l : Law.values()) results.add("LAW " + l + "=" + Statecraft.order(fp, Statecraft.Order.LAW, 0, l.ordinal(), 0, 0).getString());
+			results.add("COLONIZE=" + Statecraft.order(fp, Statecraft.Order.COLONIZE, cap.id, 0, cap.cityCenter.getX() + 90, cap.cityCenter.getZ() + 40).getString());
+			net.colonists.atlas.AtlasServer.build(fp);
+			net.colonists.net.CityMapPayload.build(fm, fp);
+			net.colonists.law.Slavery.bid(fp, 50);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST orders: {}", String.join(" ; ", results));
+			Statecraft.order(fp, Statecraft.Order.ABDICATE, 0, 0, 0, 0);
+			fm.setPlayerFaction(fp.getUuid(), null);
+		});
+		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {
 			step("invariants", () -> {
 				for (Faction f : fm.all()) {
@@ -179,10 +209,20 @@ public final class SelfTest {
 			});
 			History h = History.get(server);
 			int villages = (int) fm.allSettlements().stream().filter(s -> s.village).count();
-			String summary = "factions=" + fm.all().size() + " settlements=" + fm.allSettlements().size() + " villages=" + villages
+			String summary0 = "factions=" + fm.all().size() + " settlements=" + fm.allSettlements().size() + " villages=" + villages
 					+ " religions=" + h.religions.size() + " legends=" + h.legends.size() + " events=" + h.events.size()
 					+ " prisoners=" + Justice.get(server).prisoners.size() + " colonists=" + w.getEntitiesByType(ColonistsMod.COLONIST, c -> true).size();
+			String summary = summary0;
 			if (villages == 0) failures.add("village was not discovered");
+			java.util.Map<String, Integer> deaths = new java.util.TreeMap<>();
+			long today = w.getTimeOfDay() / 24000L;
+			for (Faction f : fm.all()) f.recentDeaths(today, 30).forEach((k, n) -> deaths.merge(k, n, Integer::sum));
+			int volumes = fm.allSettlements().stream().mapToInt(x -> x.volumes).sum();
+			summary += " deaths=" + deaths + " chronicleVolumes=" + volumes;
+			for (Settlement x : fm.allSettlements()) {
+				summary += " | " + x.name + "(" + (x.faction == null ? "?" : x.faction.name) + ", pop " + x.population() + ", homes " + x.homes.size()
+						+ ", treasury " + x.treasury + ", rank " + x.rank.label + ")";
+			}
 			if (failures.isEmpty()) {
 				ColonistsMod.LOGGER.info("COLONISTS SELFTEST PASSED: {} ({})", summary, String.join(", ", passed));
 			} else {
