@@ -96,7 +96,8 @@ public class ManorFieldTask extends Task {
 				if (plant) return Action.CLEAR;
 				if (!here.isAir()) return null;
 				if (ground.isOf(Blocks.FARMLAND)) return Action.PLANT;
-				if (ground.isOf(Blocks.GRASS_BLOCK) || ground.isOf(Blocks.DIRT) || ground.isOf(Blocks.COARSE_DIRT) || ground.isOf(Blocks.DIRT_PATH)) return Action.TILL;
+				// Laborers work any soil into farmland: grass and dirt, and (with water brought in) sand, as on the Nile.
+				if (ground.isIn(BlockTags.DIRT) || ground.isOf(Blocks.DIRT_PATH) || ground.isIn(BlockTags.SAND) || ground.isOf(Blocks.GRAVEL)) return Action.TILL;
 				return null;
 			}
 			case CANE -> {

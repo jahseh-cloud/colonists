@@ -432,10 +432,11 @@ public final class SelfTest {
 			growthBefore = big.population() - big.pendingNewcomers;
 			long day = w.getTimeOfDay() / 24000L;
 			double rate = net.colonists.faction.Growth.rate(server, big);
-			// Twenty days pass unseen.
-			big.lastGrowthDay = day - 20;
+			// Twenty days pass unseen; then the town loads and its newcomers walk in.
 			big.foodInStock = Math.max(big.foodInStock, 100);
 			int citizensBefore = big.faction.citizens.size();
+			int added = net.colonists.faction.Growth.grow(server, big, 20, 0);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: twenty days add {}", added);
 			net.colonists.faction.Growth.tick(server);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth: {} at {}%/day, pop {} -> {} counted ({} waiting at the gate); day {} counted to {}, carry {}, realm citizens {} -> {}, loaded {}",
 					big.name, Math.round(rate * 1000) / 10.0, growthBefore, big.population(), big.pendingNewcomers, day, big.lastGrowthDay,

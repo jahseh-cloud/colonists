@@ -512,7 +512,7 @@ public final class Manors {
 			for (Manor m : o.manors) for (Field f : m.fields) if (f.overlaps(x0, z0, x1, z1, 2)) return false;
 		}
 		// Fairly level, mostly dry, few trees.
-		int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, wet = 0, trees = 0, n = 0;
+		int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, wet = 0, trees = 0, n = 0, soil = 0;
 		for (int x = x0; x <= x1; x += 3) {
 			for (int z = z0; z <= z1; z += 3) {
 				int y = City.surfaceY(world, x, z);
@@ -524,9 +524,10 @@ public final class Manors {
 					max = Math.max(max, y);
 				}
 				if (top.isIn(BlockTags.LOGS) || top.isIn(BlockTags.LEAVES)) trees++;
+				if (top.isIn(BlockTags.DIRT) || top.isIn(BlockTags.SAND) || top.isOf(Blocks.FARMLAND) || top.isOf(Blocks.SNOW) || top.isOf(Blocks.GRAVEL)) soil++;
 			}
 		}
-		return n > 0 && wet * 5 <= n && trees * 6 <= n && max - min <= 3;
+		return n > 0 && wet * 5 <= n && trees * 6 <= n && soil * 10 >= n * 6 && max - min <= 3;
 	}
 
 	/** The manor house goes beside the first field, on the side toward town. */

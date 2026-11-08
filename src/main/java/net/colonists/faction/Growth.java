@@ -50,14 +50,9 @@ public final class Growth {
 		for (Settlement s : fm.allSettlements()) {
 			if (s.cityCenter == null || s.faction == null || s.faction.freeVillage || s.colonists() < 2) continue;
 			if (s.lastGrowthDay < 0) s.lastGrowthDay = day;
-			while (s.lastGrowthDay < day) {
-				s.lastGrowthDay++;
-				if (cap > 0 && s.faction.members.size() + s.pendingNewcomers >= cap) continue;
-				s.growthCarry += s.population() * rate(server, s);
-				int grow = (int) Math.floor(s.growthCarry);
-				s.growthCarry -= grow;
-				s.pendingNewcomers += grow;
-				changed = true;
+			if (s.lastGrowthDay < day) {
+				changed |= grow(server, s, (int) Math.min(365, day - s.lastGrowthDay), cap) > 0 || true;
+				s.lastGrowthDay = day;
 			}
 			if (s.pendingNewcomers > 0 && world.isChunkLoaded(s.cityCenter.getX() >> 4, s.cityCenter.getZ() >> 4)) {
 				int n = arrive(world, s, Math.min(8, s.pendingNewcomers));
@@ -72,6 +67,20 @@ public final class Growth {
 			}
 		}
 		if (changed) fm.markDirty();
+	}
+
+	/** Some days of growth for a town (newcomers are counted, and wait at the gate). Returns how many were added. */
+	public static int grow(MinecraftServer server, Settlement s, int days, int cap) {
+		int added = 0;
+		for (int d = 0; d < days; d++) {
+			if (cap > 0 && s.faction.members.size() + s.pendingNewcomers >= cap) break;
+			s.growthCarry += s.population() * rate(server, s);
+			int n = (int) Math.floor(s.growthCarry);
+			s.growthCarry -= n;
+			s.pendingNewcomers += n;
+			added += n;
+		}
+		return added;
 	}
 
 	/** People arrive at the plaza: mostly grown folk looking for work, some children. */
