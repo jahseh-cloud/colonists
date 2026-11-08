@@ -324,6 +324,16 @@ To test in a development client without installing anything: `./gradlew runClien
 
 **No local setup?** Push this folder to a GitHub repo. The included workflow (`.github/workflows/build.yml`) builds the jar on every push; download it from the run's *Artifacts*.
 
+## Self-test
+
+Every push also runs a headless server on CI (`./gradlew runSelftest`, which sets `-Dcolonists.selftest=true`). It builds two colonist peoples and a village, then fast-forwards five in-game days. Along the way it forces:
+- a war, a crime and an arrest, and the arrival of prophets;
+- a round-trip of every save file;
+- market offers, atlas terrain and chronicles;
+- a fake player ruling a realm and issuing every kind of order.
+
+It finishes by checking the world for inconsistencies. Any exception fails the run. The log ends with a summary and the full history of what happened.
+
 ## Code map
 
 - `ColonistsMod`: registration, game rules, commands, the diplomacy timer
