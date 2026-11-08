@@ -704,10 +704,18 @@ public final class Crises {
 		List<Settlement> towns = new ArrayList<>(crown.settlements.values());
 		towns.removeIf(Settlement::isCapital);
 		towns.sort(Comparator.comparingInt(x -> x.loyalty));
-		Settlement first = towns.isEmpty() ? null : towns.get(0);
-		if (first == null) return "No town would rise.";
-		UUID claimant = bestCitizen(crown, first, (ci) -> ci.ambition * 2 - ci.kindness, random);
+		Settlement first = null;
+		UUID claimant = null;
+		for (Settlement t : towns) {
+			claimant = bestCitizen(crown, t, (ci) -> ci.ambition * 2 - ci.kindness, random);
+			if (claimant != null) {
+				first = t;
+				break;
+			}
+		}
 		if (claimant == null) return "No one dares to make a claim.";
+		towns.remove(first);
+		towns.add(0, first);
 		Faction.Citizen who = crown.citizens.get(claimant);
 		String house = crown.dynasty.isEmpty() ? "the " + crown.name : "House " + crown.dynasty;
 		Faction rebels = fm.createFaction(random, "Claimants of " + who.surname);
@@ -780,10 +788,19 @@ public final class Crises {
 		towns.removeIf(Settlement::isCapital);
 		if (towns.isEmpty()) return "No town would rise.";
 		towns.sort(Comparator.comparingInt(x -> x.loyalty));
-		Settlement first = towns.get(0);
-		// The leader: the bonded first, then the kindest.
-		UUID leader = bestCitizen(lord, first, (ci) -> ci.kindness + (ci.bonded ? 60 : 0) - ci.wealth / 4, random);
+		// The leader: the bonded first, then the kindest, in the unhappiest town that has people.
+		Settlement first = null;
+		UUID leader = null;
+		for (Settlement t : towns) {
+			leader = bestCitizen(lord, t, (ci) -> ci.kindness + (ci.bonded ? 60 : 0) - ci.wealth / 4, random);
+			if (leader != null) {
+				first = t;
+				break;
+			}
+		}
 		if (leader == null) return "No one leads the people.";
+		towns.remove(first);
+		towns.add(0, first);
 		Faction.Citizen who = lord.citizens.get(leader);
 		Faction commune = fm.createFaction(random, "Free Commune of " + first.name);
 		commune.government = Faction.Government.REPUBLIC;
