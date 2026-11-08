@@ -35,7 +35,7 @@ import java.util.UUID;
 public final class Legends {
 	private Legends() {}
 
-	static final int ADVENTURE_NEEDED = 40, VALOUR_NEEDED = 60, RULE_NEEDED = 90;
+	static final int ADVENTURE_NEEDED = 80, VALOUR_NEEDED = 120, RULE_NEEDED = 90;
 
 	private static final String[] ADVENTURER_TITLES = {"the Wanderer", "the Far-Traveller", "Pathfinder", "the Restless", "Wayfinder", "of the Long Road"};
 	private static final String[] HERO_TITLES = {"the Bold", "Breaker-of-Walls", "the Lion", "Shieldbearer", "the Unbroken", "the Valiant", "Ironheart"};
@@ -126,7 +126,7 @@ public final class Legends {
 		Legend l = h.living(soldier.getUuid());
 		if (l != null && (l.kind == Kind.HERO || l.kind == Kind.EMPEROR)) p += 1;
 		if (l != null && l.kind == Kind.PROPHET_CONQUEROR) p += 3;
-		if (soldier.getRandom().nextInt(3) == 0) earn(server, soldier.getUuid(), History.VALOUR, 1);
+		if (soldier.getRandom().nextInt(5) == 0) earn(server, soldier.getUuid(), History.VALOUR, 1);
 		return p;
 	}
 
@@ -176,7 +176,8 @@ public final class Legends {
 			if (r[History.RULE] >= RULE_NEEDED && have < Kind.EMPEROR.rank && rulesEmpire(fm, who)) next = Kind.EMPEROR;
 			else if (r[History.VALOUR] >= VALOUR_NEEDED && have < Kind.HERO.rank) next = Kind.HERO;
 			else if (r[History.ADVENTURE] >= (wanderer(fm, h, who) ? ADVENTURE_NEEDED / 2 : ADVENTURE_NEEDED) && have < Kind.ADVENTURER.rank) next = Kind.ADVENTURER;
-			if (next == null || random.nextInt(8) != 0) continue;
+			// Fortune's part: once deserving, about two days on average before the songs begin.
+			if (next == null || random.nextInt(40) != 0) continue;
 			raise(server, fm, h, who, next, day, random);
 		}
 

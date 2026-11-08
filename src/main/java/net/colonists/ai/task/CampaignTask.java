@@ -123,6 +123,14 @@ public class CampaignTask extends Task {
 		if (this.ticks % 20 == 0) {
 			boolean defended = !world.getEntitiesByClass(ColonistEntity.class, this.colonist.getBoundingBox().expand(40, 12, 40),
 					o -> o.isAlive() && o.isSoldier() && o.getFactionId().equals(goal.faction.id)).isEmpty();
+			// A village's iron golems stand by its free men.
+			if (goal.village) {
+				for (net.minecraft.entity.passive.IronGolemEntity g : world.getEntitiesByClass(net.minecraft.entity.passive.IronGolemEntity.class,
+						this.colonist.getBoundingBox().expand(40, 12, 40), net.minecraft.entity.passive.IronGolemEntity::isAlive)) {
+					defended = true;
+					if (g.getTarget() == null) g.setTarget(this.colonist);
+				}
+			}
 			if (!defended) Empire.besiege(world, fm, goal, realm, net.colonists.legend.Legends.siegePower(world.getServer(), this.colonist, realm));
 			if (this.ticks % 400 == 0) this.colonist.say("Lay down your arms, " + goal.name + "!");
 		}

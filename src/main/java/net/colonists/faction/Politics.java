@@ -390,7 +390,11 @@ public final class Politics {
 				boolean infidel = !a.religion.isEmpty() && !a.religion.equals(b.religion);
 				boolean holy = infidel && net.colonists.legend.Faith.has(hist, a, net.colonists.legend.Tenet.SWORD);
 				if (holy) zeal += 15;
-				if (a.overlord.isEmpty() && neighbours && (ra.aggression + zeal > 70 || ra.ambition + zeal > 80) && !a.atWar && rel > FactionManager.WAR && rel < 10 + zeal / 2
+				// Young realms need a few days of peace to find their feet; free villages are only worth a war to a real town.
+				long today = server.getOverworld().getTimeOfDay() / 24000L;
+				boolean settled = a.capital() != null && b.capital() != null && today - a.capital().foundedDay >= 3 && today - b.capital().foundedDay >= 3;
+				boolean worthy = !b.freeVillage || a.rank().ordinal() >= Faction.Rank.TOWN.ordinal();
+				if (settled && worthy && a.overlord.isEmpty() && neighbours && (ra.aggression + zeal > 70 || ra.ambition + zeal > 80) && !a.atWar && rel > FactionManager.WAR && rel < 10 + zeal / 2
 						&& (b.members.size() < a.members.size() || holy) && !b.id.equals(a.overlord) && !a.id.equals(b.overlord)
 						&& random.nextInt(zeal >= 0 ? 25 : 120) == 0) {
 					fm.setRelation(server, a.id, b.id, -70);
