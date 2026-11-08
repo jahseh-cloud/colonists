@@ -135,7 +135,9 @@ public final class SelfTest {
 		if (t == 30000) step("crime-and-arrest", () -> {
 			List<ColonistEntity> ca = colonistsNear(w, a), cb = colonistsNear(w, b);
 			if (ca.isEmpty() || cb.isEmpty()) return;
-			ColonistEntity thief = cb.get(0), guard = ca.get(0);
+			ColonistEntity guard = ca.stream().filter(x -> fm.get(x.getFactionId()) != null && !fm.get(x.getFactionId()).freeVillage).findFirst().orElse(null);
+			if (guard == null) return; // the group was conquered or scattered by the time we looked
+			ColonistEntity thief = cb.stream().filter(x -> !x.getFactionId().equals(guard.getFactionId())).findFirst().orElse(cb.get(0));
 			Settlement s = fm.get(guard.getFactionId()).nearestTo(guard.getBlockPos());
 			fm.setRelation(server, guard.getFactionId(), thief.getFactionId(), 0);
 			Courts.report(w, s, thief, Law.Crime.THEFT, false);
@@ -297,7 +299,17 @@ public final class SelfTest {
 		if (t == 76000) step("crises-new", () -> {
 			net.colonists.legend.History h = net.colonists.legend.History.get(server);
 			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
-			for (String type : new String[]{"REVOLT", "PRETENDER", "GOLDEN", "HERETIC"}) {
+			// Forge one bigger realm so the realm-sized crises have room to happen.
+			Faction big = fm.all().stream().filter(x -> !x.freeVillage && !x.settlements.isEmpty()).max(java.util.Comparator.comparingInt(x -> x.settlements.size())).orElseThrow();
+			for (Settlement o : new ArrayList<>(fm.allSettlements())) {
+				if (big.settlements.size() >= 3) break;
+				if (o.faction != null && o.faction != big && !o.faction.freeVillage) fm.transferSettlement(o, big);
+			}
+			for (Settlement o : big.settlements.values()) if (!o.isCapital()) o.loyalty = 20;
+			big.approval = 30;
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST big realm {} has {} towns", big.name, big.settlements.size());
+			for (String type : new String[]{"PRETENDER", "REVOLT", "GOLDEN", "HERETIC"}) {
+				if (type.equals("GOLDEN")) for (Faction x : fm.all()) x.atWar = false;
 				if (h.crises.stream().noneMatch(c -> c.active() && c.type.equals(type))) {
 					String why = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.valueOf(type), null);
 					ColonistsMod.LOGGER.info("COLONISTS SELFTEST crisis {}: {}", type, why == null ? "began" : why);
