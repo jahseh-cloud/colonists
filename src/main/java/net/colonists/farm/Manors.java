@@ -484,8 +484,10 @@ public final class Manors {
 	@Nullable
 	public static Field claimField(ServerWorld world, FactionManager fm, Settlement s, Manor m, Random random) {
 		int reach = CityGrowth.reach(s);
-		for (int attempt = 0; attempt < 16; attempt++) {
-			int w = 24 + random.nextInt(13), d = 24 + random.nextInt(13);
+		for (int attempt = 0; attempt < 24; attempt++) {
+			// Big fields first; in rough country, a lord settles for a smaller one rather than none.
+			boolean big = attempt < 14;
+			int w = big ? 24 + random.nextInt(13) : 18 + random.nextInt(7), d = big ? 24 + random.nextInt(13) : 18 + random.nextInt(7);
 			int x0, z0;
 			if (m.fields.isEmpty()) {
 				double ang = random.nextDouble() * Math.PI * 2;

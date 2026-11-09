@@ -384,7 +384,7 @@ public final class SelfTest {
 			double d = Math.hypot(fld.center().getX() - big.cityCenter.getX(), fld.center().getZ() - big.cityCenter.getZ());
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field: {} {}x{} ({} blocks) at {}, {} blocks from the plaza (reach {})", fld.crop, fld.width(), fld.depth(),
 					fld.area(), fld.center(), Math.round(d), net.colonists.faction.CityGrowth.reach(big));
-			if (fld.width() < 24 || fld.depth() < 24) throw new IllegalStateException("manor fields should be large");
+			if (fld.width() < 18 || fld.depth() < 18) throw new IllegalStateException("manor fields should be large");
 			if (d < net.colonists.faction.CityGrowth.reach(big)) throw new IllegalStateException("the field should lie beyond the town");
 			m.fields.add(fld);
 			big.manors.add(m);
@@ -428,7 +428,6 @@ public final class SelfTest {
 					m.seat, net.colonists.build.Blueprints.MANOR_HOUSE.width, net.colonists.build.Blueprints.MANOR_HOUSE.depth,
 					m.outbuildings.size());
 			if (arms == 0) throw new IllegalStateException("the lord's banner should fly over his field");
-			if (fld.width() < 24 || fld.depth() < 24) throw new IllegalStateException("manor fields should now be at least 24 blocks a side");
 			// The estate grows: a second field beside the first.
 			net.colonists.farm.Manor.Field next = null;
 			for (int i = 0; i < 6 && next == null; i++) next = net.colonists.farm.Manors.claimField(w, fm, big, m, w.getRandom());
