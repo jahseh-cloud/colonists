@@ -302,7 +302,7 @@ public final class Clans {
 		for (MobEntity e : here) {
 			if (e.squaredDistanceTo(c.getX(), e.getY(), c.getZ()) > 36 * 36 && e instanceof PatrolEntity pe && e.getTarget() == null) {
 				pe.setPatrolTarget(c);
-				pe.setPatrolling(true);
+				((net.colonists.mixin.PatrolEntityAccess) pe).colonists$setPatrolling(true);
 			}
 			// Never strike a player who rides with the clan.
 			if (e.getTarget() instanceof PlayerEntity p && clan.id.equals(fm.playerFaction(p.getUuid()))) e.setTarget(null);
@@ -416,7 +416,7 @@ public final class Clans {
 			camp.band.add(e.getUuid());
 			if (e instanceof PatrolEntity pe) {
 				pe.setPatrolTarget(c);
-				pe.setPatrolling(true);
+				((net.colonists.mixin.PatrolEntityAccess) pe).colonists$setPatrolling(true);
 			}
 		}
 		// War beasts and engines from a camp that has them.
@@ -496,7 +496,7 @@ public final class Clans {
 			if (engine != null && engine.isAlive()) {
 				if (m instanceof PatrolEntity pe) {
 					pe.setPatrolTarget(engine.getBlockPos());
-					pe.setPatrolling(true);
+					((net.colonists.mixin.PatrolEntityAccess) pe).colonists$setPatrolling(true);
 				}
 				continue;
 			}
@@ -506,7 +506,7 @@ public final class Clans {
 				if (prey != null) m.setTarget(prey);
 				else if (m instanceof PatrolEntity pe && (!pe.hasPatrolTarget() || m.squaredDistanceTo(c.getX(), m.getY(), c.getZ()) > 40 * 40)) {
 					pe.setPatrolTarget(c);
-					pe.setPatrolling(true);
+					((net.colonists.mixin.PatrolEntityAccess) pe).colonists$setPatrolling(true);
 				}
 			}
 			if (m.getTarget() instanceof PlayerEntity p && clan.id.equals(fm.playerFaction(p.getUuid()))) m.setTarget(null);
