@@ -635,6 +635,11 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	}
 
 	private void tickNeeds(ServerWorld sw) {
+		if (this.diligence == 0) { // born to parents (who pass down other traits) or spawned some other way
+			this.diligence = 10 + this.random.nextInt(81);
+			this.sociability = 10 + this.random.nextInt(81);
+			this.chronotype = this.random.nextInt(2001) - 1000;
+		}
 		// Energy: a day's waking drains it; a night's sleep (or a rest at home) restores it.
 		boolean resting = this.isSleeping() || this.activity.startsWith("Resting");
 		if (++this.energyTimer >= (this.isSleeping() ? 20 : resting ? 60 : 240)) {
