@@ -35,7 +35,7 @@ public class SleepTask extends Task {
 	public void tick() {
 		World world = this.colonist.getWorld();
 		if (this.colonist.isSleeping()) return; // the AI is paused while asleep anyway
-		if (world.isDay() || this.colonist.bed == null) {
+		if (!net.colonists.ai.Schedule.sleepTime(this.colonist) || this.colonist.bed == null) {
 			this.done = true;
 			return;
 		}

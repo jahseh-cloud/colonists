@@ -104,6 +104,8 @@ public class SocializeTask extends Task {
 			long now = world.getTime();
 			this.colonist.lastSocialTime = now;
 			this.partner.lastSocialTime = now;
+			this.colonist.social = Math.min(100, this.colonist.social + 25);
+			this.partner.social = Math.min(100, this.partner.social + 25);
 			this.done = true;
 		}
 	}

@@ -133,6 +133,15 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	private final Map<UUID, Long> greeted = new HashMap<>();
 
 	public int hunger = 20;
+	/**
+	 * The other needs (0-100, 100 = satisfied): energy (sleep restores it), social (company restores it). And two traits
+	 * beside ambition, aggression and kindness: diligence (hard workers keep at it; idlers take breaks) and sociability.
+	 * The chronotype shifts the colonist's day by up to an hour either way (early birds and night owls).
+	 */
+	public int energy = 100, social = 70, diligence, sociability, chronotype;
+	private int energyTimer, socialTimer;
+	/** Far from every player: think and move the cheap way (see WorkGoal and Task). */
+	public boolean light;
 	private String surname = "";
 	public int ambition, aggression, kindness;
 	public Job job = Job.NONE;
@@ -213,7 +222,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		this.goalSelector.add(2, new MeleeAttackGoal(this, 1.2, true));
 		this.goalSelector.add(3, new LongDoorInteractGoal(this, true));
 		this.goalSelector.add(4, new WorkGoal(this));
-		this.goalSelector.add(6, new WanderAroundFarGoal(this, 0.8));
+		this.goalSelector.add(6, new net.colonists.ai.TownWanderGoal(this, 0.8));
 		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 8.0f));
 		this.goalSelector.add(7, new LookAtEntityGoal(this, ColonistEntity.class, 8.0f));
 		this.goalSelector.add(8, new LookAroundGoal(this));
@@ -254,6 +263,9 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 				this.ambition = 10 + this.random.nextInt(81);
 				this.aggression = 10 + this.random.nextInt(81);
 				this.kindness = 10 + this.random.nextInt(81);
+				this.diligence = 10 + this.random.nextInt(81);
+				this.sociability = 10 + this.random.nextInt(81);
+				this.chronotype = this.random.nextInt(2001) - 1000;
 			}
 		}
 		FactionManager fm = FactionManager.get(sw.getServer());
@@ -569,14 +581,16 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 			this.ensureIdentity();
 		}
 		// The AI is frozen while asleep, so waking up has to happen here.
-		if (this.isSleeping() && (sw.isDay() || this.getTarget() != null || this.hunger <= 3)) {
+		if (this.isSleeping() && (!net.colonists.ai.Schedule.sleepTime(this) || this.getTarget() != null || this.hunger <= 3)) {
 			this.wakeUp();
 		}
 		this.tickNeeds(sw);
 		int phase = this.age + this.getId();
 		if (phase % 100 == 0) ColonistBrain.craft(this);
-		if (phase % 10 == 0) this.updateHeldItem();
-		if (phase % 40 == 0) this.attractHostiles(sw);
+		if (phase % (this.light ? 40 : 10) == 0) this.updateHeldItem();
+		// Light mode: with no player for 96 blocks, think and repath less often and skip the cosmetic work.
+		if (phase % 100 == 50) this.light = sw.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96, false) == null;
+		if (phase % (this.light ? 200 : 40) == 0) this.attractHostiles(sw);
 		if (phase % 600 == 0) {
 			long now = sw.getTime();
 			this.blacklist.values().removeIf(t -> t < now);
@@ -621,6 +635,17 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	}
 
 	private void tickNeeds(ServerWorld sw) {
+		// Energy: a day's waking drains it; a night's sleep (or a rest at home) restores it.
+		boolean resting = this.isSleeping() || this.activity.startsWith("Resting");
+		if (++this.energyTimer >= (this.isSleeping() ? 20 : resting ? 60 : 240)) {
+			this.energyTimer = 0;
+			this.energy = Math.max(0, Math.min(100, this.energy + (resting ? 1 : -1)));
+		}
+		// Company: loneliness creeps in; talk and gatherings ease it.
+		if (++this.socialTimer >= 400) {
+			this.socialTimer = 0;
+			if (this.social > 0) this.social--;
+		}
 		// About 2.5 in-game days from full to starving.
 		if (++this.hungerTimer >= (this.isSleeping() ? 6000 : 3000)) {
 			this.hungerTimer = 0;
@@ -1174,6 +1199,11 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		nbt.putString("Job", this.job.name());
 		nbt.putBoolean("Child", this.isBaby());
 		nbt.putInt("GrowUp", this.growUpTicks);
+		nbt.putInt("Energy", this.energy);
+		nbt.putInt("Social", this.social);
+		nbt.putInt("Diligence", this.diligence);
+		nbt.putInt("Sociability", this.sociability);
+		nbt.putInt("Chronotype", this.chronotype);
 		nbt.putLong("LastBirth", this.lastBirthTime);
 		if (this.birthDay != Long.MIN_VALUE) nbt.putLong("BirthDay", this.birthDay);
 		nbt.putInt("Lifespan", this.lifespanDays);
@@ -1221,6 +1251,13 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		}
 		this.dataTracker.set(CHILD, nbt.getBoolean("Child"));
 		this.growUpTicks = nbt.getInt("GrowUp");
+		this.energy = nbt.contains("Energy") ? nbt.getInt("Energy") : 100;
+		this.social = nbt.contains("Social") ? nbt.getInt("Social") : 70;
+		// Colonists from before these traits existed get them now, the same every time (from their id).
+		long seed = this.getUuid().getLeastSignificantBits();
+		this.diligence = nbt.contains("Diligence") ? nbt.getInt("Diligence") : 10 + (int) Math.floorMod(seed, 81);
+		this.sociability = nbt.contains("Sociability") ? nbt.getInt("Sociability") : 10 + (int) Math.floorMod(seed >> 8, 81);
+		this.chronotype = nbt.contains("Chronotype") ? nbt.getInt("Chronotype") : (int) Math.floorMod(seed >> 16, 2001) - 1000;
 		this.lastBirthTime = nbt.getLong("LastBirth");
 		this.birthDay = nbt.contains("BirthDay") ? nbt.getLong("BirthDay") : Long.MIN_VALUE;
 		this.lifespanDays = nbt.getInt("Lifespan");

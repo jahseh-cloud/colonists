@@ -60,6 +60,7 @@ public class WorkGoal extends Goal {
 	private final ColonistEntity colonist;
 	private Task task;
 	private int idleCooldown;
+	private int interruptCooldown;
 
 	public WorkGoal(ColonistEntity colonist) {
 		this.colonist = colonist;
@@ -73,9 +74,10 @@ public class WorkGoal extends Goal {
 			this.idleCooldown--;
 			return false;
 		}
+		if (!Budget.plan(this.colonist.getWorld())) return false; // someone else is thinking this tick
 		this.task = plan(this.colonist);
 		if (this.task == null) {
-			this.idleCooldown = 30 + this.colonist.getRandom().nextInt(30);
+			this.idleCooldown = (30 + this.colonist.getRandom().nextInt(30)) * (this.colonist.light ? 2 : 1);
 			this.colonist.activity = this.colonist.getTarget() != null ? "Hunting" : "Wandering";
 			return false;
 		}
@@ -86,7 +88,38 @@ public class WorkGoal extends Goal {
 	public boolean shouldContinue() {
 		if (this.task == null || this.task.isDone() || this.colonist.getTarget() != null) return false;
 		if (this.task.ticks >= this.task.maxTicks()) return false;
-		return !(this.task.stopsAtNight() && isNight(this.colonist) && this.colonist.home != null);
+		if (this.task.stopsAtNight() && Schedule.sleepTime(this.colonist) && (this.colonist.home != null || this.colonist.hasValidBed())) return false;
+		return !this.interrupted();
+	}
+
+	/**
+	 * Responsiveness: every few seconds the colonist asks whether something now matters much more than what
+	 * they are doing (they are worn out, the evening has come, they are starving), and drops it if so.
+	 */
+	private boolean interrupted() {
+		if (this.interruptCooldown > 0) {
+			this.interruptCooldown--;
+			return false;
+		}
+		if (this.task.ticks < 60 || this.task.ticks % 60 != 0) return false;
+		Desire cur = CHOSEN.get(this.colonist);
+		if (cur == null) return false;
+		ColonistEntity c = this.colonist;
+		if (c.hunger <= 6 && ColonistBrain.count(c.getInventory(), ColonistBrain.FOOD) == 0) return this.interrupt();
+		Schedule.Phase ph = Schedule.phase(c);
+		int now = want(c, cur.kind(), ph, true);
+		for (String k : URGES) {
+			if (!k.equals(cur.kind()) && want(c, k, ph, true) > now + 25) return this.interrupt();
+		}
+		return false;
+	}
+
+	private static final String[] URGES = {"rest", "evening", "social"};
+
+	private boolean interrupt() {
+		this.interruptCooldown = 600;
+		CHOSEN.remove(this.colonist);
+		return true;
 	}
 
 	@Override
@@ -125,6 +158,7 @@ public class WorkGoal extends Goal {
 	/** Decides what to do next, in priority order. Returning null means "nothing pressing; wander". */
 	@Nullable
 	static Task plan(ColonistEntity c) {
+		CHOSEN.remove(c);
 		ServerWorld world = (ServerWorld) c.getWorld();
 		SimpleInventory inv = c.getInventory();
 		FactionManager fm = FactionManager.get(world.getServer());
@@ -205,10 +239,19 @@ public class WorkGoal extends Goal {
 		}
 
 		// 1. Night: guards keep watch in shifts; everyone else goes to bed, or at least indoors.
-		if (isNight(c)) {
-			if (city && c.job == ColonistEntity.Job.GUARD && c.getId() % 2 == 0) return new PatrolTask(c);
+		//    Each colonist keeps their own hours (see Schedule): early birds, night owls, farmers, miners, the watch.
+		Schedule.Phase phase = Schedule.phase(c);
+		if (city && Schedule.nightWatch(c) && phase == Schedule.Phase.WORK && isNight(c)) return new PatrolTask(c);
+		if (phase == Schedule.Phase.SLEEP && !c.isBaby()) {
+			if (Schedule.nightWatch(c)) {
+				if (c.home != null) return new ShelterTask(c, c.home, true);
+			} else {
+				if (c.hasValidBed()) return new SleepTask(c);
+				if (c.home != null) return new ShelterTask(c, c.home);
+				if (c.parentHome != null) return new ShelterTask(c, c.parentHome);
+			}
+		} else if (phase == Schedule.Phase.SLEEP && isNight(c)) {
 			if (c.hasValidBed()) return new SleepTask(c);
-			if (c.home != null) return new ShelterTask(c, c.home);
 			if (c.parentHome != null) return new ShelterTask(c, c.parentHome);
 		}
 
@@ -258,119 +301,188 @@ public class WorkGoal extends Goal {
 			if (c.home != null) return new StoreTask(c, false);
 		}
 
-		// 6. A home of one's own, on a lot in the city (the style depends on how big the settlement has grown).
-		if (c.home == null && city) {
-			if (c.buildSite == null) {
-				BlockPos vacant = fm.claimVacantHome(f, c.getUuid());
-				if (vacant != null) {
-					c.home = vacant;
-					c.bed = null;
-					c.say("There's an empty house on my street. I'll take it!");
-				}
+		// Beyond the musts above, colonists weigh what they *want* to do: each desire is scored from their needs
+		// (energy, company), the hour on their own clock, their personality and a little whim, and the
+		// best-scoring desire that has something to do right now wins.
+		return choose(c, phase, desires(c, f, fm, inv, world, canBreak, canBuild, city, food, phase));
+	}
+
+	/** One candidate activity: how much the colonist wants it, and how to start it (null = nothing to do). */
+	record Desire(String kind, int score, java.util.function.Supplier<Task> start) {}
+
+	/** Set by the last successful plan: what the colonist chose and how badly they wanted it. */
+	static final java.util.Map<ColonistEntity, Desire> CHOSEN = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+	@Nullable
+	private static Task choose(ColonistEntity c, Schedule.Phase phase, java.util.List<Desire> list) {
+		list.sort(Comparator.comparingInt(Desire::score).reversed());
+		for (Desire d : list) {
+			if (d.score() <= 0) break;
+			Task t = d.start().get();
+			if (t != null) {
+				CHOSEN.put(c, d);
+				return t;
 			}
-			if (c.home == null && c.buildSite == null && canBuild && !c.onSearchCooldown("BUILD_SITE")) {
-				Blueprint want = homeFor(c, f);
-				if (ColonistBrain.woodValue(inv) >= Math.min(want.woodCost(), 48) && stone(inv) >= Math.min(want.stoneCost(), 12)) {
-					Site site = BuildStructureTask.claimLot(c, f, want);
-					if (site == null) {
-						c.searchCooldown("BUILD_SITE", 2400);
-					} else {
-						c.buildSite = site.origin();
-						fm.claimHome(f, site.origin(), c.getUuid());
-						c.say("I've picked out a lot for my new " + want.name.toLowerCase() + ".");
+		}
+		CHOSEN.remove(c);
+		return null;
+	}
+
+	/** How strongly the colonist feels each pull right now (cheap: no searching, no pathfinding). */
+	public static int want(ColonistEntity c, String kind, Schedule.Phase phase, boolean city) {
+		int tired = Math.max(0, 40 - c.energy);
+		int lonely = 100 - c.social;
+		int whim = (int) Math.floorMod(c.getUuid().getLeastSignificantBits() + c.getWorld().getTime() / 1200 * 31 + kind.hashCode(), 9L);
+		return whim + switch (kind) {
+			case "home" -> c.home == null ? 75 : c.buildSite != null ? 48 : 26;
+			case "gear" -> 38;
+			case "evening" -> phase == Schedule.Phase.EVENING && city && !c.isSoldier()
+					&& c.gatheredDay != c.getWorld().getTimeOfDay() / 24000L ? 55 + lonely / 3 + c.sociability / 5 : 0;
+			case "job" -> phase == Schedule.Phase.WORK ? 52 + c.diligence / 3 - tired * 2 : 14 + c.diligence / 5 - tired * 2;
+			case "garden" -> c.home == null ? 0 : 30 + c.diligence / 10 - tired;
+			case "social" -> c.getWorld().getTime() - c.lastSocialTime <= 2000 ? 0 : lonely / 2 + c.sociability / 4 + (phase == Schedule.Phase.EVENING ? 15 : 0);
+			case "gather" -> 26 + c.diligence / 10 - tired;
+			case "deposit" -> 22;
+			case "rest" -> c.energy < 30 ? 40 + (30 - c.energy) * 2 : 0;
+			case "reserve" -> 12;
+			default -> 0;
+		};
+	}
+
+	private static java.util.List<Desire> desires(ColonistEntity c, Settlement f, FactionManager fm, SimpleInventory inv, ServerWorld world,
+			boolean canBreak, boolean canBuild, boolean city, int food, Schedule.Phase phase) {
+		java.util.List<Desire> list = new java.util.ArrayList<>();
+		java.util.function.BiConsumer<String, java.util.function.Supplier<Task>> add =
+				(kind, start) -> list.add(new Desire(kind, want(c, kind, phase, city), start));
+
+		add.accept("home", () -> {
+			// 6. A home of one's own, on a lot in the city (the style depends on how big the settlement has grown).
+			if (c.home == null && city) {
+				if (c.buildSite == null) {
+					BlockPos vacant = fm.claimVacantHome(f, c.getUuid());
+					if (vacant != null) {
+						c.home = vacant;
+						c.bed = null;
+						c.say("There's an empty house on my street. I'll take it!");
 					}
 				}
-			}
-			Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : homeFor(c, f);
-			if (c.home == null && c.buildSite != null && canBuild && c.needs.isEmpty()
-					&& ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
-				return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
-			}
-			if (c.home == null) {
-				Task supply = supply(c, f, canBreak, plan);
-				if (supply != null) return supply;
-			}
-		} else if (c.home != null && canBuild && city && (c.buildSite != null || upgradeWanted(c, f))) {
-			// Moving up in the world: the rich build better houses, slave owners build estates.
-			if (c.buildSite == null && !c.onSearchCooldown("UPGRADE")) {
-				c.searchCooldown("UPGRADE", 6000);
-				Blueprint want = homeFor(c, f);
-				int fee = upgradeFee(want);
-				Site site = net.colonists.economy.Economy.wealth(c) >= fee ? BuildStructureTask.claimLot(c, f, want) : null;
-				if (site != null) {
-					net.colonists.economy.Economy.spend(c, fee);
-					f.treasury += fee;
-					c.buildSite = site.origin();
-					fm.claimHome(f, site.origin(), c.getUuid());
-					c.say("I can afford something better now. A new " + want.name.toLowerCase() + "!");
+				if (c.home == null && c.buildSite == null && canBuild && !c.onSearchCooldown("BUILD_SITE")) {
+					Blueprint want = homeFor(c, f);
+					if (ColonistBrain.woodValue(inv) >= Math.min(want.woodCost(), 48) && stone(inv) >= Math.min(want.stoneCost(), 12)) {
+						Site site = BuildStructureTask.claimLot(c, f, want);
+						if (site == null) {
+							c.searchCooldown("BUILD_SITE", 2400);
+						} else {
+							c.buildSite = site.origin();
+							fm.claimHome(f, site.origin(), c.getUuid());
+							c.say("I've picked out a lot for my new " + want.name.toLowerCase() + ".");
+						}
+					}
 				}
-			}
-			if (c.buildSite != null) {
-				Blueprint plan = BuildStructureTask.blueprintAt(f, c.buildSite);
-				if (c.needs.isEmpty() && ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
+				Blueprint plan = c.buildSite != null ? BuildStructureTask.blueprintAt(f, c.buildSite) : homeFor(c, f);
+				if (c.home == null && c.buildSite != null && canBuild && c.needs.isEmpty()
+						&& ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
 					return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
 				}
-				Task supply = supply(c, f, canBreak, plan);
-				if (supply != null) return supply;
+				if (c.home == null) {
+					Task supply = supply(c, f, canBreak, plan);
+					if (supply != null) return supply;
+				}
+			} else if (c.home != null && canBuild && city && (c.buildSite != null || upgradeWanted(c, f))) {
+				// Moving up in the world: the rich build better houses, slave owners build estates.
+				if (c.buildSite == null && !c.onSearchCooldown("UPGRADE")) {
+					c.searchCooldown("UPGRADE", 6000);
+					Blueprint want = homeFor(c, f);
+					int fee = upgradeFee(want);
+					Site site = net.colonists.economy.Economy.wealth(c) >= fee ? BuildStructureTask.claimLot(c, f, want) : null;
+					if (site != null) {
+						net.colonists.economy.Economy.spend(c, fee);
+						f.treasury += fee;
+						c.buildSite = site.origin();
+						fm.claimHome(f, site.origin(), c.getUuid());
+						c.say("I can afford something better now. A new " + want.name.toLowerCase() + "!");
+					}
+				}
+				if (c.buildSite != null) {
+					Blueprint plan = BuildStructureTask.blueprintAt(f, c.buildSite);
+					if (c.needs.isEmpty() && ColonistBrain.woodValue(inv) >= 8 && (plan.stoneCost() == 0 || stone(inv) > 0)) {
+						return new BuildStructureTask(c, f.site(c.buildSite), plan, true);
+					}
+					Task supply = supply(c, f, canBreak, plan);
+					if (supply != null) return supply;
+				}
+			} else if (c.home != null && canBuild && city && !c.onSearchCooldown("REPAIR")) {
+				c.searchCooldown("REPAIR", 400);
+				Blueprint bp = BuildStructureTask.blueprintAt(f, c.home);
+				if (BuildStructureTask.hasWork(c, f.site(c.home), bp)) return new BuildStructureTask(c, f.site(c.home), bp, true);
 			}
-		} else if (c.home != null && canBuild && city && !c.onSearchCooldown("REPAIR")) {
-			c.searchCooldown("REPAIR", 400);
-			Blueprint bp = BuildStructureTask.blueprintAt(f, c.home);
-			if (BuildStructureTask.hasWork(c, f.site(c.home), bp)) return new BuildStructureTask(c, f.site(c.home), bp, true);
-		}
 
-		// Better tools and armour from the city stores (made by the blacksmith).
-		if (city && !c.onSearchCooldown("STOCK_TOOLS")) {
-			c.searchCooldown("STOCK_TOOLS", 3000);
-			if (Stockpile.count(Stockpile.chests(world, f), s -> ColonistBrain.isUpgrade(c, s)) > 0) {
-				return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> ColonistBrain.isUpgrade(c, s), 2, "Picking up new gear from the stores");
+			return null;
+		});
+		add.accept("gear", () -> {
+			// Better tools and armour from the city stores (made by the blacksmith).
+			if (city && !c.onSearchCooldown("STOCK_TOOLS")) {
+				c.searchCooldown("STOCK_TOOLS", 3000);
+				if (Stockpile.count(Stockpile.chests(world, f), s -> ColonistBrain.isUpgrade(c, s)) > 0) {
+					return new StockpileTask(c, StockpileTask.Mode.WITHDRAW, s -> ColonistBrain.isUpgrade(c, s), 2, "Picking up new gear from the stores");
+				}
 			}
-		}
 
-		// 8b. Evening: down tools and gather at the tavern or the plaza.
-		long clock = world.getTimeOfDay() % 24000L;
-		if (city && clock >= 10500 && clock < 12600 && c.gatheredDay != world.getTimeOfDay() / 24000L && f.cityCenter != null && !c.isSoldier()) {
-			c.gatheredDay = world.getTimeOfDay() / 24000L;
-			BlockPos tavern = nearestBuilt(c, f, "tavern");
-			BlockPos spot = tavern != null ? BuildStructureTask.doorstep(c, tavern) : f.cityCenter;
-			return new net.colonists.ai.task.GatheringTask(c, spot);
-		}
-
-		// 7. The colonist's trade.
-		Task work = city ? jobTask(c, f, canBreak, canBuild) : null;
-		if (work != null) return work;
-
-		// 8. The garden beside the house.
-		if (c.home != null && canBreak && city && BuildStructureTask.blueprintAt(f, c.home).garden
-				&& FarmTask.hasWork(c, f.site(c.home), false)) return new FarmTask(c, f.site(c.home), false);
-
-		// 9. Socialise every now and then (this is how friendships and marriages happen).
-		if (world.getTime() - c.lastSocialTime > 2000 && c.getRandom().nextInt(3) == 0) {
-			ColonistEntity partner = findFriend(c, fm);
-			if (partner != null) return new SocializeTask(c, partner);
-			c.lastSocialTime = world.getTime() - 1000;
-		}
-
-		// 10. Basic stockpiling and the tool ladder, whatever the job.
-		if (canBreak) {
-			Task gather = gather(c, inv);
-			if (gather != null) return gather;
-		}
-
-		// 11. Drop off whatever is left over.
-		if (city && canBuild && Stockpile.surplus(inv) >= 24 && !c.onSearchCooldown("DEPOSIT")) {
-			c.searchCooldown("DEPOSIT", 1200);
-			return StockpileTask.deposit(c);
-		}
-
-		// 12. Keep some food in reserve.
-		if (food < 4 && c.hunger < 18) {
-			AnimalEntity prey = findPrey(c);
-			if (prey != null) {
-				c.setTarget(prey);
-				c.activity = "Hunting a " + prey.getName().getString();
+			return null;
+		});
+		add.accept("evening", () -> {
+			// 8b. Evening: down tools and gather at the tavern or the plaza.
+			if (city && phase == Schedule.Phase.EVENING && c.gatheredDay != world.getTimeOfDay() / 24000L && f.cityCenter != null && !c.isSoldier()) {
+				c.gatheredDay = world.getTimeOfDay() / 24000L;
+				BlockPos tavern = nearestBuilt(c, f, "tavern");
+				BlockPos spot = tavern != null ? BuildStructureTask.doorstep(c, tavern) : f.cityCenter;
+				return new net.colonists.ai.task.GatheringTask(c, spot);
 			}
-		}
+
+			return null;
+		});
+		add.accept("job", () -> city ? jobTask(c, f, canBreak, canBuild) : null);
+		add.accept("garden", () -> {
+			// 8. The garden beside the house.
+			if (c.home != null && canBreak && city && BuildStructureTask.blueprintAt(f, c.home).garden
+					&& FarmTask.hasWork(c, f.site(c.home), false)) return new FarmTask(c, f.site(c.home), false);
+
+			return null;
+		});
+		add.accept("social", () -> {
+			if (world.getTime() - c.lastSocialTime > 2000 && c.getRandom().nextInt(3) == 0) {
+				ColonistEntity partner = findFriend(c, fm);
+				if (partner != null) return new SocializeTask(c, partner);
+				c.lastSocialTime = world.getTime() - 1000;
+			}
+			return null;
+		});
+		add.accept("gather", () -> canBreak ? gather(c, inv) : null);
+		add.accept("deposit", () -> {
+			// 11. Drop off whatever is left over.
+			if (city && canBuild && Stockpile.surplus(inv) >= 24 && !c.onSearchCooldown("DEPOSIT")) {
+				c.searchCooldown("DEPOSIT", 1200);
+				return StockpileTask.deposit(c);
+			}
+
+			return null;
+		});
+		add.accept("rest", () -> {
+			BlockPos house = c.home != null ? c.home : c.parentHome;
+			return house != null ? new ShelterTask(c, house, true) : null;
+		});
+		add.accept("reserve", () -> {
+			// 12. Keep some food in reserve.
+			if (food < 4 && c.hunger < 18) {
+				AnimalEntity prey = findPrey(c);
+				if (prey != null) {
+					c.setTarget(prey);
+					c.activity = "Hunting a " + prey.getName().getString();
+				}
+			}
+			return null;
+		});
+		return list;
 		return null;
 	}
 

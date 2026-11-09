@@ -56,6 +56,7 @@ public class GatheringTask extends Task {
 				o.addAffinity(this.colonist.getUuid(), 2);
 			}
 			if (!company.isEmpty()) {
+				this.colonist.social = Math.min(100, this.colonist.social + 2);
 				ColonistEntity o = company.get(this.colonist.getRandom().nextInt(company.size()));
 				this.colonist.getLookControl().lookAt(o, 30f, 30f);
 				if (this.colonist.getRandom().nextInt(4) == 0) this.colonist.say(String.format(LINES[this.colonist.getRandom().nextInt(LINES.length)], o.getFirstName()));

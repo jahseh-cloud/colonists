@@ -160,6 +160,31 @@ How much the land gets reshaped grows with the settlement's rank, and stays mode
 - Mines run from the bottom of the quarry. Miners light them, plug water and lava, bridge holes, and follow ore veins they uncover.
 - Builders only ever reshape natural terrain, never anything a player built.
 
+## How colonists think
+
+Colonists no longer run down a fixed checklist. A few things always come first: serving a sentence, belonging to a town, marching to war, going home, sleeping, eating when starving. Beyond those, each colonist **weighs what they want to do**:
+
+- **Desires.** Each desire gets a score: build or improve a home, pick up gear, the evening gathering, their trade, the garden, a chat with a friend, gathering, dropping off goods, a rest, or keeping food in reserve. The best-scoring desire that has work available wins.
+- **What moves the scores:**
+  - **Needs.** *Energy* drains through the day and comes back with sleep or a rest at home. *Company* fades slowly and comes back through talking and gatherings.
+  - **Personality.** Each colonist has their own *diligence* (how hard they work, and how late) and *sociability* (how much they seek company).
+  - **The hour on their own clock**, plus a little whim.
+- **Responsive.** Every few seconds a colonist asks whether something now matters much more than what they're doing, and drops their current job if so. Examples: they're worn out, evening has come, or they're starving and out of food.
+- **Their own hours.** Every colonist keeps a personal schedule of work, evening and sleep:
+  - It's shifted by their *chronotype*, so you get early birds and night owls.
+  - Farmers rise before dawn.
+  - Miners work longer shifts.
+  - Half of a city's guards stand the **night watch**: they patrol from dusk till dawn and rest at home through the day.
+- **Movement:**
+  - Long trips go leg by leg, with stops nudged onto nearby roads.
+  - Paths are kept while they work instead of being recomputed every second.
+  - Colonists go straight up or down any ladder they step into.
+  - Idle wandering stays inside town, and after dark they keep to their own doorstep.
+- **Performance:**
+  - Only a handful of colonists may plan, and only a handful may pathfind, in any one tick. The rest wait a tick or two.
+  - With no player within 96 blocks, colonists switch to *light mode*: they think and repath less often and skip cosmetic work.
+  - The self-test logs the average tick time.
+
 ## Getting unstuck
 
 Colonists don't stay stuck in holes and caves:

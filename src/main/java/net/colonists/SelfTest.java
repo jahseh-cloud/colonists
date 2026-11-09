@@ -582,6 +582,36 @@ public final class SelfTest {
 			if (c.getBlockY() <= pitBottom + 1) throw new IllegalStateException("the colonist is still stuck in the pit");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
+		if (t == 100400) step("ai", () -> {
+			// The utility AI: needs move, personalities differ, a worn-out colonist would rather rest than work,
+			// and the planning/pathfinding budgets keep the tick time in check.
+			java.util.List<ColonistEntity> all = w.getEntitiesByType(ColonistsMod.COLONIST, x -> !x.isBaby());
+			if (all.isEmpty()) return;
+			int tired = 0, lonely = 0, minDil = 100, maxDil = 0;
+			java.util.Map<String, Integer> doing = new java.util.TreeMap<>();
+			for (ColonistEntity col : all) {
+				if (col.energy < 100) tired++;
+				if (col.social < 70) lonely++;
+				minDil = Math.min(minDil, col.diligence);
+				maxDil = Math.max(maxDil, col.diligence);
+				String act = col.activity.isEmpty() ? "?" : col.activity.split(" ")[0];
+				doing.merge(act, 1, Integer::sum);
+			}
+			ColonistEntity probe = all.get(0);
+			int energy = probe.energy;
+			probe.energy = 5;
+			int rest = net.colonists.ai.WorkGoal.want(probe, "rest", net.colonists.ai.Schedule.Phase.WORK, true);
+			int job = net.colonists.ai.WorkGoal.want(probe, "job", net.colonists.ai.Schedule.Phase.WORK, true);
+			probe.energy = energy;
+			long nanos = server.getAverageNanosPerTick();
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST ai: {} adults, {} below full energy, {} lonely, diligence {}-{}, exhausted rest {} vs work {}; "
+					+ "plans {} (deferred {}), paths {} (deferred {}); avg tick {} ms; doing {}",
+					all.size(), tired, lonely, minDil, maxDil, rest, job, net.colonists.ai.Budget.totalPlans, net.colonists.ai.Budget.deferredPlans,
+					net.colonists.ai.Budget.totalPaths, net.colonists.ai.Budget.deferredPaths, String.format("%.1f", nanos / 1e6), doing);
+			if (rest <= job) throw new IllegalStateException("an exhausted colonist still prefers work to rest");
+			if (maxDil - minDil < 10 && all.size() > 4) throw new IllegalStateException("personalities are all the same");
+			if (net.colonists.ai.Budget.totalPlans == 0) throw new IllegalStateException("nobody planned anything");
+		});
 		if (t == LENGTH) {
 			step("world-edge", () -> {
 				int r = net.colonists.world.WorldEdge.radius;
