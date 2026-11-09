@@ -44,6 +44,8 @@ public final class SelfTest {
 	private static String clanId = "";
 	private static int clanCamp = -1;
 	private static java.util.UUID pitColonist;
+	private static java.util.UUID upstairsColonist;
+	private static BlockPos upstairsBed;
 	private static int pitBottom;
 	private static long start = -1;
 	private static BlockPos a, b, v;
@@ -582,6 +584,45 @@ public final class SelfTest {
 			if (c.getBlockY() <= pitBottom + 1) throw new IllegalStateException("the colonist is still stuck in the pit");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
+		if (t == 101000) step("upstairs", () -> {
+			// Put a colonist in a fresh row house whose only bed is upstairs, make it night, and see them climb to it.
+			ColonistEntity c = w.getEntitiesByClass(ColonistEntity.class, new net.minecraft.util.math.Box(w.getSpawnPos()).expand(400, 200, 400),
+					o -> o.isAlive() && !o.isBaby() && !o.isSleeping() && !o.hasVehicle() && !o.isSoldier() && o.liege == null
+							&& o.settlement() != null && o.settlement().cityCenter != null && !o.settlement().village
+							&& o.settlement().cityCenter.getSquaredDistance(o.getBlockPos().withY(o.settlement().cityCenter.getY())) < 80 * 80)
+					.stream().findFirst().orElse(null);
+			if (c == null) return;
+			Settlement f = c.settlement();
+			net.colonists.build.Blueprint bp = net.colonists.build.Blueprints.ROW_HOUSE;
+			BlockPos o = c.getBlockPos().add(4, 0, 4);
+			o = o.withY(net.colonists.faction.City.surfaceY(w, o.getX(), o.getZ()));
+			net.colonists.build.Site site = new net.colonists.build.Site(o, net.minecraft.util.BlockRotation.NONE);
+			net.colonists.clan.ClanBuildings.stamp(w, site, bp);
+			f.buildingTypes.put(o, bp.id);
+			f.rotations.put(o, net.minecraft.util.BlockRotation.NONE);
+			// Only the upstairs bed.
+			BlockPos foot = site.at(3, 4, 2);
+			w.setBlockState(foot, Blocks.RED_BED.getDefaultState().with(net.minecraft.block.BedBlock.FACING, net.minecraft.util.math.Direction.SOUTH)
+					.with(net.minecraft.block.BedBlock.PART, net.minecraft.block.enums.BedPart.FOOT), 3);
+			w.setBlockState(foot.south(), Blocks.RED_BED.getDefaultState().with(net.minecraft.block.BedBlock.FACING, net.minecraft.util.math.Direction.SOUTH)
+					.with(net.minecraft.block.BedBlock.PART, net.minecraft.block.enums.BedPart.HEAD), 3);
+			c.home = o;
+			c.bed = foot;
+			c.hunger = 20;
+			BlockPos in = site.at(2, 0, 2);
+			c.refreshPositionAndAngles(in.getX() + 0.5, in.getY(), in.getZ() + 0.5, 0, 0);
+			c.getNavigation().stop();
+			upstairsColonist = c.getUuid();
+			upstairsBed = foot;
+			w.setTimeOfDay(w.getTimeOfDay() / 24000L * 24000L + 14500);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST upstairs: {} in a row house at {}, bed at {} (ladder {})", c.fullName(), o, foot, site.at(bp.ladder));
+		});
+		if (t == 102600) step("upstairs-bed", () -> {
+			if (upstairsColonist == null) return;
+			if (!(w.getEntity(upstairsColonist) instanceof ColonistEntity c)) return;
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST upstairs bed: {} at {} (bed {}), sleeping {}, doing \"{}\"", c.fullName(), c.getBlockPos(), upstairsBed, c.isSleeping(), c.activity);
+			if (c.getY() < upstairsBed.getY() - 1) throw new IllegalStateException("the colonist never climbed to the upstairs bed");
+		});
 		if (t == 100400) step("ai", () -> {
 			// The utility AI: needs move, personalities differ, a worn-out colonist would rather rest than work,
 			// and the planning/pathfinding budgets keep the tick time in check.

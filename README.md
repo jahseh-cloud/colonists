@@ -178,7 +178,7 @@ Colonists no longer run down a fixed checklist. A few things always come first: 
 - **Movement:**
   - Long trips go leg by leg, with stops nudged onto nearby roads.
   - Paths are kept while they work instead of being recomputed every second.
-  - Colonists go straight up or down any ladder they step into.
+  - **Upstairs bedrooms.** Row houses, townhouses and manor houses have a ladder at the back. Row houses and manor houses keep a bed on each floor; townhouses have their bedrooms on the two floors above the shop. Colonists walk to the ladder, climb it, and step off onto the right floor. In the morning they climb back down.
   - Idle wandering stays inside town, and after dark they keep to their own doorstep.
 - **Performance:**
   - Only a handful of colonists may plan, and only a handful may pathfind, in any one tick. The rest wait a tick or two.

@@ -17,6 +17,9 @@ public abstract class Task {
 	private double bestDistance;
 	private int noProgressTicks;
 	private boolean fresh;
+	/** Set while the colonist is on a ladder between storeys (see Storeys). */
+	boolean climbing;
+	int routeTicks;
 
 	protected Task(ColonistEntity colonist) {
 		this.colonist = colonist;
@@ -55,9 +58,15 @@ public abstract class Task {
 		this.colonist.getLookControl().lookAt(center.x, center.y, center.z);
 		if (distance <= reach * reach) {
 			this.colonist.getNavigation().stop();
+			this.climbing = false;
 			return true;
 		}
+		if (Storeys.route(this, this.colonist, pos)) {
+			this.noProgressTicks = 0;
+			return false;
+		}
 		if (!pos.equals(this.moveTarget)) {
+			this.routeTicks = 0;
 			this.moveTarget = pos;
 			this.bestDistance = distance;
 			this.noProgressTicks = 0;

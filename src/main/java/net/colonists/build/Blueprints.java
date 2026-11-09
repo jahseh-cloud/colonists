@@ -137,14 +137,15 @@ public final class Blueprints {
 		for (int x : new int[]{2, 4, 10, 12}) b.window(x, 1, 0).window(x, 2, 0).window(x, 1, 10).window(x, 2, 10);
 		for (int x : new int[]{2, 4, 6, 8, 10, 12}) b.window(x, 5, 0).window(x, 6, 0).window(x, 5, 10).window(x, 6, 10);
 		for (int z : new int[]{3, 7}) b.window(0, 1, z).window(14, 1, z).window(0, 5, z).window(14, 5, z);
-		b.door(7).bed(2, 3).bed(12, 3).bed(2, 7).bed(12, 7);
+		// The family sleeps upstairs; the servants below. A ladder by the back wall joins the floors.
+		b.door(7).bed(2, 5, 3).bed(12, 5, 3).bed(2, 7).bed(12, 7).ladder(7, 9, 0, 4, Direction.NORTH);
 		chestAt(b, 5, 1);
 		chestAt(b, 9, 1);
 		craftingTable(b, 5, 9);
 		furnace(b, 9, 9, Direction.NORTH);
 		torch(b, 4, 5);
 		torch(b, 10, 5);
-		torch(b, 7, 8);
+		torch(b, 7, 7);
 		return b;
 	}));
 
@@ -158,9 +159,9 @@ public final class Blueprints {
 				.window(1, 1, 5).window(3, 1, 5).window(2, 4, 5)
 				.gableRoof(6, Mat.STAIRS, Mat.PLANKS, Mat.PLANKS)
 				.floor(Mat.PLANKS)
-				.door(2).bed(1, 2).bed(3, 3);
+				.door(2).bed(3, 2).bed(3, 4, 2).ladder(1, 4, 0, 3, Direction.NORTH);
 		chestAt(b, 3, 1);
-		torch(b, 1, 4);
+		torch(b, 1, 1);
 		return b;
 	}));
 
@@ -177,7 +178,8 @@ public final class Blueprints {
 				.window(0, 5, 3).window(4, 5, 3).window(0, 8, 3).window(4, 8, 3)
 				.gableRoof(10, Mat.STAIRS, Mat.PLANKS, Mat.PLANKS)
 				.floor(Mat.PLANKS)
-				.door(2).bed(1, 3).bed(3, 4);
+				// Shop and kitchen below, bedrooms on the two floors above, up a ladder at the back.
+				.door(2).bed(1, 4, 2).bed(3, 8, 2).ladder(3, 5, 0, 7, Direction.NORTH);
 		chestAt(b, 3, 1);
 		craftingTable(b, 1, 5);
 		torch(b, 1, 1);

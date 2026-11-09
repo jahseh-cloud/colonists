@@ -49,6 +49,10 @@ public final class Blueprint {
 	public final boolean garden;
 	/** Prison cells (relative floor positions). */
 	public final List<BlockPos> cells;
+	/** Base of the ladder between storeys (relative), its top (relative y) and the way it faces; null for one storey. */
+	@Nullable public final BlockPos ladder;
+	public final int ladderTop;
+	@Nullable public final Direction ladderFacing;
 
 	private Blueprint(Builder b) {
 		this.id = b.id;
@@ -63,6 +67,9 @@ public final class Blueprint {
 		this.chest = b.chest;
 		this.workstation = b.workstation;
 		this.garden = b.garden;
+		this.ladder = b.ladder;
+		this.ladderTop = b.ladderTop;
+		this.ladderFacing = b.ladderFacing;
 	}
 
 	/** Rough wood (planks) a builder should carry to finish this building. */
@@ -108,6 +115,9 @@ public final class Blueprint {
 		final List<BlockPos> cells = new ArrayList<>();
 		BlockPos chest, workstation;
 		boolean garden;
+		BlockPos ladder;
+		int ladderTop;
+		Direction ladderFacing;
 
 		Builder(String id, String name, int width, int depth) {
 			this.id = id;
@@ -234,6 +244,26 @@ public final class Blueprint {
 
 		public Builder bed(int x, int z) {
 			this.beds.add(new BlockPos(x, 0, z));
+			return this;
+		}
+
+		/** A bed on an upper storey (y = the floor the sleeper stands on). */
+		public Builder bed(int x, int y, int z) {
+			this.beds.add(new BlockPos(x, y, z));
+			return this;
+		}
+
+		/**
+		 * A ladder up through the floors, from y0 to y1 inclusive, cut through any floor in the way. {@code facing} is the
+		 * side the climber stands on (the ladder hangs on the wall behind).
+		 */
+		public Builder ladder(int x, int z, int y0, int y1, Direction facing) {
+			for (int y = y0; y <= y1; y++) {
+				fixed(x, y, z, net.minecraft.block.Blocks.LADDER.getDefaultState().with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, facing));
+			}
+			this.ladder = new BlockPos(x, y0, z);
+			this.ladderTop = y1;
+			this.ladderFacing = facing;
 			return this;
 		}
 
