@@ -505,7 +505,6 @@ public final class SelfTest {
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan: the {} at {} ({}), camp level {}, {} warriors counted, {} in the flesh, chief {}", clan.name, camp.name,
 					camp.cityCenter, camp.campLevel, camp.warriors, warriors, clan.rulerName);
 			if (camp.campLevel < 1) throw new IllegalStateException("the camp should have raised its first buildings");
-			if (warriors < 2) throw new IllegalStateException("the camp should have warriors in the flesh");
 			// A war band against the town.
 			String why = net.colonists.clan.Clans.launch(w, fm, camp, town, false);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST war band: {} (band {}, target {})", why == null ? "out" : why, camp.band.size(), town.name);
@@ -521,6 +520,10 @@ public final class SelfTest {
 			Faction clan = fm.get(clanId);
 			Settlement camp = fm.settlement(clanCamp);
 			if (clan == null || camp == null) throw new IllegalStateException("the clan vanished");
+			int flesh = w.getEntitiesByClass(net.minecraft.entity.mob.MobEntity.class, new net.minecraft.util.math.Box(camp.cityCenter).expand(64),
+					e -> e.getCommandTags().contains("camp:" + camp.id)).size();
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan warriors in the flesh: {}", flesh);
+			if (flesh < 2) throw new IllegalStateException("the camp should have warriors in the flesh");
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan after the raid: {} warriors, band {}, fury {}, stock {}, captives {}, holds {}", camp.warriors, camp.band.size(),
 					camp.fury, camp.stock, camp.captives, clan.settlements.values().stream().map(x -> x.name + (x.camp ? "(camp)" : "")).toList());
 			// The fates of a fallen town, one of each.
