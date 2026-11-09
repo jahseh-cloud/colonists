@@ -48,7 +48,7 @@ public final class Growth {
 		int cap = world.getGameRules().getInt(ColonistsMod.MAX_PER_FACTION);
 		boolean changed = false;
 		for (Settlement s : fm.allSettlements()) {
-			if (s.cityCenter == null || s.faction == null || s.faction.freeVillage || s.colonists() < 2) continue;
+			if (s.cityCenter == null || s.faction == null || s.faction.freeVillage || s.camp || s.colonists() < 2) continue;
 			if (s.lastGrowthDay < 0) s.lastGrowthDay = day;
 			if (s.lastGrowthDay < day) {
 				changed |= grow(server, s, (int) Math.min(365, day - s.lastGrowthDay), cap) > 0 || true;

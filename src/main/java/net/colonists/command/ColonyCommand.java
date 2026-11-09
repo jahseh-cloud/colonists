@@ -51,6 +51,18 @@ public final class ColonyCommand {
 										.executes(ctx -> spawn(ctx, IntegerArgumentType.getInteger(ctx, "count"), StringArgumentType.getString(ctx, "faction"))))))
 				.then(CommandManager.literal("factions").executes(ColonyCommand::list))
 				.then(CommandManager.literal("manors").executes(ColonyCommand::manors))
+				.then(CommandManager.literal("clan").executes(ctx -> clanInfo(ctx))
+						.then(CommandManager.literal("join").executes(ctx -> clanDo(ctx, net.colonists.clan.Clans.join(ctx.getSource().getPlayerOrThrow()))))
+						.then(CommandManager.literal("chief").executes(ctx -> clanDo(ctx, net.colonists.clan.Clans.becomeChief(ctx.getSource().getPlayerOrThrow()))))
+						.then(CommandManager.literal("raid").then(CommandManager.argument("town", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+								.executes(ctx -> clanDo(ctx, net.colonists.clan.Clans.orderRaid(ctx.getSource().getPlayerOrThrow(),
+										com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "town"))))))
+						.then(CommandManager.literal("found").requires(src -> src.hasPermissionLevel(2)).executes(ctx -> {
+							var w = ctx.getSource().getWorld();
+							var fm = FactionManager.get(ctx.getSource().getServer());
+							net.colonists.clan.Clans.found(w, fm, net.minecraft.util.math.BlockPos.ofFloored(ctx.getSource().getPosition()), 10, null);
+							return 1;
+						})))
 				.then(CommandManager.literal("politics")
 						.executes(ctx -> politics(ctx, null))
 						.then(CommandManager.argument("faction", StringArgumentType.word()).suggests(FACTIONS)
@@ -348,5 +360,19 @@ public final class ColonyCommand {
 			src.sendFeedback(() -> Text.literal("    Fields: " + crops).formatted(Formatting.DARK_GREEN), false);
 		}
 		return s.manors.size();
+	}
+
+	private static int clanInfo(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
+		for (Text t : net.colonists.clan.Clans.describe(ctx.getSource().getServer(), ctx.getSource().getPlayer())) ctx.getSource().sendFeedback(() -> t, false);
+		ctx.getSource().sendFeedback(() -> Text.literal("/colony clan join · chief · raid <town>").formatted(Formatting.DARK_GRAY), false);
+		return 1;
+	}
+
+	private static int clanDo(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx, @org.jetbrains.annotations.Nullable String fail) {
+		if (fail != null) {
+			ctx.getSource().sendError(Text.literal(fail));
+			return 0;
+		}
+		return 1;
 	}
 }

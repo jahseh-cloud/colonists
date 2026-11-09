@@ -1037,6 +1037,8 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	public void leaveForExile() {
 		FactionManager fm = this.factions();
 		if (fm == null) return;
+		// An outcast may go to the barbarians instead.
+		if (net.colonists.clan.Clans.welcomeRenegade(this)) return;
 		Faction f = fm.createFaction(this.random, null);
 		this.setFaction(f.id);
 		this.say("Fine. I'll make my own way in the world.");

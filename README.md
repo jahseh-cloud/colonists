@@ -297,6 +297,47 @@ In a civil war or revolt, players can pick a side with `/colony crises back rebe
 
 Chroniclers write about all of it: crises, fractures, restorations, Caliphs and schisms. Killing any crisis figure earns a player "Slayer of Legends".
 
+## Illager clans
+
+Pillagers aren't just mobs here. They're **clans**: barbarian states of war camps under a war chief, like the Germanic tribes or the steppe hordes.
+
+- **Where they come from.**
+  - Pillager outposts are about three times as common as in vanilla, and a band of pillagers at an outpost becomes a clan's first camp.
+  - New clans also gather out of the wilds, about one for every five towns, up to six.
+  - Clans appear on the atlas as realms with banners. Their camps are marked ⚔.
+- **The people.** Real pillagers, vindicators and evokers, tagged to their clan.
+  - The **war chief** is a great vindicator with a diamond axe and the clan's banner on his head.
+  - Clans grow no food. They hunt, log, mine and plunder, and spend it all on war. Every spare scrap becomes another warrior, and camps hold up to 10 warriors plus 6 per building.
+- **Camps grow.** As plunder piles up, a camp raises, in dark oak and cobblestone:
+  - A longhouse.
+  - A watchtower, with a palisade of stakes around the camp.
+  - A war forge. From here on, its warriors wear chainmail.
+  - An armory. Evokers join the clan.
+  - A war-beast pen, with ravagers. Its warriors now wear iron, with diamond axes.
+  - The war chief's great hall.
+- **War bands.** Every few days (sooner the higher a camp's *fury*), a camp sends a band against the most tempting town within reach: rich and close, and lightly guarded.
+  - The band falls on the town from the edge of its houses. Crossbowmen and axemen hunt its people, ravagers charge, and with **Siegeworks** installed they drag rams and catapults along.
+  - If the band holds the heart of the town with no soldier left to stop them, the town falls.
+  - A raid nobody is watching is decided by strength: the band, the camp's war gear and luck, against the town's guards, garrison, size and walls.
+- **The fate of a fallen town** depends on the clan's fury:
+  - **Sacked:** the treasury is looted, houses are set on fire, and captives are carried off. The town goes back to its realm, ruined and restless.
+  - **Held:** it becomes a **stronghold** of the clan, and its people become thralls.
+  - **Razed:** everything burns, and many are dragged away in chains.
+- **Fighting back.** Clans make no peace, so every realm is at war with them and may march on their camps. A stormed camp is **burned**.
+  - Kill a **war chief** and his clan breaks apart, one clan per camp, burning for vengeance. You earn the title *Breaker of Clans*.
+- **Spreading out.** A camp of 22+ warriors sends 10 off to raise a new camp nearby, up to three per clan.
+- **Settling down.** A clan that holds three towns of settled folk lays down the axe: it becomes the *Kingdom of the …*, its thralls are freed, and its camps become forts (as the tribes took Rome).
+- **Renegades.** Exiled colonists may flee to the nearest clan and ride as raiders.
+- **The Great Raid** (a crisis): when two or more clans are strong, they may unite under a *Barbarian King*. Their camps join into one great host, swollen by half, at full fury, raiding every day as far as 1,400 blocks and favouring the greatest realm.
+  - It lasts about 15 days, or until the king falls. Killing him earns *Bane of the Barbarians*.
+- **Riding with a clan** (players):
+  - `/colony clan` shows every clan, its camps, warriors and bands, and your standing.
+  - `/colony clan join`, in a camp, lets you ride with them. They won't harm you. Outlaws are welcome.
+  - You earn standing by killing colonists and riding with raids. Raiders near a fallen town share its plunder.
+  - At 100 standing, `/colony clan chief` makes you war chief, but you have to kill the old one first.
+  - As chief, `/colony clan raid <town>` sends a war band.
+  - Operators can start a clan with `/colony clan found`.
+
 ## Free villages
 
 - **Vanilla villages become small realms** of free men, discovered as players come near. Each gets a name ("the Free Men of Ashford"), borders drawn around its houses, and a population count on the maps. It has its own relations, and its trade adds to its treasury. Villagers are called *Free Man / Free Woman of …* when you look at them, and their trading and breeding are untouched.

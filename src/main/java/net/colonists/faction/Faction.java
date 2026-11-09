@@ -29,7 +29,8 @@ public class Faction {
 		FREE("Free village", "Elders"),
 		THEOCRACY("Theocracy", "Prophet King"),
 		CALIPHATE("Caliphate", "Caliph"),
-		HORDE("Horde", "Khan");
+		HORDE("Horde", "Khan"),
+		CLAN("Clan", "War Chief");
 
 		public final String label, title;
 
@@ -149,6 +150,8 @@ public class Faction {
 
 	/** A vanilla village of free men, given a place in the politics of the world. */
 	public boolean freeVillage;
+	/** An illager clan: a barbarian state of war camps, whose people are pillagers, vindicators and evokers. */
+	public boolean clan;
 	/** The state religion ("" = none yet) and the faction a holy war is being waged against ("" = none). */
 	public String religion = "";
 	public String holyWar = "";
@@ -332,6 +335,7 @@ public class Faction {
 		nbt.putLong("LastColony", this.lastColonyDay);
 		nbt.putInt("WarGoal", this.warGoal);
 		nbt.putBoolean("FreeVillage", this.freeVillage);
+		nbt.putBoolean("Clan", this.clan);
 		nbt.putString("Religion", this.religion);
 		nbt.putString("HolyWar", this.holyWar);
 		nbt.putBoolean("GreatHolyWar", this.greatHolyWar);
@@ -400,6 +404,7 @@ public class Faction {
 		f.lastColonyDay = nbt.contains("LastColony") ? nbt.getLong("LastColony") : Long.MIN_VALUE;
 		f.warGoal = nbt.contains("WarGoal") ? nbt.getInt("WarGoal") : -1;
 		f.freeVillage = nbt.getBoolean("FreeVillage");
+		f.clan = nbt.getBoolean("Clan");
 		f.religion = nbt.getString("Religion");
 		f.holyWar = nbt.getString("HolyWar");
 		f.greatHolyWar = nbt.getBoolean("GreatHolyWar");

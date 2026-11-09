@@ -41,6 +41,8 @@ public final class SelfTest {
 
 	private static final long LENGTH = 5 * 24000L;
 	private static int growthTown = -1, growthBefore;
+	private static String clanId = "";
+	private static int clanCamp = -1;
 	private static long start = -1;
 	private static BlockPos a, b, v;
 	private static final List<String> failures = new ArrayList<>();
@@ -479,6 +481,73 @@ public final class SelfTest {
 			int now = big.population() - big.pendingNewcomers;
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST growth arrived: {} people now {} (was {}), {} still waiting", big.name, now, growthBefore, big.pendingNewcomers);
 			if (now <= growthBefore && big.pendingNewcomers == 0) throw new IllegalStateException("the town did not grow");
+		});
+		if (t == 94000) step("clans", () -> {
+			// A clan gathers near the biggest town (in loaded country).
+			Settlement town = fm.allSettlements().stream().filter(x -> !x.village && !x.camp && x.cityCenter != null && x.faction != null && !x.faction.clan)
+					.max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
+			BlockPos near = town.cityCenter.add(70, 0, 0);
+			near = near.withY(net.colonists.faction.City.surfaceY(w, near.getX(), near.getZ()));
+			Faction clan = net.colonists.clan.Clans.found(w, fm, near, 14, null);
+			Settlement camp = clan.capital();
+			clanId = clan.id;
+			clanCamp = camp.id;
+			if (!camp.camp || !clan.clan || fm.relation(clan.id, town.faction.id) > -90) throw new IllegalStateException("a clan should be founded at war with everyone");
+			// Plunder enough to build, and see the camp grow and fill with warriors.
+			camp.stock = 1000;
+			for (int i = 0; i < 4; i++) net.colonists.clan.Clans.tickCamp(w, fm, camp);
+			int warriors = w.getEntitiesByClass(net.minecraft.entity.mob.MobEntity.class, new net.minecraft.util.math.Box(camp.cityCenter).expand(64),
+					e -> e.getCommandTags().contains("camp:" + camp.id)).size();
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan: the {} at {} ({}), camp level {}, {} warriors counted, {} in the flesh, chief {}", clan.name, camp.name,
+					camp.cityCenter, camp.campLevel, camp.warriors, warriors, clan.rulerName);
+			if (camp.campLevel < 1) throw new IllegalStateException("the camp should have raised its first buildings");
+			if (warriors < 2) throw new IllegalStateException("the camp should have warriors in the flesh");
+			// A war band against the town.
+			String why = net.colonists.clan.Clans.launch(w, fm, camp, town, false);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST war band: {} (band {}, target {})", why == null ? "out" : why, camp.band.size(), town.name);
+			if (why != null && !why.contains("already")) throw new IllegalStateException("the war band did not go out: " + why);
+			// A player rides with them.
+			net.fabricmc.fabric.api.entity.FakePlayer fp = net.fabricmc.fabric.api.entity.FakePlayer.get(w);
+			fp.refreshPositionAndAngles(camp.cityCenter.getX(), camp.cityCenter.getY(), camp.cityCenter.getZ(), 0, 0);
+			String joined = net.colonists.clan.Clans.join(fp);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan join: {}", joined == null ? "rides with the clan" : joined);
+			fm.setPlayerFaction(fp.getUuid(), null);
+		});
+		if (t == 97000) step("clans-war", () -> {
+			Faction clan = fm.get(clanId);
+			Settlement camp = fm.settlement(clanCamp);
+			if (clan == null || camp == null) throw new IllegalStateException("the clan vanished");
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST clan after the raid: {} warriors, band {}, fury {}, stock {}, captives {}, holds {}", camp.warriors, camp.band.size(),
+					camp.fury, camp.stock, camp.captives, clan.settlements.values().stream().map(x -> x.name + (x.camp ? "(camp)" : "")).toList());
+			// The fates of a fallen town, one of each.
+			for (int i = 0; i < 3; i++) {
+				Settlement victim = fm.allSettlements().stream().filter(x -> !x.camp && x.faction != null && !x.faction.clan && x.faction.settlements.size() >= 2 && !x.isCapital()).findFirst().orElse(null);
+				if (victim == null) break;
+				Faction loser = victim.faction;
+				camp.fury = new int[]{0, 100, 60}[i];
+				fm.transferSettlement(victim, clan);
+				net.colonists.clan.Clans.onConquest(server, victim, clan, loser, camp);
+				ColonistsMod.LOGGER.info("COLONISTS SELFTEST town fate: {} now belongs to {}", victim.name, victim.faction == null ? "nobody" : victim.faction.name);
+			}
+			// A second clan, and then the Great Raid.
+			BlockPos far = camp.cityCenter.add(0, 0, 90);
+			net.colonists.clan.Clans.found(w, fm, far.withY(net.colonists.faction.City.surfaceY(w, far.getX(), far.getZ())), 10, null);
+			String raid = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.GREAT_RAID, null);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST great raid: {}; clans now {}", raid == null ? "began" : raid,
+					net.colonists.clan.Clans.clans(fm).stream().map(f -> f.name + "(" + f.settlements.size() + ")").toList());
+			if (raid != null) throw new IllegalStateException("the Great Raid should begin with two clans: " + raid);
+			if (net.colonists.clan.Clans.clans(fm).size() != 1) throw new IllegalStateException("the clans should be one host");
+			// The king falls: the host breaks apart.
+			Faction host = net.colonists.clan.Clans.clans(fm).get(0);
+			net.colonists.legend.Crises.onFigureDeath(server, host.ruler, null);
+			net.colonists.clan.Clans.breakUp(server, fm, host);
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST after the king: {}", net.colonists.clan.Clans.clans(fm).stream().map(f -> f.name).toList());
+			// A realm storms a camp: it is burned.
+			Faction realm = fm.all().stream().filter(f -> !f.clan && !f.freeVillage && !f.settlements.isEmpty()).findFirst().orElseThrow();
+			Settlement burn = net.colonists.clan.Clans.camps(fm).get(0);
+			int before = net.colonists.clan.Clans.camps(fm).size();
+			net.colonists.faction.Empire.conquer(server, fm, burn, realm, false);
+			if (net.colonists.clan.Clans.camps(fm).size() != before - 1) throw new IllegalStateException("a stormed camp should burn");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {

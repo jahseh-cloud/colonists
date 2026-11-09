@@ -612,6 +612,7 @@ public class AtlasScreen extends Screen {
 		for (TownInfo t : AtlasClient.data.towns()) {
 			int x = this.sx(t.x()), y = this.sy(t.z());
 			int r = switch (t.rank()) {
+				case "War camp" -> 3;
 				case "Village" -> 2;
 				case "Town" -> 3;
 				case "City" -> 4;
@@ -623,7 +624,8 @@ public class AtlasScreen extends Screen {
 				ctx.fill(x - r - 3, y - r - 3, x + r + 3, y - r - 2, 0xFFFFFFFF);
 				ctx.fill(x - r - 3, y + r + 2, x + r + 3, y + r + 3, 0xFFFFFFFF);
 			}
-			if (t.capital()) ctx.drawText(this.textRenderer, "★", x - 3, y - r - 10, 0xFFB8860B, false);
+			if (t.rank().equals("War camp")) ctx.drawText(this.textRenderer, "⚔", x - 3, y - r - 10, 0xFF7A1F1F, false);
+			else if (t.capital()) ctx.drawText(this.textRenderer, "★", x - 3, y - r - 10, 0xFFB8860B, false);
 			if (t.besieged()) ctx.drawText(this.textRenderer, "⚑", x + r + 1, y - r - 8, 0xFFD04020, false);
 			if (zoom <= 3 || t.capital()) {
 				String label = t.name();

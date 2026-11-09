@@ -187,7 +187,7 @@ public final class Manors {
 		long day = world.getTimeOfDay() / 24000L;
 		boolean changed = false;
 		for (Settlement s : fm.allSettlements()) {
-			if (s.village || s.cityCenter == null || s.faction == null || s.faction.freeVillage) continue;
+			if (s.village || s.camp || s.cityCenter == null || s.faction == null || s.faction.freeVillage || s.faction.clan) continue;
 			if (!world.isChunkLoaded(s.cityCenter.getX() >> 4, s.cityCenter.getZ() >> 4)) continue;
 			changed |= foundManors(world, fm, s, world.getRandom());
 			for (Manor m : s.manors) {

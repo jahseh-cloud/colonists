@@ -32,6 +32,8 @@ public final class Titles {
 		}
 		if (pr.stat("khanSlain") > 0) t.add(new Title("Bane of the Khan", 95));
 		if (pr.stat("slew:HERETIC") > 0) t.add(new Title("Hand of the Faith", 80));
+		if (pr.stat("slew:GREAT_RAID") > 0) t.add(new Title("Bane of the Barbarians", 92));
+		if (pr.stat("chiefSlain") > 0) t.add(new Title("Breaker of Clans", 78));
 		if (pr.stat("backed:won") > 0) t.add(new Title("Kingmaker", 75));
 		for (String k : new String[]{"GREAT", "IMPERATOR", "MESSENGER", "PRETENDER", "REVOLT", "GOLDEN"}) if (pr.stat("slew:" + k) > 0) t.add(new Title("Slayer of Legends", 70));
 		if (pr.stat("ruled") > 0) t.add(new Title("Former Ruler", 35));

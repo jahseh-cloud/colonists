@@ -111,6 +111,7 @@ public class ColonistsMod implements ModInitializer {
 		net.colonists.law.Courts.register();
 		SelfTest.register();
 		net.colonists.law.Slavery.register();
+		net.colonists.clan.Clans.register();
 
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			if (server.getTicks() % 1200 == 0) {
@@ -118,6 +119,11 @@ public class ColonistsMod implements ModInitializer {
 			}
 			if (server.getTicks() % 200 == 100) net.colonists.faction.Villages.survey(server);
 			if (server.getTicks() % 20 == 10) net.colonists.player.Contracts.tick(server);
+			try {
+				net.colonists.clan.Clans.tick(server);
+			} catch (RuntimeException e) {
+				if (server.getTicks() % 1200 == 0) LOGGER.error("Colonists: the clans failed to tick", e);
+			}
 			if (server.getTicks() % 1200 == 900) {
 				try {
 					net.colonists.farm.Manors.tick(server);

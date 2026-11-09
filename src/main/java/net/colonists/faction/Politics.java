@@ -102,6 +102,11 @@ public final class Politics {
 		long now = server.getOverworld().getTime();
 		List<Faction> all = fm.all();
 		for (Faction f : all) {
+			if (f.clan) {
+				// A clan answers to its war chief and the axe: no court, no laws, no elections.
+				if (f.warWeariness > 0) f.warWeariness--;
+				continue;
+			}
 			if (f.freeVillage) {
 				// Free villages are governed by their elders: no throne to fight over, no laws to rewrite.
 				f.rulerName = "the Elders";

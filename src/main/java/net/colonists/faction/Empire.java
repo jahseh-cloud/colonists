@@ -256,6 +256,11 @@ public final class Empire {
 	public static void conquer(MinecraftServer server, FactionManager fm, Settlement s, Faction winner, boolean treaty) {
 		Faction loser = s.faction;
 		if (loser == null || loser == winner) return;
+		// A war camp is not taken but burned.
+		if (s.camp && loser.clan && !winner.clan) {
+			net.colonists.clan.Clans.burnCamp(server, fm, s, winner);
+			return;
+		}
 		boolean wasCapital = s.isCapital();
 		fm.transferSettlement(s, winner);
 		s.loyalty = treaty ? 40 : 20;
@@ -282,6 +287,7 @@ public final class Empire {
 				.append(winner.displayName()).append(Text.literal(wasCapital ? " — the capital of the " : "").formatted(Formatting.GOLD))
 				.append(wasCapital ? loser.displayName() : Text.empty()).append(Text.literal(wasCapital ? " has fallen!" : "!").formatted(Formatting.GOLD)));
 		boolean fell = fm.dissolveIfEmpty(server, loser);
+		if (winner.clan && !treaty) net.colonists.clan.Clans.onConquest(server, s, winner, fell ? null : loser, null);
 		if (fell) net.colonists.legend.Legends.event(server, net.colonists.legend.History.EventType.FALL, loser, winner, null);
 		if (!fell && wasCapital && !loser.settlements.isEmpty()) {
 			Settlement newCap = loser.settlements.values().stream().max(Comparator.comparingInt(Settlement::population)).orElse(null);

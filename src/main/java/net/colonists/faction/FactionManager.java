@@ -108,7 +108,7 @@ public class FactionManager extends PersistentState {
 			}
 		}
 		markDirty();
-		if (memberCount(id) == 0 && !f.freeVillage) {
+		if (memberCount(id) == 0 && !f.freeVillage && !f.clan) {
 			factions.remove(id);
 			relations.keySet().removeIf(k -> k.startsWith(id + "|") || k.endsWith("|" + id));
 			broadcast(server, Text.literal("The ").append(f.displayName()).append(" have fallen. Their last member is gone.").formatted(Formatting.GRAY));
@@ -205,6 +205,17 @@ public class FactionManager extends PersistentState {
 		broadcast(server, Text.literal("☠ The ").append(f.displayName()).append(" are no more. Their last town has fallen.").formatted(Formatting.GRAY));
 		markDirty();
 		return true;
+	}
+
+	/** Wipes a settlement off the map (a war camp burned by its enemies). */
+	public void removeSettlement(Settlement s) {
+		Faction from = s.faction;
+		if (from != null) {
+			from.settlements.remove(s.id);
+			if (from.capital == s.id) from.capital = from.settlements.isEmpty() ? -1 : from.settlements.keySet().iterator().next();
+		}
+		this.settlementOwners.remove(s.id);
+		markDirty();
 	}
 
 	/** Hands a settlement to another faction (conquest, cession, secession). Its people follow when they next wake. */

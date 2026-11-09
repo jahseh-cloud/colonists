@@ -142,11 +142,12 @@ public final class AtlasServer {
 			int relation = my == null ? fm.standing(p, f.id) : my == f ? 100 : fm.relation(my.id, f.id);
 			factions.add(new AtlasPayloads.FactionInfo(f.id, f.name, rgb == null ? 0xFFFFFF : rgb, f.realmTitle(), f.government.label,
 					f.rulerName, f.rulerPlayer != null, relation, f.atWar, f.approval, f.armyOpinion, f.courtOpinion, f.warGoal, laws,
-					f.slavery, treasury, fm.memberCount(f.id), f.overlord, f == my, f.religion, f.banner, f.era));
+					f.slavery, treasury, f.clan ? f.settlements.values().stream().mapToInt(x -> x.warriors).sum() + fm.memberCount(f.id) : fm.memberCount(f.id),
+					f.overlord, f == my, f.religion, f.banner, f.era));
 			for (Settlement s : f.settlements.values()) {
 				if (s.cityCenter == null) continue;
 				int[] b = s.bounds(now);
-				towns.add(new AtlasPayloads.TownInfo(s.id, f.id, s.name, s.rank.label, s.cityCenter.getX(), s.cityCenter.getZ(),
+				towns.add(new AtlasPayloads.TownInfo(s.id, f.id, s.name, s.camp ? "War camp" : s.rank.label, s.cityCenter.getX(), s.cityCenter.getZ(),
 						b[0], b[1], b[2], b[3], s.population(), s.loyalty, s.treasury, s.countJob("GUARD"), s.occupation > 0,
 						s.isCapital(), s.taxRate, s.garrison, s.autonomy, s.priority));
 			}

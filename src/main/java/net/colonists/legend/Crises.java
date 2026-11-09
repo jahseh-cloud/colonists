@@ -50,7 +50,8 @@ public final class Crises {
 		MESSENGER("The Messenger", Kind.MESSENGER, 15, 90), KHAN("The Khan", Kind.KHAN, 10, 45),
 		IMPERATOR("The Imperator", Kind.IMPERATOR, 0, 0), GREAT("The Great", Kind.GREAT, 12, 40),
 		PRETENDER("The Pretender", Kind.PRETENDER, 8, 25), REVOLT("The Peasants' Revolt", Kind.REBEL, 6, 20),
-		GOLDEN("The Golden Age", Kind.MAGNIFICENT, 8, 30), HERETIC("The False Prophet", Kind.FALSE_PROPHET, 0, 30);
+		GOLDEN("The Golden Age", Kind.MAGNIFICENT, 8, 30), HERETIC("The False Prophet", Kind.FALSE_PROPHET, 0, 30),
+		GREAT_RAID("The Great Raid", Kind.KHAN, 12, 40);
 
 		public final String label;
 		public final Kind kind;
@@ -88,7 +89,7 @@ public final class Crises {
 		int running = (int) h.crises.stream().filter(c -> c.active() && c.figure != null).count();
 		// New crises, rarely, and more often when the age invites them.
 		if (running < 3) {
-			for (Type t : new Type[]{Type.MESSENGER, Type.KHAN, Type.GREAT, Type.PRETENDER, Type.REVOLT, Type.GOLDEN, Type.HERETIC}) {
+			for (Type t : new Type[]{Type.MESSENGER, Type.KHAN, Type.GREAT, Type.PRETENDER, Type.REVOLT, Type.GOLDEN, Type.HERETIC, Type.GREAT_RAID}) {
 				if (day < t.earliest || active(h, t) != null || day - lastStart(h, t) < t.cooldown) continue;
 				int odds = switch (t) {
 					case MESSENGER -> h.faith > 0 ? 240 : 900;
@@ -98,6 +99,8 @@ public final class Crises {
 					case REVOLT -> 500;
 					// The False Prophet only comes to trouble a Messenger's faith.
 					case HERETIC -> h.crises.stream().anyMatch(x -> x.active() && x.type.equals(Type.MESSENGER.name())) ? 300 : Integer.MAX_VALUE;
+					case GREAT_RAID -> net.colonists.clan.Clans.clans(fm).size() >= 2
+							&& net.colonists.clan.Clans.camps(fm).stream().mapToInt(x -> x.warriors).sum() >= 30 ? 350 : Integer.MAX_VALUE;
 					default -> 500;
 				};
 				if (random.nextInt(odds) == 0 && start(server, t, null) != null) break;
@@ -140,6 +143,7 @@ public final class Crises {
 				case REVOLT -> revolt(server, fm, h, c, realm, day, random);
 				case GOLDEN -> golden(server, fm, h, c, realm, day, random);
 				case HERETIC -> heretic(server, fm, h, c, realm, day, random);
+				case GREAT_RAID -> net.colonists.clan.Clans.greatRaidDay(server, c, realm, day);
 			}
 		}
 		h.markDirty();
@@ -162,6 +166,7 @@ public final class Crises {
 			case REVOLT -> startRevolt(server, fm, h, day, random);
 			case GOLDEN -> startGolden(server, fm, h, day, random);
 			case HERETIC -> startHeretic(server, fm, h, day, random);
+			case GREAT_RAID -> net.colonists.clan.Clans.startGreatRaid(server);
 			case IMPERATOR -> {
 				History.Fracture fr = h.fractures.stream().filter(x -> !x.claimed).reduce((a, b) -> b).orElse(null);
 				if (fr == null) {
@@ -621,6 +626,9 @@ public final class Crises {
 				case GOLDEN -> finish(server, h, c, realm, "died, and the Golden Age of the " + (realm == null ? "realm" : realm.name) + " passed with him", day);
 				case HERETIC -> {
 					finish(server, h, c, realm, "was hunted down and slain by the faithful", day);
+				}
+				case GREAT_RAID -> {
+					finish(server, h, c, realm, "was cut down, and the Great Raid broke apart", day);
 				}
 				case MESSENGER -> {
 					// The Messenger is gone, but the record stays open: the Caliphs follow him.
@@ -1140,6 +1148,7 @@ public final class Crises {
 				case IMPERATOR -> 2;
 				case MESSENGER -> c.figure != null ? 3 : 1;
 				case PRETENDER, REVOLT, HERETIC -> 1;
+				case GREAT_RAID -> 2;
 				case GOLDEN -> 0;
 			};
 		}

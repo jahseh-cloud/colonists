@@ -76,6 +76,25 @@ public final class SiegeworksCompat {
 		return e;
 	}
 
+	/** An engine for a clan's war band, at a spot of its choosing (its crew are tagged by the caller). */
+	@Nullable
+	public static Entity bringEngineAt(ServerWorld world, Settlement s, Faction attacker, BlockPos at) {
+		if (!PRESENT || s.cityCenter == null || enginesAt(world, s).size() >= 2) return null;
+		String name = world.random.nextBoolean() ? "battering_ram" : "catapult";
+		EntityType<?> type = Registries.ENTITY_TYPE.get(Identifier.of("siegeworks", name));
+		Entity e = type.create(world);
+		if (e == null) return null;
+		int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ());
+		float yaw = (float) Math.toDegrees(Math.atan2(-(s.cityCenter.getX() - at.getX()), s.cityCenter.getZ() - at.getZ()));
+		e.refreshPositionAndAngles(at.getX() + 0.5, y, at.getZ() + 0.5, yaw, 0);
+		target(e, s.cityCenter);
+		e.addCommandTag("colonists_siege");
+		e.addCommandTag("colonists_siege_" + s.id);
+		world.spawnEntity(e);
+		net.colonists.faction.FactionManager.broadcastNear(world, s.cityCenter, 200, Text.literal("⚙ The " + attacker.name + " drag a " + name.replace('_', ' ') + " against " + s.name + "!").formatted(Formatting.DARK_RED));
+		return e;
+	}
+
 	static void target(Entity e, @Nullable BlockPos at) {
 		NbtCompound n = new NbtCompound();
 		e.writeNbt(n);

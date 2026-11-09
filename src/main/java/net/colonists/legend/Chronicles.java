@@ -230,6 +230,7 @@ public final class Chronicles {
 					: when + ", " + who + " forced the old realm of " + e.targetName + " back together by fire and sword.";
 			case CALIPH -> when + ", " + e.person + " became the " + e.extra + " Caliph of " + actor + ".";
 			case CRISIS_END -> when + ", " + who + " " + e.extra + ".";
+			case RAID -> when + ", the barbarians of the " + e.actorName + " " + e.extra + ".";
 			case SCHISM -> when + ", the faithful of " + actor + " were torn apart: " + e.extra + " broke away" + (sa > 0 ? ", heretics all." : ".");
 			case AGE -> when + ", " + e.person.toLowerCase() + ". So began " + e.extra + ".";
 			case ERA -> when + ", " + actor + " entered their " + e.extra + " era" + (sa > 0 ? ", and grew mighty." : ".");

@@ -74,6 +74,15 @@ public class Justice extends PersistentState {
 	/** faction id → (person → record) */
 	public final Map<String, Map<UUID, Record>> records = new HashMap<>();
 
+	/** Wanted for something, or banished, by any realm. */
+	public boolean wantedAnywhere(UUID who) {
+		for (Map<UUID, Record> m : this.records.values()) {
+			Record r = m.get(who);
+			if (r != null && (r.heat > 0 || r.exiled)) return true;
+		}
+		return false;
+	}
+
 	@Nullable
 	public Record record(String faction, UUID who) {
 		Map<UUID, Record> m = this.records.get(faction);

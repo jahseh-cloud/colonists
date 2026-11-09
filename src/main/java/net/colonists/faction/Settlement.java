@@ -79,6 +79,17 @@ public class Settlement {
 	 *  freemen = villagers counted on the last survey; grievance = how restless its colonist guests are. */
 	public boolean village;
 	public int freemen;
+	/**
+	 * An illager war camp: its fighting strength (warriors, counted whether or not they are loaded), its stores of loot,
+	 * timber and ore, how far it has been built up (0-6), its fury (how bloodthirsty), captives taken, the last raid, and
+	 * the war band it has out (entity ids, and the town they march on).
+	 */
+	public boolean camp;
+	public int warriors, stock, campLevel, fury = 60, captives;
+	public long lastRaidDay = -100;
+	public final java.util.List<java.util.UUID> band = new java.util.ArrayList<>();
+	public int bandTarget = -1;
+	public long bandSince;
 	public int grievance;
 	public long lastNewcomerDay = -1;
 	/** How far this village's chroniclers have written (event index) and how many volumes. */
@@ -114,6 +125,8 @@ public class Settlement {
 		int[] b;
 		if (c == null) {
 			b = new int[]{0, 0, -1, -1};
+		} else if (this.camp) {
+			b = new int[]{c.getX() - 28, c.getZ() - 28, c.getX() + 28, c.getZ() + 28};
 		} else if (this.village) {
 			b = new int[]{this.vMinX, this.vMinZ, this.vMaxX, this.vMaxZ};
 		} else if (this.wallPlanned) {
@@ -190,7 +203,7 @@ public class Settlement {
 
 	public int population() {
 		if (this.faction == null) return 0;
-		int n = (this.village ? this.freemen : 0) + this.pendingNewcomers;
+		int n = (this.village ? this.freemen : 0) + (this.camp ? this.warriors : 0) + this.pendingNewcomers;
 		for (Faction.Citizen c : this.faction.citizens.values()) if (c.settlement == this.id) n++;
 		return n;
 	}
@@ -255,6 +268,21 @@ public class Settlement {
 		nbt.putBoolean("Autonomy", this.autonomy);
 		nbt.putString("Priority", this.priority);
 		nbt.putBoolean("Village", this.village);
+		if (this.camp) {
+			NbtCompound cn = new NbtCompound();
+			cn.putInt("Warriors", this.warriors);
+			cn.putInt("Stock", this.stock);
+			cn.putInt("Level", this.campLevel);
+			cn.putInt("Fury", this.fury);
+			cn.putInt("Captives", this.captives);
+			cn.putLong("LastRaid", this.lastRaidDay);
+			net.minecraft.nbt.NbtList bl = new net.minecraft.nbt.NbtList();
+			for (java.util.UUID u : this.band) bl.add(net.minecraft.nbt.NbtHelper.fromUuid(u));
+			cn.put("Band", bl);
+			cn.putInt("BandTarget", this.bandTarget);
+			cn.putLong("BandSince", this.bandSince);
+			nbt.put("Camp", cn);
+		}
 		nbt.putInt("Freemen", this.freemen);
 		nbt.putInt("Grievance", this.grievance);
 		nbt.putLong("NewcomerDay", this.lastNewcomerDay);
@@ -284,6 +312,19 @@ public class Settlement {
 		s.autonomy = nbt.getBoolean("Autonomy");
 		s.priority = nbt.getString("Priority");
 		s.village = nbt.getBoolean("Village");
+		if (nbt.contains("Camp")) {
+			NbtCompound cn = nbt.getCompound("Camp");
+			s.camp = true;
+			s.warriors = cn.getInt("Warriors");
+			s.stock = cn.getInt("Stock");
+			s.campLevel = cn.getInt("Level");
+			s.fury = cn.getInt("Fury");
+			s.captives = cn.getInt("Captives");
+			s.lastRaidDay = cn.getLong("LastRaid");
+			for (net.minecraft.nbt.NbtElement e : cn.getList("Band", net.minecraft.nbt.NbtElement.INT_ARRAY_TYPE)) s.band.add(net.minecraft.nbt.NbtHelper.toUuid(e));
+			s.bandTarget = cn.getInt("BandTarget");
+			s.bandSince = cn.getLong("BandSince");
+		}
 		s.freemen = nbt.getInt("Freemen");
 		s.grievance = nbt.getInt("Grievance");
 		s.lastNewcomerDay = nbt.contains("NewcomerDay") ? nbt.getLong("NewcomerDay") : -1;
