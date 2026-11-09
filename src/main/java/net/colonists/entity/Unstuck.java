@@ -59,12 +59,12 @@ final class Unstuck {
 
 	/** In a pit, lost underground, or (for miners) not having moved for half a minute. */
 	static boolean trapped(ColonistEntity c, ServerWorld world) {
-		if (c.isTouchingWater() || c.isInLava()) return false; // swimming is the navigator's business
+		if (c.isTouchingWater() || c.isInLava() || c.isClimbing()) return false; // swimming is the navigator's business
 		BlockPos feet = c.getBlockPos();
 		if (miner(c)) return c.stillTicks >= 600;
 		int surface = City.surfaceY(world, feet.getX(), feet.getZ());
 		// Deep below the open sky with no reason to be there.
-		if (feet.getY() < surface - 3 && !world.isSkyVisible(feet.up())) return true;
+		if (feet.getY() < surface - 3 && !world.isSkyVisible(feet.up()) && !indoors(world, feet, surface)) return true;
 		// A pit: walls at head height on every side, so no jump gets out.
 		int walls = 0;
 		for (Direction d : Direction.Type.HORIZONTAL) {
@@ -72,6 +72,15 @@ final class Unstuck {
 			if (solid(world, side.up()) && (solid(world, side) || solid(world, side.up(2)))) walls++;
 		}
 		return walls == 4 && c.stillTicks >= 60;
+	}
+
+	/** Under a built roof (any block that isn't natural ground) rather than buried: a house, not a cave. */
+	static boolean indoors(ServerWorld world, BlockPos feet, int surface) {
+		for (int y = feet.getY() + 2; y < surface; y++) {
+			BlockState s = world.getBlockState(feet.withY(y));
+			if (!s.isAir() && !City.isNatural(s)) return true;
+		}
+		return false;
 	}
 
 	static boolean solid(ServerWorld world, BlockPos p) {

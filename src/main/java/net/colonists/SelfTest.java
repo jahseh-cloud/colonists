@@ -625,7 +625,7 @@ public final class SelfTest {
 			if (upstairsColonist == null) return;
 			if (!(w.getEntity(upstairsColonist) instanceof ColonistEntity c)) return;
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST upstairs bed: {} at {} (bed {}), sleeping {}, doing \"{}\"", c.fullName(), c.getBlockPos(), upstairsBed, c.isSleeping(), c.activity);
-			if (c.getY() < upstairsBed.getY() - 1) throw new IllegalStateException("the colonist never climbed to the upstairs bed");
+			if (c.getY() < upstairsBed.getY() - 0.5 || c.getBlockPos().getSquaredDistance(upstairsBed) > 9) throw new IllegalStateException("the colonist never climbed to the upstairs bed");
 		});
 		if (t == 100400) step("ai", () -> {
 			// The utility AI: needs move, personalities differ, a worn-out colonist would rather rest than work,
