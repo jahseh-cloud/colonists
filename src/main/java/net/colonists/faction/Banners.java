@@ -145,7 +145,9 @@ public final class Banners {
 		}
 		for (BlockPos p : spots) {
 			BlockPos top = p.withY(City.surfaceYOr(world, p.getX(), p.getZ(), p.getY()));
-			if (!world.getBlockState(top).isAir() || !world.getBlockState(top.down()).isSolidBlock(world, top.down())) continue;
+			BlockState under = world.getBlockState(top.down());
+			if (!world.getBlockState(top).isAir() || under.isReplaceable() || !under.getFluidState().isEmpty()
+					|| under.isIn(net.minecraft.registry.tag.BlockTags.LEAVES)) continue;
 			BlockState state = BannerBlock.getForColor(base).getDefaultState().with(Properties.ROTATION, world.getRandom().nextInt(16));
 			world.setBlockState(top, state);
 			if (world.getBlockEntity(top) instanceof BannerBlockEntity be) {

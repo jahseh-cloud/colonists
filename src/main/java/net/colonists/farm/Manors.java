@@ -596,7 +596,9 @@ public final class Manors {
 		for (Field f : m.fields) {
 			int cx = Math.abs(f.x0 - s.cityCenter.getX()) < Math.abs(f.x1 - s.cityCenter.getX()) ? f.x0 - 1 : f.x1 + 1;
 			int cz = Math.abs(f.z0 - s.cityCenter.getZ()) < Math.abs(f.z1 - s.cityCenter.getZ()) ? f.z0 - 1 : f.z1 + 1;
-			net.colonists.faction.Banners.fly(world, new BlockPos[]{new BlockPos(cx, 64, cz), new BlockPos(cx, 64, cz + (cz < f.z0 ? -1 : 1))}, m.banner, who);
+			int ox = cx < f.x0 ? -1 : 1, oz = cz < f.z0 ? -1 : 1;
+			net.colonists.faction.Banners.fly(world, new BlockPos[]{new BlockPos(cx, 64, cz), new BlockPos(cx, 64, cz + oz),
+					new BlockPos(cx + ox, 64, cz), new BlockPos(cx + ox, 64, cz + oz), new BlockPos(cx + 2 * ox, 64, cz + 2 * oz)}, m.banner, who);
 		}
 	}
 
