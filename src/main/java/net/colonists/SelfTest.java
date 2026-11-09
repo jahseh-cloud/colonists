@@ -585,7 +585,7 @@ public final class SelfTest {
 		if (t == 100400) step("ai", () -> {
 			// The utility AI: needs move, personalities differ, a worn-out colonist would rather rest than work,
 			// and the planning/pathfinding budgets keep the tick time in check.
-			java.util.List<ColonistEntity> all = w.getEntitiesByType(ColonistsMod.COLONIST, x -> !x.isBaby());
+			java.util.List<? extends ColonistEntity> all = w.getEntitiesByType(ColonistsMod.COLONIST, x -> !x.isBaby());
 			if (all.isEmpty()) return;
 			int tired = 0, lonely = 0, minDil = 100, maxDil = 0;
 			java.util.Map<String, Integer> doing = new java.util.TreeMap<>();
