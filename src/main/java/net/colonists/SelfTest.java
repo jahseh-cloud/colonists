@@ -595,7 +595,7 @@ public final class SelfTest {
 			Settlement f = c.settlement();
 			net.colonists.build.Blueprint bp = net.colonists.build.Blueprints.ROW_HOUSE;
 			BlockPos o = c.getBlockPos().add(4, 0, 4);
-			o = o.withY(net.colonists.faction.City.surfaceY(w, o.getX(), o.getZ()));
+			o = o.withY(c.getBlockY());
 			net.colonists.build.Site site = new net.colonists.build.Site(o, net.minecraft.util.BlockRotation.NONE);
 			net.colonists.clan.ClanBuildings.stamp(w, site, bp);
 			f.buildingTypes.put(o, bp.id);
@@ -617,6 +617,10 @@ public final class SelfTest {
 			w.setTimeOfDay(w.getTimeOfDay() / 24000L * 24000L + 14500);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST upstairs: {} in a row house at {}, bed at {} (ladder {})", c.fullName(), o, foot, site.at(bp.ladder));
 		});
+		if (t > 101000 && t < 102600 && t % 100 == 0 && upstairsColonist != null && w.getEntity(upstairsColonist) instanceof ColonistEntity uc) {
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST upstairs trace t+{}: at {} doing \"{}\" sleeping {} home {} phase {} ladder {}", t - 101000, uc.getPos(), uc.activity,
+					uc.isSleeping(), uc.home, net.colonists.ai.Schedule.phase(uc), w.getBlockState(upstairsBed.add(-2, -4, 2)).getBlock());
+		}
 		if (t == 102600) step("upstairs-bed", () -> {
 			if (upstairsColonist == null) return;
 			if (!(w.getEntity(upstairsColonist) instanceof ColonistEntity c)) return;
