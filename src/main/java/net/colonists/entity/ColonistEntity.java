@@ -126,6 +126,9 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 	@Nullable public BlockPos guardPost;
 	/** The day this colonist last went to the evening gathering (not saved: at worst they go twice). */
 	public long gatheredDay = -1;
+	/** Getting unstuck (see Unstuck): where it stood a second ago, how long it has not moved, been trapped, and climbed. */
+	@Nullable net.minecraft.util.math.Vec3d unstuckLast;
+	int stillTicks, trappedTicks, climbSteps;
 	public int retainerKills;
 	private final Map<UUID, Long> greeted = new HashMap<>();
 
@@ -175,6 +178,16 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 		for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
 			this.setEquipmentDropChance(slot, 2.0f);
 		}
+	}
+
+	/**
+	 * How far the pathfinder lets a colonist drop: one block at a time (so it never walks into a pit it cannot jump back
+	 * out of); soldiers on the march two; miners, who climb in and out of their shafts, the usual.
+	 */
+	@Override
+	public int getSafeFallDistance() {
+		if (Unstuck.miner(this)) return super.getSafeFallDistance();
+		return this.isSoldier() && this.getTarget() == null ? 2 : this.getTarget() != null ? 3 : 1;
 	}
 
 	public static DefaultAttributeContainer.Builder createColonistAttributes() {
@@ -570,6 +583,7 @@ public class ColonistEntity extends PathAwareEntity implements InventoryOwner, n
 			this.searchCooldowns.values().removeIf(t -> t < now);
 		}
 		if (phase % 2400 == 0) Society.tick(this, sw);
+		if (phase % 20 == 5) Unstuck.check(this, sw);
 		if (phase % 20 == 0 && this.liege != null) this.guardLiege();
 		if (phase % 200 == 0) {
 			this.followConquest();

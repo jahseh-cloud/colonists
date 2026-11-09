@@ -43,6 +43,8 @@ public final class SelfTest {
 	private static int growthTown = -1, growthBefore;
 	private static String clanId = "";
 	private static int clanCamp = -1;
+	private static java.util.UUID pitColonist;
+	private static int pitBottom;
 	private static long start = -1;
 	private static BlockPos a, b, v;
 	private static final List<String> failures = new ArrayList<>();
@@ -381,7 +383,7 @@ public final class SelfTest {
 			}
 			m.id = 99;
 			m.name = "Test Grange";
-			m.lord = big.faction.citizens.keySet().iterator().next();
+			m.lord = big.faction.citizens.isEmpty() ? java.util.UUID.randomUUID() : big.faction.citizens.keySet().iterator().next();
 			m.lordName = "the test lord";
 			double d = Math.hypot(fld.center().getX() - big.cityCenter.getX(), fld.center().getZ() - big.cityCenter.getZ());
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST manor field: {} {}x{} ({} blocks) at {}, {} blocks from the plaza (reach {})", fld.crop, fld.width(), fld.depth(),
@@ -487,6 +489,8 @@ public final class SelfTest {
 			Settlement town = fm.allSettlements().stream().filter(x -> !x.village && !x.camp && x.cityCenter != null && x.faction != null && !x.faction.clan)
 					.max(java.util.Comparator.comparingInt(Settlement::population)).orElseThrow();
 			BlockPos near = town.cityCenter.add(70, 0, 0);
+			for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) w.setChunkForced((near.getX() >> 4) + dx, (near.getZ() >> 4) + dz, true);
+			w.getChunk(near.getX() >> 4, near.getZ() >> 4);
 			near = near.withY(net.colonists.faction.City.surfaceY(w, near.getX(), near.getZ()));
 			Faction clan = net.colonists.clan.Clans.found(w, fm, near, 14, null);
 			Settlement camp = clan.capital();
@@ -531,6 +535,7 @@ public final class SelfTest {
 			}
 			// A second clan, and then the Great Raid.
 			BlockPos far = camp.cityCenter.add(0, 0, 90);
+			w.getChunk(far.getX() >> 4, far.getZ() >> 4);
 			net.colonists.clan.Clans.found(w, fm, far.withY(net.colonists.faction.City.surfaceY(w, far.getX(), far.getZ())), 10, null);
 			String raid = net.colonists.legend.Crises.start(server, net.colonists.legend.Crises.Type.GREAT_RAID, null);
 			ColonistsMod.LOGGER.info("COLONISTS SELFTEST great raid: {}; clans now {}", raid == null ? "began" : raid,
@@ -548,6 +553,30 @@ public final class SelfTest {
 			int before = net.colonists.clan.Clans.camps(fm).size();
 			net.colonists.faction.Empire.conquer(server, fm, burn, realm, false);
 			if (net.colonists.clan.Clans.camps(fm).size() != before - 1) throw new IllegalStateException("a stormed camp should burn");
+		});
+		if (t == 98000) step("pit", () -> {
+			// Drop a colonist into a pit four deep, with walls all round, and see that it gets out.
+			ColonistEntity c = w.getEntitiesByClass(ColonistEntity.class, new net.minecraft.util.math.Box(w.getSpawnPos()).expand(400, 200, 400),
+					o -> o.isAlive() && !o.isBaby() && !o.isSleeping() && !o.hasVehicle()).stream().findFirst().orElse(null);
+			if (c == null) return;
+			BlockPos top = c.getBlockPos().withY(net.colonists.faction.City.surfaceY(w, c.getBlockX(), c.getBlockZ()));
+			BlockPos bottom = top.down(4);
+			for (int dy = 0; dy <= 5; dy++) for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+				BlockPos p = bottom.add(dx, dy, dz);
+				boolean shaft = dx == 0 && dz == 0 && dy >= 0;
+				w.setBlockState(p, shaft ? net.minecraft.block.Blocks.AIR.getDefaultState() : net.minecraft.block.Blocks.STONE.getDefaultState());
+			}
+			w.setBlockState(bottom.down(), net.minecraft.block.Blocks.STONE.getDefaultState());
+			c.refreshPositionAndAngles(bottom.getX() + 0.5, bottom.getY(), bottom.getZ() + 0.5, 0, 0);
+			pitColonist = c.getUuid();
+			pitBottom = bottom.getY();
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST pit: {} dropped into a pit at {}", c.fullName(), bottom);
+		});
+		if (t == 98600) step("pit-escape", () -> {
+			if (pitColonist == null) return;
+			if (!(w.getEntity(pitColonist) instanceof ColonistEntity c)) return;
+			ColonistsMod.LOGGER.info("COLONISTS SELFTEST pit escape: {} now at y {} (pit floor {})", c.fullName(), c.getBlockY(), pitBottom);
+			if (c.getBlockY() <= pitBottom + 1) throw new IllegalStateException("the colonist is still stuck in the pit");
 		});
 		if (t == 100000) step("chronicles-again", () -> Chronicles.tick(server, fm));
 		if (t == LENGTH) {

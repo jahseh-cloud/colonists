@@ -160,6 +160,15 @@ How much the land gets reshaped grows with the settlement's rank, and stays mode
 - Mines run from the bottom of the quarry. Miners light them, plug water and lava, bridge holes, and follow ore veins they uncover.
 - Builders only ever reshape natural terrain, never anything a player built.
 
+## Getting unstuck
+
+Colonists don't stay stuck in holes and caves:
+
+- **They don't walk into pits.** When planning a path, a colonist steps down only one block at a time, so it never drops into a hole it can't jump back out of. Soldiers on the march allow two, anyone in a fight three, and miners keep their usual footing.
+- **Trapped colonists get out.** Every second, each colonist checks whether it's **trapped**: in a pit with walls on every side, deep underground with no reason to be there, or (for miners) not having moved in half a minute.
+  - After five seconds trapped, if a player is watching, it **digs out** like a player would: through natural ground overhead (never anything built), stepping up onto a dirt block placed underfoot.
+  - Otherwise, or if digging doesn't work, it makes its way back to the nearest open ground, or failing that its home or the plaza.
+
 ## Families
 
 - Every colonist has a first name, a **surname** and three **traits**: ambition, aggression and kindness.

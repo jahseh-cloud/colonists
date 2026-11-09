@@ -127,7 +127,7 @@ public final class Clans {
 
 	public static List<Faction> clans(FactionManager fm) {
 		List<Faction> list = new ArrayList<>();
-		for (Faction f : fm.all()) if (f.clan) list.add(f);
+		for (Faction f : fm.all()) if (f.clan && !f.settlements.isEmpty()) list.add(f);
 		return list;
 	}
 
@@ -191,6 +191,9 @@ public final class Clans {
 	/** A new clan (or a new camp of an existing one). */
 	public static Faction found(ServerWorld world, FactionManager fm, BlockPos center, int warriors, @Nullable Faction parent) {
 		MinecraftServer server = world.getServer();
+		// Stand the camp on the real ground (load it if need be).
+		world.getChunk(center.getX() >> 4, center.getZ() >> 4);
+		center = center.withY(City.surfaceY(world, center.getX(), center.getZ()));
 		Random r = world.getRandom();
 		Faction clan = parent;
 		if (clan == null) {
@@ -827,6 +830,7 @@ public final class Clans {
 				}
 			}
 		}
+		for (Faction other : clans) if (other != host) fm.dissolveIfEmpty(server, other);
 		Random r = server.getOverworld().getRandom();
 		String king = CHIEFS[r.nextInt(CHIEFS.length)] + " the Barbarian King";
 		host.rulerName = king;
