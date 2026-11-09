@@ -483,7 +483,6 @@ public class WorkGoal extends Goal {
 			return null;
 		});
 		return list;
-		return null;
 	}
 
 	private static int stone(SimpleInventory inv) {
